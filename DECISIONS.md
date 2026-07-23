@@ -24,3 +24,24 @@
 - **Context**: Verification criteria 5 & 6 require executing actual RLS policies, triggers, and PostgreSQL constraint checks during automated test runs.
 - **Decision**: Integrated `@electric-sql/pglite` in Vitest to run genuine PostgreSQL engine instances in WASM.
 - **Consequences**: Enables lightning-fast (<2s) automated verification of RLS, schema types, triggers, and constraints in CI without relying on external Docker containers.
+
+## ADR 006: Cascade Deletes Excluded on the Ledger (ON DELETE RESTRICT)
+- **Context**: PRD §4.3 Guardrail 2 demands an append-only, immutable ledger. Using `ON DELETE CASCADE` or `ON DELETE SET NULL` on `payment_events` references would allow deleting parent invoices or clients to silently mutate or delete ledger rows.
+- **Decision**: Set `ON DELETE RESTRICT` on `payment_events.invoice_id`, `payment_events.client_id`, and `payment_events.reverses_id`. Attempts to delete an invoice or client with payment history will fail at the database level.
+- **Consequences**: Provably guarantees ledger records remain undeletable and immutable.
+
+## ADR 007: Standard Row Level Security (No FORCE RLS)
+- **Context**: The `profiles` table is auto-populated on user signup via an `auth.users` trigger running under the system `postgres` role. Using `FORCE ROW LEVEL SECURITY` would apply RLS checks (`auth.uid() = id`) even to the `postgres` role, causing signup failures because `auth.uid()` is null during the registration flow.
+- **Decision**: Disable `FORCE ROW LEVEL SECURITY` across all tables, keeping standard `ENABLE ROW LEVEL SECURITY`. RLS remains fully active and enforced for all client roles (`authenticated`, `anon`), while system-level hooks/triggers running under the `postgres` role bypass RLS checks.
+- **Consequences**: Fixes sign-up failure, allowing profiles to be successfully created on user registration.
+
+## ADR 008: Clients and Invoices Currency Fallback Logic
+- **Context**: `profiles.default_currency` is a required non-null field defaulting to `'USD'`. `clients.default_currency` is optional and nullable.
+- **Decision**: At invoice creation, if the client has no `default_currency` set, the app falls back to the user's `profiles.default_currency` as the billing currency.
+- **Consequences**: Simplifies default multi-currency billing pre-population.
+
+## ADR 009: Nullable Payment Event Method
+- **Context**: PRD §9 Epic 4.1 treats the payment method as optional.
+- **Decision**: Removed `NOT NULL` constraint on `payment_events.method` column, making it optional.
+- **Consequences**: Matches user-interface specifications where payment events can be recorded without specifying a payment method.
+

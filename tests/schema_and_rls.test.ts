@@ -242,4 +242,52 @@ describe("Clario Database Schema & RLS Security Suite", () => {
 
     await db.exec(`SET ROLE postgres;`);
   });
+
+  it("Cascade restricts: attempting to DELETE an invoice with payment events must FAIL", async () => {
+    const userCascadeId = "77777777-7777-7777-7777-777777777777";
+    await db.exec(`SET ROLE postgres;`);
+    await db.exec(`INSERT INTO auth.users (id, email) VALUES ('${userCascadeId}', 'usercascade@example.com') ON CONFLICT DO NOTHING;`);
+    await db.exec(`INSERT INTO public.profiles (id, default_currency) VALUES ('${userCascadeId}', 'USD') ON CONFLICT DO NOTHING;`);
+
+    const clientId = "70000000-0000-0000-0000-000000000001";
+    const invoiceId = "70000000-0000-0000-0000-000000000002";
+    const paymentId = "70000000-0000-0000-0000-000000000003";
+
+    // Setup: Insert client, invoice, and payment event
+    await db.exec(`SET ROLE authenticated;`);
+    await db.exec(`SET request.jwt.claim.sub = '${userCascadeId}';`);
+
+    await db.exec(`
+      INSERT INTO public.clients (id, user_id, name) VALUES ('${clientId}', '${userCascadeId}', 'Client Cascade');
+      INSERT INTO public.invoices (id, user_id, client_id, invoice_number, currency) VALUES ('${invoiceId}', '${userCascadeId}', '${clientId}', 'INV-CS1', 'USD');
+      INSERT INTO public.payment_events (id, user_id, invoice_id, client_id, amount_minor, currency, method)
+      VALUES ('${paymentId}', '${userCascadeId}', '${invoiceId}', '${clientId}', 5000, 'USD', 'cash');
+    `);
+
+    // Verify delete of invoice fails due to foreign key RESTRICT constraint on payment_events
+    await expect(
+      db.exec(`DELETE FROM public.invoices WHERE id = '${invoiceId}';`)
+    ).rejects.toThrow(/violates foreign key constraint/);
+
+    await db.exec(`SET ROLE postgres;`);
+  });
+
+  it("Trigger profiles creation: auth.users insert creates profiles row with default_currency = 'USD'", async () => {
+    const signupUserId = "33333333-3333-3333-3333-333333333333";
+    await db.exec(`SET ROLE postgres;`);
+    
+    // Simulate real Supabase auth sign-up (auth.users INSERT)
+    await db.exec(`
+      INSERT INTO auth.users (id, email)
+      VALUES ('${signupUserId}', 'newuser@example.com');
+    `);
+
+    // Verify corresponding profile row is automatically created with USD default currency
+    const res = await db.query<{ default_currency: string }>(
+      `SELECT default_currency FROM public.profiles WHERE id = '${signupUserId}';`
+    );
+    expect(res.rows.length).toBe(1);
+    expect(res.rows[0].default_currency).toBe("USD");
+  });
 });
+

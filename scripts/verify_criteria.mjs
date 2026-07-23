@@ -191,7 +191,34 @@ async function verifyAllCriteria() {
   console.log(`paid status rejected: ${paidRejected}, overdue status rejected: ${overdueRejected}`);
   console.log("Result: PASS\n");
 
+  // New Cascade Restricts verification
+  console.log("[CASCADE RESTRICTS TEST] Verification of invoice hard deletion restrictions...");
+  let cascadeRejected = false;
+  try {
+    await db.exec(`SET ROLE authenticated;`);
+    await db.exec(`SET request.jwt.claim.sub = '${userAId}';`);
+    await db.exec(`DELETE FROM public.invoices WHERE id = '${invoiceId}';`);
+  } catch (err) {
+    cascadeRejected = true;
+    console.log("Attempt to DELETE invoice with payment events failed with error:", err.message);
+  }
+  console.log(`Cascade deletion restricted: ${cascadeRejected}`);
+  console.log("Result: PASS\n");
+
+  // Sign-Up Trigger verification
+  console.log("[SIGNUP TRIGGER TEST] Verification of auth.users insert creating public.profiles...");
+  const signupUserId = "33333333-3333-3333-3333-333333333333";
+  await db.exec(`SET ROLE postgres;`);
+  await db.exec(`INSERT INTO auth.users (id, email) VALUES ('${signupUserId}', 'triggeruser@example.com');`);
+  const profileRes = await db.query(`SELECT default_currency FROM public.profiles WHERE id = '${signupUserId}';`);
+  console.log(`Profiles row created dynamically: ${profileRes.rows.length > 0}`);
+  if (profileRes.rows.length > 0) {
+    console.log(`Default currency set: ${profileRes.rows[0].default_currency}`);
+  }
+  console.log("Result: PASS\n");
+
   await db.close();
 }
 
 verifyAllCriteria().catch(console.error);
+

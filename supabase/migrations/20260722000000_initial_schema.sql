@@ -81,14 +81,14 @@ CREATE TABLE public.invoice_line_items (
 CREATE TABLE public.payment_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  invoice_id uuid NOT NULL REFERENCES public.invoices(id) ON DELETE CASCADE,
-  client_id uuid NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  invoice_id uuid NOT NULL REFERENCES public.invoices(id) ON DELETE RESTRICT,
+  client_id uuid NOT NULL REFERENCES public.clients(id) ON DELETE RESTRICT,
   amount_minor bigint NOT NULL,
   currency char(3) NOT NULL,
-  method text NOT NULL CHECK (method IN ('cash', 'bank_transfer', 'card', 'mobile_money', 'other')),
+  method text CHECK (method IN ('cash', 'bank_transfer', 'card', 'mobile_money', 'other')),
   note text,
   occurred_at date NOT NULL DEFAULT CURRENT_DATE,
-  reverses_id uuid REFERENCES public.payment_events(id) ON DELETE SET NULL,
+  reverses_id uuid REFERENCES public.payment_events(id) ON DELETE RESTRICT,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -110,22 +110,11 @@ CREATE INDEX idx_payment_events_user_id_created_at ON public.payment_events(user
 --------------------------------------------------------------------------------
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.profiles FORCE ROW LEVEL SECURITY;
-
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.clients FORCE ROW LEVEL SECURITY;
-
 ALTER TABLE public.client_links ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.client_links FORCE ROW LEVEL SECURITY;
-
 ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.invoices FORCE ROW LEVEL SECURITY;
-
 ALTER TABLE public.invoice_line_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.invoice_line_items FORCE ROW LEVEL SECURITY;
-
 ALTER TABLE public.payment_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.payment_events FORCE ROW LEVEL SECURITY;
 
 -- profiles RLS policies
 CREATE POLICY "profiles_select_own" ON public.profiles
