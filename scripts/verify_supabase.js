@@ -74,19 +74,21 @@ async function verifyAll() {
     console.log("[VERIFY CRITERION 5] Append-only payment_events tests...");
     const criterion5Sql = `
       BEGIN;
+      -- Setup test user in auth schema
       INSERT INTO auth.users (id, email) VALUES ('11111111-1111-1111-1111-111111111111', 'usera@example.com') ON CONFLICT DO NOTHING;
       INSERT INTO public.profiles (id, default_currency) VALUES ('11111111-1111-1111-1111-111111111111', 'USD') ON CONFLICT DO NOTHING;
       
+      -- Switch to authenticated role and set User A sub
       SET ROLE authenticated;
       SET request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 
+      -- INSERT as authenticated role (should succeed)
       INSERT INTO public.clients (id, user_id, name) VALUES ('a0000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Client A') ON CONFLICT DO NOTHING;
       INSERT INTO public.invoices (id, user_id, client_id, invoice_number, currency) VALUES ('a0000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'a0000000-0000-0000-0000-000000000001', 'INV-001', 'USD') ON CONFLICT DO NOTHING;
 
-      -- Attempt INSERT payment_events (succeeds)
+      -- Attempt INSERT payment_events (should succeed)
       INSERT INTO public.payment_events (id, user_id, invoice_id, client_id, amount_minor, currency, method)
-      VALUES ('a0000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'a0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 10000, 'USD', 'bank_transfer')
-      RETURNING id, amount_minor;
+      VALUES ('a0000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'a0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 10000, 'USD', 'bank_transfer');
 
       -- Attempt UPDATE (should affect 0 rows)
       UPDATE public.payment_events SET amount_minor = 20000 WHERE id = 'a0000000-0000-0000-0000-000000000003';
@@ -94,8 +96,12 @@ async function verifyAll() {
       -- Attempt DELETE (should affect 0 rows)
       DELETE FROM public.payment_events WHERE id = 'a0000000-0000-0000-0000-000000000003';
 
-      -- Verify final row amount
-      SELECT amount_minor FROM public.payment_events WHERE id = 'a0000000-0000-0000-0000-000000000003';
+      -- Collect all metrics in final query to return to CLI
+      SELECT 
+        auth.uid() AS acting_user,
+        (SELECT COUNT(*) FROM public.payment_events WHERE id = 'a0000000-0000-0000-0000-000000000003') AS payment_row_exists,
+        (SELECT amount_minor FROM public.payment_events WHERE id = 'a0000000-0000-0000-0000-000000000003') AS final_amount_minor;
+
       ROLLBACK;
     `;
     const c5Output = await runDbQuery(criterion5Sql);
@@ -111,24 +117,35 @@ async function verifyAll() {
       SET ROLE postgres;
       INSERT INTO public.profiles (id, default_currency) VALUES ('11111111-1111-1111-1111-111111111111', 'USD') ON CONFLICT DO NOTHING;
       INSERT INTO public.profiles (id, default_currency) VALUES ('22222222-2222-2222-2222-222222222222', 'USD') ON CONFLICT DO NOTHING;
+      
+      -- Setup User A's own records as authenticated User A
+      SET ROLE authenticated;
+      SET request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+      INSERT INTO public.clients (id, user_id, name) VALUES ('a0000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Client A') ON CONFLICT DO NOTHING;
+      INSERT INTO public.invoices (id, user_id, client_id, invoice_number, currency) VALUES ('a0000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'a0000000-0000-0000-0000-000000000001', 'INV-001', 'USD') ON CONFLICT DO NOTHING;
+
+      -- Setup User B's records as postgres
+      SET ROLE postgres;
       INSERT INTO public.clients (id, user_id, name) VALUES ('b0000000-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'Client B Private') ON CONFLICT DO NOTHING;
       INSERT INTO public.invoices (id, user_id, client_id, invoice_number, currency) VALUES ('b0000000-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', 'b0000000-0000-0000-0000-000000000001', 'INV-B-SECRET', 'USD') ON CONFLICT DO NOTHING;
       
-      -- Switch to User A
+      -- Switch back to User A
       SET ROLE authenticated;
       SET request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 
-      -- SELECT User B records (should yield 0 rows)
-      SELECT COUNT(*) as client_count FROM public.clients WHERE id = 'b0000000-0000-0000-0000-000000000001';
-      SELECT COUNT(*) as invoice_count FROM public.invoices WHERE id = 'b0000000-0000-0000-0000-000000000002';
-
-      -- UPDATE User B records (should affect 0 rows)
+      -- Run update and delete attempts inside block
       UPDATE public.clients SET name = 'HACKED' WHERE id = 'b0000000-0000-0000-0000-000000000001';
       UPDATE public.invoices SET invoice_number = 'HACKED' WHERE id = 'b0000000-0000-0000-0000-000000000002';
-
-      -- DELETE User B records (should affect 0 rows)
       DELETE FROM public.clients WHERE id = 'b0000000-0000-0000-0000-000000000001';
       DELETE FROM public.invoices WHERE id = 'b0000000-0000-0000-0000-000000000002';
+
+      -- Collect positive controls (User A can see their own) and negative controls (User A cannot see User B's)
+      SELECT 
+        auth.uid() AS acting_user,
+        (SELECT COUNT(*) FROM public.clients) AS own_clients_count,
+        (SELECT COUNT(*) FROM public.invoices) AS own_invoices_count,
+        (SELECT COUNT(*) FROM public.clients WHERE id = 'b0000000-0000-0000-0000-000000000001') AS client_b_visible_count,
+        (SELECT COUNT(*) FROM public.invoices WHERE id = 'b0000000-0000-0000-0000-000000000002') AS invoice_b_visible_count;
 
       ROLLBACK;
     `;
@@ -178,3 +195,4 @@ async function verifyAll() {
 }
 
 verifyAll();
+
