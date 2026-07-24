@@ -57,7 +57,7 @@
 
 ## ADR 012: Dev Environment Email Auto-Confirmation Bypass
 - **Context**: Supabase Cloud project settings have email confirmation enabled by default, blocking local manual tests since emails cannot be verified.
-- **Decision**: Added a dev-only database update query `UPDATE auth.users SET email_confirmed_at = NOW()` to bypass email verification in development. In production, this email validation is managed via the Supabase dashboard settings.
+- **Decision**: Used the dev-only database update query `UPDATE auth.users SET email_confirmed_at = NOW()` to bypass email verification in development. Note that disabling email confirmation in the Supabase dashboard (Authentication -> Provider Settings -> Email -> Confirm email) is the cleaner, long-term approach for development environments.
 - **Consequences**: Allows local testing of user sign-ups and multi-tenant isolation without email delivery dependencies.
 
 ## ADR 013: Runtime Dependency Promotion of wa-sqlite
