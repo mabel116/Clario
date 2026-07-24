@@ -36,6 +36,29 @@ export const PowerSyncProvider = ({ children }: { children: React.ReactNode }) =
       console.log('[DIAGNOSTIC] db.registerListener is not available or db is null');
     }
 
+    const initDbWithLogging = async (context: string) => {
+      console.log(`[DIAGNOSTIC] [${context}] db.init checking...`);
+      if (typeof db.init !== 'function') {
+        console.log(`[DIAGNOSTIC] [${context}] db.init not found on db object.`);
+        return;
+      }
+
+      console.log(`[DIAGNOSTIC] [${context}] calling db.init`);
+      const timer = setTimeout(() => {
+        console.warn(`[DIAGNOSTIC] [${context}] db.init is hanging! (10s timeout exceeded)`);
+      }, 10000);
+
+      try {
+        await db.init();
+        console.log(`[DIAGNOSTIC] [${context}] db.init completed successfully.`);
+      } catch (err: unknown) {
+        console.error(`[DIAGNOSTIC] [${context}] db.init failed with error:`, err);
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+
     const connector = new SupabaseConnector();
 
     const initAndConnect = async () => {
@@ -45,15 +68,7 @@ export const PowerSyncProvider = ({ children }: { children: React.ReactNode }) =
         console.log('[DIAGNOSTIC] Session exists:', !!session);
         
         if (session) {
-          console.log('[DIAGNOSTIC] Initializing db...');
-          // Check if db.init() needs to be called
-          if (typeof db.init === 'function') {
-            await db.init();
-            console.log('[DIAGNOSTIC] db.init completed.');
-          } else {
-            console.log('[DIAGNOSTIC] db.init not found on db object.');
-          }
-
+          await initDbWithLogging('initAndConnect');
           console.log('[DIAGNOSTIC] calling connect');
           await db.connect(connector);
           console.log('[DIAGNOSTIC] db.connect returned successfully.');
@@ -73,9 +88,7 @@ export const PowerSyncProvider = ({ children }: { children: React.ReactNode }) =
       console.log('[DIAGNOSTIC] onAuthStateChange event:', event, 'session exists:', !!session);
       if (session) {
         try {
-          if (typeof db.init === 'function') {
-            await db.init();
-          }
+          await initDbWithLogging(`onAuthStateChange:${event}`);
           console.log('[DIAGNOSTIC] calling connect (via auth change)');
           await db.connect(connector);
           console.log('[DIAGNOSTIC] db.connect (via auth change) returned successfully.');
@@ -85,8 +98,12 @@ export const PowerSyncProvider = ({ children }: { children: React.ReactNode }) =
       } else {
         try {
           console.log('[DIAGNOSTIC] calling disconnectAndClear');
+          const timer = setTimeout(() => {
+            console.warn('[DIAGNOSTIC] disconnectAndClear is hanging! (10s timeout exceeded)');
+          }, 10000);
           await db.disconnectAndClear();
-          console.log('[DIAGNOSTIC] PowerSync local SQLite database cleared on signout.');
+          clearTimeout(timer);
+          console.log('[DIAGNOSTIC] disconnectAndClear completed successfully. PowerSync local SQLite database cleared.');
         } catch (err: unknown) {
           console.error('[DIAGNOSTIC] Failed to clear PowerSync SQLite database on signout:', err);
         }
