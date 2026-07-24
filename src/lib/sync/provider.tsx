@@ -26,9 +26,9 @@ export const PowerSyncProvider = ({ children }: { children: React.ReactNode }) =
           console.log('[DIAGNOSTIC] PowerSync status transition:', {
             connected: status.connected,
             connecting: status.connecting,
-            downloadStatus: status.downloadStatus,
-            uploadStatus: status.uploadStatus,
-            lastSyncedAt: status.lastSyncedAt
+            hasSynced: status.hasSynced,
+            lastSyncedAt: status.lastSyncedAt,
+            downloadFraction: status.downloadProgress?.downloadedFraction
           });
         }
       });
