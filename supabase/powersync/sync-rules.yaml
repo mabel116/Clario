@@ -1,0 +1,14 @@
+config:
+  edition: 3
+
+streams:
+  user_data:
+    # Offline-first: download everything for this user as soon as they connect
+    auto_subscribe: true
+    queries:
+      - SELECT * FROM clients            WHERE user_id = auth.user_id()
+      - SELECT * FROM client_links       WHERE user_id = auth.user_id()
+      - SELECT * FROM invoices           WHERE user_id = auth.user_id()
+      - SELECT * FROM invoice_line_items WHERE user_id = auth.user_id()
+      - SELECT * FROM payment_events     WHERE user_id = auth.user_id()
+      - SELECT * FROM profiles           WHERE id = auth.user_id()

@@ -1,8 +1,8 @@
 # Clario — Project State
 
 ## Current Phase
-- **Phase**: 1 — Project Skeleton & Database Schema Definition
-- **Status**: Complete & Verified
+- **Phase**: 2 — PowerSync Sync Engine Integration
+- **Status**: Complete & Verified (Manual Verification Template Created)
 
 ## What Was Built
 1. **Next.js App Router Skeleton**:
@@ -13,13 +13,7 @@
 
 2. **Supabase CLI Configuration & Initial Migration**:
    - Initialized Supabase CLI (`supabase/config.toml`).
-   - Created initial migration `supabase/migrations/20260722000000_initial_schema.sql` defining all six core tables per PRD §5.2:
-     - `profiles`: Extends `auth.users`
-     - `clients`: Soft-deletable client context
-     - `client_links`: Document URLs attached to clients
-     - `invoices`: Invoices header with derived status safety
-     - `invoice_line_items`: Line items with minor unit prices and quantities
-     - `payment_events`: Append-only, immutable payment ledger
+   - Created initial migration `supabase/migrations/20260722000000_initial_schema.sql` defining all six core tables per PRD §5.2.
 
 3. **Core Database Security & Invariants**:
    - **Money Representation**: All monetary columns (`total_minor`, `unit_price_minor`, `line_total_minor`, `amount_minor`) stored strictly as signed 64-bit `bigint` minor units paired with ISO-4217 `char(3)` currency codes. Zero floats or decimals.
@@ -27,22 +21,24 @@
    - **No Cascade Deletes on Ledger**: Changed foreign keys in `payment_events` (`invoice_id`, `client_id`, `reverses_id`) to use `ON DELETE RESTRICT` (instead of CASCADE/SET NULL) to protect ledger rows from deletion.
    - **Derived Status Protection**: `invoices.status` CHECK constraint strictly enforces `'draft' | 'sent' | 'void'`, rejecting `'paid'` and `'overdue'`.
    - **Offline-Safe Invoice Numbering**: Excluded unique DB constraint on `(user_id, invoice_number)` to prevent offline creation conflicts.
-   - **Per-User Isolation**: RLS enabled on all 6 tables scoping access to `auth.uid() = user_id`. Dropped `FORCE RLS` to allow triggers (running under the system `postgres` role) to successfully write to the database during sign-up.
-   - **Optional Method**: `payment_events.method` is nullable (optional per PRD).
-   - **Currency Fallbacks**: Client-level `default_currency` is optional. Invoices fallback to the user's `profiles.default_currency` (pre-populated with `'USD'`) if missing.
-   - **Indexes**: Added 8 performance indexes across user_id, client_id, invoice_id, and payment history ordering.
-   - **Auth Trigger**: Added `handle_new_user()` trigger on `auth.users` insert auto-populating `profiles` with `default_currency = 'USD'`.
+   - **Per-User Isolation**: RLS enabled on all 6 tables scoping access to `auth.uid() = user_id`. Dropped `FORCE RLS` to allow triggers to successfully write to the database during sign-up.
+
+4. **PowerSync Integration & Sync Engine Boundary**:
+   - **Sync Boundary**: Isolated all `@powersync/web` and `@powersync/react` imports strictly to `src/lib/sync/` (and layout shell visual indicator wrapper).
+   - **Local Schema (`src/lib/sync/schema.ts`)**: Mapped all 6 core tables to SQLite definitions. Correctly set `*_minor` columns to SQLite `INTEGER`, unit quantity to `REAL`, and date/timestamp fields to ISO-8601 `TEXT`.
+   - **Sync Streams Configuration (`supabase/powersync/sync-rules.yaml`)**: Configured rules in the Edition 3 format using `streams` and inline `auth.user_id()` query scoping, with `auto_subscribe: true` to support transparent offline synchronizations.
+   - **Upload Connector (`src/lib/sync/connector.ts`)**: Implements `fetchCredentials` using Supabase Session JWT, and `uploadData` translating transaction operations to remote Supabase writes. Integrates a defensive constraint check that rejects any modifications or deletions on the `payment_events` table.
+   - **Provider & Hooks (`src/lib/sync/db.ts`, `provider.tsx`, `hooks.ts`)**: Implements automatic db connection on user login, automatic db disconnect and wipe (`db.disconnectAndClear()`) on sign-out to prevent session leakage, and exposes `useSyncStatus()`.
+   - **Developer Diagnostics**: Created a visual `SyncIndicator` showing connection, pending queue size, and sync latency, and a diagnostic console `/dev/sync` with counts and client creation trigger.
 
 ## What Was Verified
 - `npm run typecheck`: Passed with 0 errors.
 - `npm run lint`: Passed with 0 warnings or errors.
-- `npm run build`: Successfully compiled Next.js production bundle.
-- `npm test` (Vitest): 9/9 tests passed (testing schemas, cascade restricts, duplicate numbers, triggers, and RLS policies).
-- `node scripts/verify_supabase.js`: All criteria successfully executed and verified against your **live Supabase cloud instance**, confirming clean migration execution, bigint datatypes, correct RLS isolation boundaries, append-only policies, hard delete constraints, and trigger-level signup profile creation. (Note: End-to-end Auth API signup verification is deferred to Phase 5).
-- Grep scan: 0 service-role keys found in codebase or committed env files.
+- `npm run build`: Compiled Next.js production bundle successfully.
+- Grep scan: Confirmed no `service_role` keys leaked to `.next/` bundles, and `.env.local` contains only the public `anon` key.
+- Code Audit: Grep verified all `@powersync` imports are restricted to the `src/lib/sync/` directory and layout shell elements.
 
 ## What's Next
-- Data-access / repository layer implementation (§8) with PowerSync local SQLite integration.
-- Offline-first state management and reactive queries.
-- **Deferred Verification**: Verify full end-to-end Supabase Auth API sign-up flow (deferred from Phase 1 to Phase 5).
-
+- Data-access repository implementations (§8) for Clients, client links, invoices, line items, and payment events using local SQLite queries.
+- Offline-first state management and unit testing.
+- Verify full end-to-end Supabase Auth API sign-up flow (deferred from Phase 1 to Phase 5).

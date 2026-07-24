@@ -45,3 +45,29 @@
 - **Decision**: Removed `NOT NULL` constraint on `payment_events.method` column, making it optional.
 - **Consequences**: Matches user-interface specifications where payment events can be recorded without specifying a payment method.
 
+## ADR 010: PowerSync Sync Streams (Edition 3)
+- **Context**: PowerSync Sync Streams (Edition 3) replaces the legacy sync rules format to simplify streaming sync rules bucketing.
+- **Decision**: Configured `supabase/powersync/sync-rules.yaml` with `edition: 3` and `streams`. Removed the separate `parameters` block in favor of inline `auth.user_id()` calls. Set `auto_subscribe: true` on the `user_data` stream to enable automated offline-first bucket synchronization.
+- **Consequences**: Avoids legacy parameters parsing. The client database automatically receives updates from active streams without calling explicit subscription APIs.
+
+## ADR 011: Local SQLite Column Mappings for Financial Precision
+- **Context**: PRD §4.3 Guardrail 1 and §7.4 require storing all monetary amounts as integer minor units (`bigint`) in Postgres, mapped to local SQLite database columns.
+- **Decision**: In `src/lib/sync/schema.ts`, all currency columns (`invoices.total_minor`, `invoice_line_items.unit_price_minor`, `invoice_line_items.line_total_minor`, `payment_events.amount_minor`) are explicitly typed `column.integer` (SQLite `INTEGER`), never `column.real` (SQLite `REAL` / float). Floating point values are strictly isolated to `invoice_line_items.quantity` (`column.real`).
+- **Consequences**: Eliminates floating-point calculation errors in the local SQLite engine.
+
+## ADR 012: Dev Environment Email Auto-Confirmation Bypass
+- **Context**: Supabase Cloud project settings have email confirmation enabled by default, blocking local manual tests since emails cannot be verified.
+- **Decision**: Added a dev-only database update query `UPDATE auth.users SET email_confirmed_at = NOW()` to bypass email verification in development. In production, this email validation is managed via the Supabase dashboard settings.
+- **Consequences**: Allows local testing of user sign-ups and multi-tenant isolation without email delivery dependencies.
+
+## ADR 013: Runtime Dependency Promotion of wa-sqlite
+- **Context**: `@journeyapps/wa-sqlite` compiles SQLite WebAssembly for client-side execution and was initially listed as a devDependency.
+- **Decision**: Promoted `@journeyapps/wa-sqlite` to a runtime dependency (`dependencies`) in `package.json` to ensure compilation resources are packaged during production builds.
+- **Consequences**: Prevents bundle resolution failures during production deployment compilation.
+
+## ADR 014: Strict Isolation of PowerSync Web SDK to Data-Access Boundary
+- **Context**: PRD §4.3 Guardrail 7 requires that the PowerSync SDK must not leak into React views, handlers, or route controllers.
+- **Decision**: Confined all imports of `@powersync/web` and `@powersync/react` strictly to files in `src/lib/sync/` (with `SyncIndicator` as the sole UI view component wrapper in layout). No other React page, api route, or repository file imports `@powersync/`.
+- **Consequences**: Encapsulates the sync engine behind a clear repository boundary, simplifying any future engine replacements.
+
+

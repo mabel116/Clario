@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { PowerSyncProvider } from "../lib/sync/provider";
+import { SyncIndicator } from "../components/SyncIndicator";
 
 export const metadata: Metadata = {
   title: "Clario — Offline-First Freelance Workspace",
@@ -14,7 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="antialiased min-h-screen bg-background text-foreground">
-        {children}
+        <PowerSyncProvider>
+          {children}
+          <SyncIndicator />
+        </PowerSyncProvider>
       </body>
     </html>
   );
