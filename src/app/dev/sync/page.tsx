@@ -44,20 +44,6 @@ export default function DevSyncPage() {
     payment_events: paymentsData?.[0]?.count ?? 0
   };
 
-  const handleSignUp = async () => {
-    setLoading(true);
-    setAuthError('');
-    try {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) throw error;
-      alert('Sign up successful! Please check your email (or sign in directly if auto-confirmed).');
-    } catch (err: unknown) {
-      setAuthError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSignIn = async () => {
     setLoading(true);
     setAuthError('');
@@ -99,7 +85,7 @@ export default function DevSyncPage() {
         [
           clientId,
           currentUser.id,
-          `Dev Client ${new Date().toLocaleTimeString()}`,
+          `Local Client ${new Date().toLocaleTimeString()}`,
           'USD',
           timestamp,
           timestamp
@@ -109,6 +95,11 @@ export default function DevSyncPage() {
     } catch (err: unknown) {
       alert(`Local write failed: ${(err as Error).message}`);
     }
+  };
+
+  const presetUser = (userEmail: string) => {
+    setEmail(userEmail);
+    setPassword('password123'); // Dev default password
   };
 
   return (
@@ -158,6 +149,21 @@ export default function DevSyncPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
+                <div className="flex gap-2 mb-2 text-xs">
+                  <button
+                    onClick={() => presetUser('usera@clario.dev')}
+                    className="flex-1 bg-slate-900 border border-slate-800 hover:bg-slate-850 text-violet-300 font-semibold py-2 rounded-xl transition"
+                  >
+                    Preset User A
+                  </button>
+                  <button
+                    onClick={() => presetUser('userb@clario.dev')}
+                    className="flex-1 bg-slate-900 border border-slate-800 hover:bg-slate-850 text-indigo-300 font-semibold py-2 rounded-xl transition"
+                  >
+                    Preset User B
+                  </button>
+                </div>
+
                 <div className="flex flex-col gap-1 text-xs">
                   <label className="text-slate-500">Email Address</label>
                   <input
@@ -185,84 +191,13 @@ export default function DevSyncPage() {
                   </div>
                 )}
 
-                <div className="flex gap-3 mt-2 text-xs">
-                  <button
-                    onClick={handleSignIn}
-                    disabled={loading}
-                    className="flex-1 flex justify-center items-center gap-1.5 rounded-xl bg-violet-650 hover:bg-violet-600 text-white font-semibold py-2.5 disabled:opacity-50 transition-all duration-300"
-                  >
-                    <LogIn className="h-4 w-4" /> Sign In
-                  </button>
-                  <button
-                    onClick={handleSignUp}
-                    disabled={loading}
-                    className="flex-1 flex justify-center items-center gap-1.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-750 text-slate-300 py-2.5 disabled:opacity-50 transition-all duration-300"
-                  >
-                    Sign Up
-                  </button>
-                </div>
-
-                <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-slate-900">
-                  <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Quick Dev Auth</span>
-                  <div className="flex gap-2 text-[11px]">
-                    <button
-                      onClick={async () => {
-                        setLoading(true);
-                        setAuthError('');
-                        try {
-                          const { error: signInErr } = await supabase.auth.signInWithPassword({
-                            email: 'usera@example.com',
-                            password: 'password123'
-                          });
-                          if (signInErr) {
-                            const { error: signUpErr } = await supabase.auth.signUp({
-                              email: 'usera@example.com',
-                              password: 'password123'
-                            });
-                            if (signUpErr) throw signUpErr;
-                            alert('User A signed up! If confirmation is needed, run DB query then login.');
-                          }
-                        } catch (err: unknown) {
-                          setAuthError((err as Error).message);
-                        } finally {
-                          setLoading(false);
-                        }
-                      }}
-                      disabled={loading}
-                      className="flex-1 bg-slate-900 border border-slate-800 hover:bg-slate-850 text-violet-300 font-semibold py-2 rounded-xl"
-                    >
-                      Login User A
-                    </button>
-                    <button
-                      onClick={async () => {
-                        setLoading(true);
-                        setAuthError('');
-                        try {
-                          const { error: signInErr } = await supabase.auth.signInWithPassword({
-                            email: 'userb@example.com',
-                            password: 'password123'
-                          });
-                          if (signInErr) {
-                            const { error: signUpErr } = await supabase.auth.signUp({
-                              email: 'userb@example.com',
-                              password: 'password123'
-                            });
-                            if (signUpErr) throw signUpErr;
-                            alert('User B signed up! If confirmation is needed, run DB query then login.');
-                          }
-                        } catch (err: unknown) {
-                          setAuthError((err as Error).message);
-                        } finally {
-                          setLoading(false);
-                        }
-                      }}
-                      disabled={loading}
-                      className="flex-1 bg-slate-900 border border-slate-800 hover:bg-slate-850 text-indigo-300 font-semibold py-2 rounded-xl"
-                    >
-                      Login User B
-                    </button>
-                  </div>
-                </div>
+                <button
+                  onClick={handleSignIn}
+                  disabled={loading || !email || !password}
+                  className="w-full flex justify-center items-center gap-1.5 rounded-xl bg-violet-650 hover:bg-violet-600 disabled:opacity-50 text-white font-semibold py-2.5 transition-all duration-300 mt-2 text-xs"
+                >
+                  <LogIn className="h-4 w-4" /> Sign In
+                </button>
               </div>
             )}
           </section>
