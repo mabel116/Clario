@@ -6,6 +6,11 @@ import { supabase } from '../supabase';
 import { db } from './db';
 import { SupabaseConnector } from './connector';
 
+// Module-level locks to prevent concurrent deadlocks during hot reload, strict mode double-mounts, or rapid auth state changes
+let globalInitPromise: Promise<void> | null = null;
+let globalConnectPromise: Promise<void> | null = null;
+let isInitialized = false;
+
 // Wraps layouts to provide database singleton and manage connection/wipe cycles
 export const PowerSyncProvider = ({ children }: { children: React.ReactNode }) => {
 
@@ -36,36 +41,72 @@ export const PowerSyncProvider = ({ children }: { children: React.ReactNode }) =
       console.log('[DIAGNOSTIC] db.registerListener is not available or db is null');
     }
 
-    let isInitialized = false;
-    let currentConnectionPromise: Promise<void> | null = null;
     const connector = new SupabaseConnector();
 
-    const connectDb = async (context: string) => {
-      if (currentConnectionPromise) {
-        console.log(`[DIAGNOSTIC] [${context}] connect already in progress; reusing promise.`);
-        return currentConnectionPromise;
+    const initDb = async (context: string): Promise<void> => {
+      if (globalInitPromise) {
+        console.log(`[DIAGNOSTIC] [${context}] db.init already in progress or completed; sharing promise.`);
+        return globalInitPromise;
       }
 
-      console.log(`[DIAGNOSTIC] [${context}] calling connect`);
-      currentConnectionPromise = db.connect(connector);
-      
+      console.log(`[DIAGNOSTIC] [${context}] starting db.init`);
       const timer = setTimeout(() => {
-        console.warn(`[DIAGNOSTIC] [${context}] db.connect is hanging! (10s timeout exceeded)`);
+        console.warn(`[DIAGNOSTIC] [${context}] db.init is hanging! (10s timeout exceeded)`);
       }, 10000);
 
-      try {
-        await currentConnectionPromise;
-        isInitialized = true;
-        console.log(`[DIAGNOSTIC] [${context}] db.connect returned successfully.`);
-      } catch (err: unknown) {
-        console.error(`[DIAGNOSTIC] [${context}] db.connect failed:`, err);
-        if (err instanceof Error) {
-          console.error(`[DIAGNOSTIC] [${context}] Error stack:`, err.stack);
+      globalInitPromise = (async () => {
+        if (db && typeof db.init === 'function') {
+          await db.init();
+        } else {
+          console.log(`[DIAGNOSTIC] [${context}] db.init not found on db object.`);
         }
+      })();
+
+      try {
+        await globalInitPromise;
+        console.log(`[DIAGNOSTIC] [${context}] db.init completed successfully.`);
+      } catch (err: unknown) {
+        console.error(`[DIAGNOSTIC] [${context}] db.init failed:`, err);
+        globalInitPromise = null; // Allow retry on failure
         throw err;
       } finally {
         clearTimeout(timer);
-        currentConnectionPromise = null;
+      }
+    };
+
+    const connectDb = async (context: string): Promise<void> => {
+      if (globalConnectPromise) {
+        console.log(`[DIAGNOSTIC] [${context}] db.connect already in progress; sharing promise.`);
+        return globalConnectPromise;
+      }
+
+      console.log(`[DIAGNOSTIC] [${context}] starting db.connect flow`);
+      const timer = setTimeout(() => {
+        console.warn(`[DIAGNOSTIC] [${context}] db.connect flow is hanging! (10s timeout exceeded)`);
+      }, 10000);
+
+      globalConnectPromise = (async () => {
+        // Step 1: Ensure database is initialized before calling connect
+        await initDb(context);
+
+        // Step 2: Connect via connector
+        console.log(`[DIAGNOSTIC] [${context}] calling db.connect`);
+        await db.connect(connector);
+        isInitialized = true;
+      })();
+
+      try {
+        await globalConnectPromise;
+        console.log(`[DIAGNOSTIC] [${context}] db.connect flow completed successfully.`);
+      } catch (err: unknown) {
+        console.error(`[DIAGNOSTIC] [${context}] db.connect flow failed:`, err);
+        if (err instanceof Error) {
+          console.error(`[DIAGNOSTIC] [${context}] Error stack:`, err.stack);
+        }
+        globalConnectPromise = null; // Allow retry on failure
+        throw err;
+      } finally {
+        clearTimeout(timer);
       }
     };
 
@@ -110,6 +151,8 @@ export const PowerSyncProvider = ({ children }: { children: React.ReactNode }) =
           try {
             await db.disconnectAndClear();
             isInitialized = false;
+            globalConnectPromise = null; // Clear connection state cache
+            globalInitPromise = null;    // Clear initialization state cache
             console.log('[DIAGNOSTIC] disconnectAndClear completed successfully. PowerSync local SQLite database cleared.');
           } finally {
             clearTimeout(timer);
