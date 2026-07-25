@@ -36,30 +36,38 @@ export const PowerSyncProvider = ({ children }: { children: React.ReactNode }) =
       console.log('[DIAGNOSTIC] db.registerListener is not available or db is null');
     }
 
-    const initDbWithLogging = async (context: string) => {
-      console.log(`[DIAGNOSTIC] [${context}] db.init checking...`);
-      if (typeof db.init !== 'function') {
-        console.log(`[DIAGNOSTIC] [${context}] db.init not found on db object.`);
-        return;
+    let isInitialized = false;
+    let currentConnectionPromise: Promise<void> | null = null;
+    const connector = new SupabaseConnector();
+
+    const connectDb = async (context: string) => {
+      if (currentConnectionPromise) {
+        console.log(`[DIAGNOSTIC] [${context}] connect already in progress; reusing promise.`);
+        return currentConnectionPromise;
       }
 
-      console.log(`[DIAGNOSTIC] [${context}] calling db.init`);
+      console.log(`[DIAGNOSTIC] [${context}] calling connect`);
+      currentConnectionPromise = db.connect(connector);
+      
       const timer = setTimeout(() => {
-        console.warn(`[DIAGNOSTIC] [${context}] db.init is hanging! (10s timeout exceeded)`);
+        console.warn(`[DIAGNOSTIC] [${context}] db.connect is hanging! (10s timeout exceeded)`);
       }, 10000);
 
       try {
-        await db.init();
-        console.log(`[DIAGNOSTIC] [${context}] db.init completed successfully.`);
+        await currentConnectionPromise;
+        isInitialized = true;
+        console.log(`[DIAGNOSTIC] [${context}] db.connect returned successfully.`);
       } catch (err: unknown) {
-        console.error(`[DIAGNOSTIC] [${context}] db.init failed with error:`, err);
+        console.error(`[DIAGNOSTIC] [${context}] db.connect failed:`, err);
+        if (err instanceof Error) {
+          console.error(`[DIAGNOSTIC] [${context}] Error stack:`, err.stack);
+        }
         throw err;
       } finally {
         clearTimeout(timer);
+        currentConnectionPromise = null;
       }
     };
-
-    const connector = new SupabaseConnector();
 
     const initAndConnect = async () => {
       try {
@@ -68,16 +76,10 @@ export const PowerSyncProvider = ({ children }: { children: React.ReactNode }) =
         console.log('[DIAGNOSTIC] Session exists:', !!session);
         
         if (session) {
-          await initDbWithLogging('initAndConnect');
-          console.log('[DIAGNOSTIC] calling connect');
-          await db.connect(connector);
-          console.log('[DIAGNOSTIC] db.connect returned successfully.');
+          await connectDb('initAndConnect');
         }
       } catch (err: unknown) {
         console.error('[DIAGNOSTIC] Error in initAndConnect:', err);
-        if (err instanceof Error) {
-          console.error('[DIAGNOSTIC] Error stack:', err.stack);
-        }
       }
     };
 
@@ -86,27 +88,37 @@ export const PowerSyncProvider = ({ children }: { children: React.ReactNode }) =
     // Reactively connect on sign-in, disconnect and wipe database on sign-out
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('[DIAGNOSTIC] onAuthStateChange event:', event, 'session exists:', !!session);
+      
       if (session) {
         try {
-          await initDbWithLogging(`onAuthStateChange:${event}`);
-          console.log('[DIAGNOSTIC] calling connect (via auth change)');
-          await db.connect(connector);
-          console.log('[DIAGNOSTIC] db.connect (via auth change) returned successfully.');
+          await connectDb(`onAuthStateChange:${event}`);
         } catch (err: unknown) {
           console.error('[DIAGNOSTIC] Error in auth-triggered connect:', err);
         }
-      } else {
+      } else if (event === 'SIGNED_OUT') {
+        if (!isInitialized) {
+          console.log('[DIAGNOSTIC] skipping disconnectAndClear: database not initialized.');
+          return;
+        }
+
         try {
           console.log('[DIAGNOSTIC] calling disconnectAndClear');
           const timer = setTimeout(() => {
             console.warn('[DIAGNOSTIC] disconnectAndClear is hanging! (10s timeout exceeded)');
           }, 10000);
-          await db.disconnectAndClear();
-          clearTimeout(timer);
-          console.log('[DIAGNOSTIC] disconnectAndClear completed successfully. PowerSync local SQLite database cleared.');
+
+          try {
+            await db.disconnectAndClear();
+            isInitialized = false;
+            console.log('[DIAGNOSTIC] disconnectAndClear completed successfully. PowerSync local SQLite database cleared.');
+          } finally {
+            clearTimeout(timer);
+          }
         } catch (err: unknown) {
           console.error('[DIAGNOSTIC] Failed to clear PowerSync SQLite database on signout:', err);
         }
+      } else {
+        console.log(`[DIAGNOSTIC] ignoring auth event without session: ${event}`);
       }
     });
 
