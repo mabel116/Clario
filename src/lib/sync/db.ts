@@ -6,7 +6,11 @@ export const db = typeof window !== 'undefined'
   ? new PowerSyncDatabase({
       schema: AppSchema,
       database: {
-        dbFilename: 'clario.db'
+        dbFilename: 'clario.db',
+        worker: '/@powersync/worker.js'
+      },
+      sync: {
+        worker: '/@powersync/worker.js'
       }
     })
   : (null as unknown as PowerSyncDatabase);
