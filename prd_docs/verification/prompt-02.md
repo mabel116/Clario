@@ -108,7 +108,7 @@ Steps: re-enable the network.
 - [x] PASS / [ ] FAIL
 
 ### Criterion 5 — Offline reload renders cached data (positive control)
-Steps: go offline, then hard-reload the page.
+Steps: with the app already loaded and signed in, disable the network adapter at the OS level (not a DevTools throttle, and not a page reload — see note below on why).
 - Specific client names visible:Local Client 4:52:50 PM, Local Client 4:00:27 AM
 Criterion 2 Test Client, Client A - Stripe, Client A - Acme Corp, Client A - Hooli
 - Any spinner or hang observed? No
@@ -146,7 +146,7 @@ drop them:
    distinct purposes or duplicating one path — verify this isn't masking a second missing
    asset.
 
-   ## Note for Prompt 12
+## Note for Prompt 12
 
 Chrome DevTools' Network "Offline" throttle does not reliably block all of Clario's network traffic. Observed a full successful page load (all requests 200, real byte sizes, ~1.5s load time) while "Offline" was selected in the DevTools dropdown — PowerSync's worker-based connection appears to bypass the page-level throttle in some cases.
 
