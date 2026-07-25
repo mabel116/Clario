@@ -29,8 +29,11 @@ export default function DevSyncPage() {
 
 
 
+  const [showClientNames, setShowClientNames] = useState(false);
+
   // Fetch counts from local SQLite reactive queries
   const { data: clientsData } = useQuery('SELECT COUNT(*) as count FROM clients');
+  const { data: clientNamesData } = useQuery('SELECT name FROM clients ORDER BY created_at DESC');
   const { data: linksData } = useQuery('SELECT COUNT(*) as count FROM client_links');
   const { data: invoicesData } = useQuery('SELECT COUNT(*) as count FROM invoices');
   const { data: lineItemsData } = useQuery('SELECT COUNT(*) as count FROM invoice_line_items');
@@ -225,8 +228,31 @@ export default function DevSyncPage() {
                   </tr>
                   <tr>
                     <td className="p-3">clients</td>
-                    <td className="p-3 text-right font-bold text-violet-400">{counts.clients}</td>
+                    <td className="p-3 text-right font-bold text-violet-400">
+                      <div className="flex flex-col items-end gap-1 font-mono">
+                        <span>{counts.clients}</span>
+                        {counts.clients > 0 && (
+                          <button
+                            onClick={() => setShowClientNames(!showClientNames)}
+                            className="text-[10px] text-violet-400 hover:text-violet-300 underline font-normal font-sans cursor-pointer focus:outline-none"
+                          >
+                            {showClientNames ? 'Hide Names' : 'Show Names'}
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
+                  {showClientNames && clientNamesData && clientNamesData.length > 0 && (
+                    <tr className="bg-slate-900/10">
+                      <td colSpan={2} className="p-3 border-t border-slate-900/60 font-sans text-slate-400">
+                        <ul className="list-disc pl-4 space-y-1 text-[11px]">
+                          {clientNamesData.map((c: { name: string }, i: number) => (
+                            <li key={i}>{c.name}</li>
+                          ))}
+                        </ul>
+                      </td>
+                    </tr>
+                  )}
                   <tr>
                     <td className="p-3">client_links</td>
                     <td className="p-3 text-right">{counts.client_links}</td>
