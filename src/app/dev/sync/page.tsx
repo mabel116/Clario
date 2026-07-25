@@ -27,38 +27,7 @@ export default function DevSyncPage() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Periodic diagnostic checks for local upload queue contents
-  useEffect(() => {
-    if (!db) {
-      console.log('[DIAGNOSTIC] db instance is null on page mount');
-      return;
-    }
 
-    const checkQueue = async () => {
-      try {
-        console.log('[DIAGNOSTIC] Checking upload queue stats...');
-        const stats = await db.getUploadQueueStats(true);
-        const batch = await db.getCrudBatch();
-        console.log('[DIAGNOSTIC] Queue Stats:', {
-          count: stats.count,
-          size: stats.size,
-          hasPending: db.currentStatus?.uploading
-        });
-        if (batch && batch.crud && batch.crud.length > 0) {
-          console.log('[DIAGNOSTIC] Pending local mutations found in batch:', batch.crud);
-        } else {
-          console.log('[DIAGNOSTIC] getCrudBatch: no operations returned');
-        }
-      } catch (err) {
-        console.error('[DIAGNOSTIC] Failed to fetch queue stats/batch:', err);
-      }
-    };
-
-    // Run immediately and every 5 seconds
-    checkQueue();
-    const interval = setInterval(checkQueue, 5000);
-    return () => clearInterval(interval);
-  }, [db]);
 
   // Fetch counts from local SQLite reactive queries
   const { data: clientsData } = useQuery('SELECT COUNT(*) as count FROM clients');

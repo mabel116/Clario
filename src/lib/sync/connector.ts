@@ -20,25 +20,8 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
   // Translates local offline mutations into remote Supabase database writes
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   async uploadData(database: any): Promise<void> {
-    console.log('[DIAGNOSTIC] uploadData invoked!');
-    
-    let transaction: CrudTransaction | null = null;
-    try {
-      console.log('[DIAGNOSTIC] calling getNextUploadTransaction...');
-      transaction = await database.getNextUploadTransaction();
-      console.log('[DIAGNOSTIC] getNextUploadTransaction returned:', transaction);
-    } catch (err: unknown) {
-      console.error('[DIAGNOSTIC] getNextUploadTransaction threw an error:', err);
-      if (err instanceof Error) {
-        console.error('[DIAGNOSTIC] Error stack:', err.stack);
-      }
-      throw err;
-    }
-
-    if (!transaction) {
-      console.log('[DIAGNOSTIC] uploadData: no transactions returned from getNextUploadTransaction');
-      return;
-    }
+    const transaction: CrudTransaction = await database.getNextCrudTransaction();
+    if (!transaction) return;
 
     try {
       for (const op of transaction.crud) {
