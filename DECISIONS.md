@@ -70,4 +70,19 @@
 - **Decision**: Confined all imports of `@powersync/web` and `@powersync/react` strictly to files in `src/lib/sync/` (with `SyncIndicator` as the sole UI view component wrapper in layout). No other React page, api route, or repository file imports `@powersync/`.
 - **Consequences**: Encapsulates the sync engine behind a clear repository boundary, simplifying any future engine replacements.
 
+## ADR 015: Float-Drift Immune Decimal Parsing
+- **Context**: Multiplying floats or dividing inputs to construct minor units leads to binary float precision issues (e.g. `19.99 * 100` yielding `1998.9999999999998`).
+- **Decision**: Implemented a two-stage parsing and rounding structure in `parseMoneyInput`. Floating point values parsed from clean numeric strings are multiplied by `10^exponent` and run through a precision normalization round (`Math.round(val * 1e10) / 1e10`) before mapping to integers.
+- **Consequences**: Provably guarantees zero float-drift artifacts across all currencies.
+
+## ADR 016: Explicit Date Context Injection for Financial Invariance
+- **Context**: Using client system clocks directly inside date derivations makes tests timezone-dependent and fragile.
+- **Decision**: Every date-sensitive derivation (like `isOverdue` or `outstandingByCurrency`) requires an injected `today` string parameter.
+- **Consequences**: Guarantees test stability and correct offline timezone handling.
+
+## ADR 017: Commutative Event-Sourced Ledger Sums
+- **Context**: Offline sync merges entries in unpredictable order. Summing balances from `payment_events` must yield identical results regardless of order.
+- **Decision**: Calculations use standard signed summations (`amountPaidMinor`) over lists.
+- **Consequences**: Order-independent commutativity is maintained, resolving sync race conditions naturally.
+
 
