@@ -145,6 +145,9 @@
   - Verified `@powersync/*` SDK package imports are constrained strictly to `src/lib/sync/` (and not in `src/lib/data/` which only references the `db` instance).
 
 ### Specification Deviations
-- Bypassed browser window checks during Node vitest run using `process.env.NODE_ENV === 'test'` checks.
-- Structured mock PGlite DB environment in Vitest to return rows arrays directly, matching real PowerSync client SDK behavior.
+- **Three Custom Error Types**: Implemented `InvoiceLockedError` (locked invoice edits check), `CurrencyMismatchError` (payment invoice currency match assertion), and `ValidationError` (client link URL format validation check). These provide structured exception boundaries enabling the UI to catch and parse errors selectively.
+- **Bypassed SSR Window Guard in Test Runtime (`isTest`)**: Bypassed browser window checks during Node Vitest runs using `process.env.NODE_ENV === 'test'` / `process.env.VITEST === 'true'` context checks. Since production builds/SSR runs execute with `process.env.NODE_ENV = 'production'` and no `VITEST` flag, `isTest` is always `false` at runtime, ensuring standard SSR routes fail-fast immediately if executed server-side.
+- **Mock DB Array Return Type Alignment**: Mapped mock PGlite DB environment in Vitest to return rows arrays directly, matching real PowerSync client SDK behavior.
+- **Diagnostic Route PowerSync Import Exception**: Confirmed that the import of `@powersync/react` on line 4 of `src/app/dev/sync/page.tsx` is an accepted exception strictly tied to the temporary diagnostics console route, which is scheduled for permanent deletion in Prompt 12.
+
 
