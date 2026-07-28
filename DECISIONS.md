@@ -85,4 +85,15 @@
 - **Decision**: Calculations use standard signed summations (`amountPaidMinor`) over lists.
 - **Consequences**: Order-independent commutativity is maintained, resolving sync race conditions naturally.
 
+## ADR 018: Structured Repository Exception Classes
+- **Context**: PRD §8 requires throwing clear typed errors on database validation failures (e.g. currency mismatch, locks, validations).
+- **Decision**: Created custom class exceptions (`InvoiceLockedError`, `CurrencyMismatchError`, `ValidationError`) extending the native JS `Error` object.
+- **Consequences**: Enables frontend components to selectively catch exceptions (using `err instanceof InvoiceLockedError`) and cleanly render localized user alerts.
+
+## ADR 019: Automated Test Bypass for Local SQLite/WASM SSR Guard
+- **Context**: The database interface has a client-only gate (`typeof window === 'undefined'`) that throws exceptions during server-side rendering to prevent server crashes. However, this gate blocks Vitest tests running in Node environment.
+- **Decision**: Implemented an automated bypass flag (`isTest`) that checks if `process.env.NODE_ENV === 'test'` or `process.env.VITEST === 'true'`.
+- **Consequences**: Enables unit tests to mock and execute database transactions inside Node Vitest environments without throwing SSR guard errors, while remaining strictly disabled in Next.js production server-side code (where `process.env.NODE_ENV === 'production'`).
+
+
 
