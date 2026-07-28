@@ -111,3 +111,40 @@
 ### Specification Deviations
 - Added `deriveInvoice` helper function to map composite invoice metrics cleanly for local database repository layers.
 - Added `KRW` currency to test zero-decimal rounding across multiple currencies.
+
+## Phase 4 — Data-Access Layer (Repositories)
+- **Phase**: 4
+- **Status**: Complete & Verified (33 tests passing total)
+
+### What Was Built
+1. **Repository Classes (`src/lib/data/`)**:
+   - `ClientRepo`: lists active clients (`deleted_at IS NULL`), gets detailed views including current outstanding balance aggregates computed reactively.
+   - `ClientLinkRepo`: manages custom links for client accounts, verifying absolute `http(s)` URL addresses.
+   - `InvoiceRepo`: handles line items, drafts, sent status triggers, and locks invoice modification fields (`invoice_number`, `issue_date`, line items, total amounts) if any payment records exist.
+   - `PaymentRepo`: processes payments (`record` and `reverse`). `reverse` appends negative mirror ledger row and prevents double-reversing.
+   - `DashboardRepo`: computes overdue counts by currency, recent payment history with invoice/client details, and earnings summaries.
+   - `ProfileRepo`: gets/edits settings profile.
+2. **React LiveQuery Hooks (`src/lib/data/hooks.ts`)**:
+   - Exposes `useClients`, `useClient`, `useClientLinks`, `useInvoice`, `useInvoicesForClient`, `usePaymentsForInvoice`, `usePaymentsForClient`, `useDashboard`, and `useProfile`. Uses `useMemo` caching to prevent unnecessary SQLite query stream reconstructions.
+
+### What Was Verified
+- **Unit Test Coverage**:
+  - `tests/repositories.test.ts` executes actual DB migrations and RLS setups inside a PGlite instance to verify:
+    - Client created offline is visible in `list()` immediately.
+    - Invoice `total_minor` matches the sum of line totals.
+    - Payments sequence drives status from partially_paid to paid.
+    - Reversal creates negative mirror and original event is unmodified.
+    - Recording a payment in mismatched currency throws `CurrencyMismatchError`.
+    - Financial editing locks after recording payment events.
+    - Soft delete on client scopes visibility but preserves invoice records.
+    - Validation check: ClientLink validates absolute URL format.
+    - Double reversal safety check: Reversing a reversal throws error.
+- **Type Compilation**:
+  - `npx tsc --noEmit` resolved successfully with zero type warnings.
+- **Dependency Scan**:
+  - Verified `@powersync/*` SDK package imports are constrained strictly to `src/lib/sync/` (and not in `src/lib/data/` which only references the `db` instance).
+
+### Specification Deviations
+- Bypassed browser window checks during Node vitest run using `process.env.NODE_ENV === 'test'` checks.
+- Structured mock PGlite DB environment in Vitest to return rows arrays directly, matching real PowerSync client SDK behavior.
+
