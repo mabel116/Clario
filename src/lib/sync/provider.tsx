@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { PowerSyncContext } from '@powersync/react';
-import { supabase } from '../supabase';
+import { getAuthSession, onAuthStateChange } from '../auth/client';
 import { db } from './db';
 import { SupabaseConnector } from './connector';
 
@@ -60,7 +60,7 @@ export const PowerSyncProvider = ({ children }: { children: React.ReactNode }) =
 
     const initAndConnect = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await getAuthSession();
         if (session) {
           await connectDb();
         }
@@ -72,7 +72,7 @@ export const PowerSyncProvider = ({ children }: { children: React.ReactNode }) =
     initAndConnect();
 
     // Reactively connect on sign-in, disconnect and wipe database on sign-out
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const subscription = onAuthStateChange(async (event, session) => {
       if (session) {
         try {
           await connectDb();

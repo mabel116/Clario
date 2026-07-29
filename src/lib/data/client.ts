@@ -1,5 +1,5 @@
 import { db } from '../sync/db';
-import { supabase } from '../supabase';
+import { getAuthUserId } from '../auth/client';
 import { createLiveQuery, LiveQuery, ClientSummary, ClientDetail, NewClient, ClientPatch, isTest } from './types';
 import { deriveInvoice } from '../derive/invoice';
 
@@ -131,8 +131,7 @@ export const ClientRepo = {
     }
 
     // Get current authenticated user
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
+    const userId = await getAuthUserId();
     if (!userId) {
       throw new Error('User must be authenticated to create clients');
     }

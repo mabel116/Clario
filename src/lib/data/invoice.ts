@@ -12,7 +12,7 @@ import {
 } from './types';
 import { deriveInvoice, lineTotalMinor } from '../derive/invoice';
 import { suggestNextInvoiceNumber } from '../derive/numbering';
-import { supabase } from '../supabase';
+import { getAuthUserId } from '../auth/client';
 
 async function assertNotLocked(invoiceId: string): Promise<void> {
   const result = await db.getAll(
@@ -190,8 +190,7 @@ export const InvoiceRepo = {
     if ((typeof window === 'undefined' && !isTest) || !db) {
       throw new Error('Database connection not available');
     }
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
+    const userId = await getAuthUserId();
     if (!userId) {
       throw new Error('User must be authenticated to suggest invoice numbers');
     }
@@ -205,8 +204,7 @@ export const InvoiceRepo = {
       throw new Error('Database connection not available');
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
+    const userId = await getAuthUserId();
     if (!userId) {
       throw new Error('User must be authenticated to create invoices');
     }
@@ -315,8 +313,7 @@ export const InvoiceRepo = {
     await db.writeTransaction(async (tx) => {
       await tx.execute('DELETE FROM invoice_line_items WHERE invoice_id = ?', [id]);
       
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
+      const userId = await getAuthUserId();
       const now = new Date().toISOString();
 
       for (const item of lineItemsToInsert) {

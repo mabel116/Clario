@@ -1,5 +1,5 @@
 import { db } from '../sync/db';
-import { supabase } from '../supabase';
+import { getAuthUserId } from '../auth/client';
 import { createLiveQuery, LiveQuery, ValidationError, isTest } from './types';
 import { ClientLinkRow } from '../sync/schema';
 
@@ -41,8 +41,7 @@ export const ClientLinkRepo = {
     validateUrl(url);
 
     // Get current authenticated user
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
+    const userId = await getAuthUserId();
     if (!userId) {
       throw new Error('User must be authenticated to add links');
     }

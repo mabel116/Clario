@@ -1,4 +1,5 @@
 import { PowerSyncBackendConnector, CrudTransaction } from '@powersync/web';
+import { getAuthSession, supabaseSignOut } from '../auth/client';
 import { supabase } from '../supabase';
 
 export class SupabaseConnector implements PowerSyncBackendConnector {
@@ -6,14 +7,14 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
 
   // Returns credentials for client sync authentication
   async fetchCredentials() {
-    const { data, error } = await supabase.auth.getSession();
-    if (error || !data.session) {
+    const session = await getAuthSession();
+    if (!session) {
       // Return null rather than throw when there's no active session
       return null;
     }
     return {
       endpoint: process.env.NEXT_PUBLIC_POWERSYNC_URL || '',
-      token: data.session.access_token
+      token: session.access_token
     };
   }
 
@@ -90,7 +91,7 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
 
         // If it is an auth error, we can optionally sign out the user to trigger re-auth
         if (isAuthError) {
-          supabase.auth.signOut();
+          supabaseSignOut();
         }
       } else {
         // Rethrow transient network / timeout errors to let PowerSync queue retry

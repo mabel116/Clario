@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthProvider } from "../lib/auth/provider";
 import { PowerSyncProvider } from "../lib/sync/provider";
 import { SyncIndicator } from "../components/SyncIndicator";
 
@@ -16,10 +17,12 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="antialiased min-h-screen bg-background text-foreground">
-        <PowerSyncProvider>
-          {children}
-          <SyncIndicator />
-        </PowerSyncProvider>
+        <AuthProvider>
+          <PowerSyncProvider>
+            {children}
+            <SyncIndicator />
+          </PowerSyncProvider>
+        </AuthProvider>
       </body>
     </html>
   );

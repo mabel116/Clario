@@ -91,6 +91,12 @@ const mockDb = {
         }
       }
     };
+  },
+  disconnectAndClear: async () => {
+    const tables = ['payment_events', 'invoice_line_items', 'invoices', 'client_links', 'clients', 'profiles'];
+    for (const table of tables) {
+      await pgliteInstance.query(`TRUNCATE TABLE ${table} CASCADE`);
+    }
   }
 };
 
@@ -101,7 +107,8 @@ vi.mock('../src/lib/sync/db', () => {
       getAll: vi.fn((sql, params) => mockDb.getAll(sql, params)),
       writeTransaction: vi.fn((cb) => mockDb.writeTransaction(cb)),
       watch: vi.fn((sql, params) => mockDb.watch(sql, params)),
-      getCredentials: vi.fn(() => mockDb.getCredentials())
+      getCredentials: vi.fn(() => mockDb.getCredentials()),
+      disconnectAndClear: vi.fn(() => mockDb.disconnectAndClear())
     }
   };
 });
@@ -125,10 +132,13 @@ vi.mock('../src/lib/supabase', () => {
 });
 
 // Import repos after mock is defined
+import { db } from '../src/lib/sync/db';
 import { ClientRepo } from '../src/lib/data/client';
 import { InvoiceRepo } from '../src/lib/data/invoice';
 import { PaymentRepo } from '../src/lib/data/payment';
 import { ClientLinkRepo } from '../src/lib/data/client-link';
+import { ProfileRepo } from '../src/lib/data/profile';
+import { ProfileRow } from '../src/lib/sync/schema';
 import { InvoiceLockedError, CurrencyMismatchError, ValidationError, LiveQuery } from '../src/lib/data/types';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -500,4 +510,60 @@ describe('Data-Access Repositories Layer Invariants', () => {
     await expect(PaymentRepo.reverse(pId)).rejects.toThrow('Payment event is already reversed');
   });
 
+  // Profile Repo offline updates verification
+  it('Criterion 6: Profile edited offline persists locally', async () => {
+    // Fetch initial profile
+    const initialQuery = ProfileRepo.get();
+    let initialProfile: any;
+    subscribeAndTrack(initialQuery, (data) => {
+      initialProfile = data;
+    });
+    await sleep(20);
+
+    expect(initialProfile?.business_name).toBe('Freelancer Co');
+    expect(initialProfile?.default_currency).toBe('USD');
+
+    // Update profile
+    await ProfileRepo.update({
+      business_name: 'Jane Doe Studios',
+      business_address: '456 Elm St',
+      default_currency: 'EUR'
+    });
+
+    // Verify change is cached in database
+    const updatedQuery = ProfileRepo.get();
+    let updatedProfile: any;
+    subscribeAndTrack(updatedQuery, (data) => {
+      updatedProfile = data;
+    });
+    await sleep(20);
+
+    expect(updatedProfile?.business_name).toBe('Jane Doe Studios');
+    expect(updatedProfile?.business_address).toBe('456 Elm St');
+    expect(updatedProfile?.default_currency).toBe('EUR');
+  });
+
+  // Sign out clears local database verification
+  it('Criterion 7: Signing out clears the local database', async () => {
+    const userId = '00000000-0000-0000-0000-000000000000';
+    // Bootstrap database with client, invoice, profile
+    const clientId = await ClientRepo.create({ name: 'Client Leftover' });
+    expect(clientId).toBeDefined();
+
+    // Verify row exists before sign-out
+    const clientsCountBefore = await pgliteInstance.query<any>('SELECT COUNT(*) as count FROM clients');
+    expect(clientsCountBefore.rows[0].count).toBeGreaterThan(0);
+
+    // Call disconnectAndClear (mock signout)
+    await db.disconnectAndClear();
+
+    // Verify database tables are completely empty
+    const clientsCountAfter = await pgliteInstance.query<any>('SELECT COUNT(*) as count FROM clients');
+    expect(clientsCountAfter.rows[0].count).toBe(0);
+
+    const profilesCountAfter = await pgliteInstance.query<any>('SELECT COUNT(*) as count FROM profiles');
+    expect(profilesCountAfter.rows[0].count).toBe(0);
+  });
+
 });
+

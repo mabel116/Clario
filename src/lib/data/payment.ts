@@ -1,5 +1,5 @@
 import { db } from '../sync/db';
-import { supabase } from '../supabase';
+import { getAuthUserId } from '../auth/client';
 import { createLiveQuery, LiveQuery, NewPayment, CurrencyMismatchError, isTest } from './types';
 import { PaymentEventRow } from '../sync/schema';
 
@@ -46,8 +46,7 @@ export const PaymentRepo = {
       throw new CurrencyMismatchError(invoice.currency, input.currency);
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
+    const userId = await getAuthUserId();
     if (!userId) {
       throw new Error('User must be authenticated to record payments');
     }
@@ -100,8 +99,7 @@ export const PaymentRepo = {
       throw new Error('Payment event is already reversed');
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
+    const userId = await getAuthUserId();
     if (!userId) {
       throw new Error('User must be authenticated to reverse payments');
     }
