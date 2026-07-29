@@ -1,9 +1,10 @@
 'use client';
-
+ 
 import React, { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '../../components/ProtectedRoute';
 import { AppShell } from '../../components/AppShell';
-import { useClients, useClient, useClientLinks, useProfile } from '../../lib/data/hooks';
+import { useClients, useClient, useClientLinks, useProfile, useInvoicesForClient } from '../../lib/data/hooks';
 import { ClientRepo } from '../../lib/data/client';
 import { ClientLinkRepo } from '../../lib/data/client-link';
 import { formatMoney } from '../../lib/money';
@@ -41,6 +42,7 @@ export default function ClientsPage() {
 }
 
 function ClientsDashboard() {
+  const router = useRouter();
   const { data: clients, isLoading: isClientsLoading } = useClients();
   const { data: profile } = useProfile();
 
@@ -57,6 +59,25 @@ function ClientsDashboard() {
   // Live queries for selected client details
   const { data: selectedClientDetail } = useClient(selectedClientId || '');
   const { data: selectedClientLinks } = useClientLinks(selectedClientId || '');
+  const { data: selectedClientInvoices } = useInvoicesForClient(selectedClientId || '');
+
+  // Sort unpaid and overdue first, then date descending
+  const sortedInvoices = useMemo(() => {
+    if (!selectedClientInvoices) return [];
+    return [...selectedClientInvoices].sort((a, b) => {
+      const isUnpaidOrOverdue = (status: string) => status === 'sent' || status === 'overdue' || status === 'partially_paid';
+      const aUnpaid = isUnpaidOrOverdue(a.displayStatus);
+      const bUnpaid = isUnpaidOrOverdue(b.displayStatus);
+
+      if (aUnpaid && !bUnpaid) return -1;
+      if (!aUnpaid && bUnpaid) return 1;
+
+      // Handle issue_date sorting (nullable)
+      const dateA = a.issue_date || '';
+      const dateB = b.issue_date || '';
+      return dateB.localeCompare(dateA);
+    });
+  }, [selectedClientInvoices]);
 
   // Alphabetically sorted and filtered clients
   const filteredClients = useMemo(() => {
@@ -356,6 +377,101 @@ function ClientsDashboard() {
                 ) : (
                   <p className="text-xs text-slate-500 italic">No outstanding ledger balances</p>
                 )}
+              </div>
+            </div>
+ 
+            {/* Invoices Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                  <FileText className="h-4 w-4 text-indigo-400" />
+                  Invoices
+                </h4>
+                <button
+                  onClick={() => router.push(`/clients/${selectedClientId}/invoices/new`)}
+                  className="inline-flex items-center gap-1 rounded bg-slate-900 border border-slate-800 hover:border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-300 transition"
+                >
+                  <Plus className="h-3 w-3" /> New Invoice
+                </button>
+              </div>
+
+              {selectedClientInvoices && selectedClientInvoices.length > 0 ? (
+                <div className="space-y-2.5">
+                  {sortedInvoices.map((inv) => {
+                    const statusColors: Record<string, string> = {
+                      draft: 'bg-slate-900 border-slate-800 text-slate-400',
+                      sent: 'bg-indigo-950/40 border-indigo-900/40 text-indigo-400',
+                      paid: 'bg-green-950/40 border-green-900/40 text-green-400',
+                      partially_paid: 'bg-yellow-950/40 border-yellow-900/40 text-yellow-400',
+                      overdue: 'bg-red-950/40 border-red-900/40 text-red-400',
+                      void: 'bg-slate-950 border-slate-900/60 text-slate-600 line-through'
+                    };
+
+                    const badgeText: Record<string, string> = {
+                      draft: 'Draft',
+                      sent: 'Sent',
+                      paid: 'Paid',
+                      partially_paid: 'Partial',
+                      overdue: 'Overdue',
+                      void: 'Void'
+                    };
+
+                    return (
+                      <div
+                        key={inv.id}
+                        onClick={() => router.push(`/invoices/${inv.id}`)}
+                        className="rounded-xl border border-slate-900/60 bg-slate-950/20 p-3.5 flex items-center justify-between group hover:border-slate-800 transition cursor-pointer"
+                      >
+                        <div className="min-w-0 pr-3 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm text-white group-hover:text-indigo-400 transition truncate">
+                              {inv.invoice_number}
+                            </span>
+                            <span className={`inline-flex rounded px-1.5 py-0.5 text-[9px] font-bold border ${statusColors[inv.displayStatus]}`}>
+                              {badgeText[inv.displayStatus]}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            {inv.issue_date ? `Issued: ${inv.issue_date}` : 'Draft'}
+                            {inv.due_date ? ` · Due: ${inv.due_date}` : ''}
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <div className="text-sm font-extrabold text-white">
+                            {formatMoney({ amountMinor: inv.total_minor, currency: inv.currency })}
+                          </div>
+                          {inv.balanceDueMinor > 0 && inv.displayStatus !== 'void' && (
+                            <div className="text-[10px] text-slate-400">
+                              Due: {formatMoney({ amountMinor: inv.balanceDueMinor, currency: inv.currency })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-900 p-6 text-center space-y-2">
+                  <p className="text-xs text-slate-500">No invoices generated for this client.</p>
+                  <button
+                    onClick={() => router.push(`/clients/${selectedClientId}/invoices/new`)}
+                    className="text-[10px] text-indigo-400 hover:underline"
+                  >
+                    Create first invoice
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Payment History Section (Prompt 8 Shell) */}
+            <div className="space-y-4">
+              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                <Landmark className="h-4 w-4 text-indigo-400" />
+                Payment History
+              </h4>
+              <div className="rounded-xl border border-dashed border-slate-900 p-6 text-center">
+                <p className="text-xs text-slate-500">No payment history recorded.</p>
               </div>
             </div>
 

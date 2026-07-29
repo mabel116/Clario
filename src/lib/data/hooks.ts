@@ -50,6 +50,11 @@ export function useInvoice(id: string): { data: InvoiceDetail | null | undefined
   return useLiveQuery(query);
 }
 
+export function useCanEditFinancials(invoiceId: string): { data: boolean | undefined; isLoading: boolean } {
+  const query = useMemo(() => InvoiceRepo.canEditFinancials(invoiceId), [invoiceId]);
+  return useLiveQuery(query);
+}
+
 export function useInvoicesForClient(clientId: string): { data: InvoiceSummary[] | undefined; isLoading: boolean } {
   const query = useMemo(() => InvoiceRepo.listForClient(clientId), [clientId]);
   return useLiveQuery(query);

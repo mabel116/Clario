@@ -199,6 +199,22 @@ export const InvoiceRepo = {
     return suggestNextInvoiceNumber(existing);
   },
 
+  async isNumberDuplicate(invoiceNumber: string): Promise<boolean> {
+    if ((typeof window === 'undefined' && !isTest) || !db) {
+      throw new Error('Database connection not available');
+    }
+    const userId = await getAuthUserId();
+    if (!userId) {
+      throw new Error('User must be authenticated to check invoice numbers');
+    }
+    const result = await db.getAll(
+      'SELECT COUNT(*) as count FROM invoices WHERE user_id = ? AND invoice_number = ? AND deleted_at IS NULL',
+      [userId, invoiceNumber.trim()]
+    );
+    const count = (result as any)[0]?.count ?? 0;
+    return count > 0;
+  },
+
   async create(input: NewInvoice): Promise<string> {
     if ((typeof window === 'undefined' && !isTest) || !db) {
       throw new Error('Database connection not available');
