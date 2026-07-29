@@ -175,5 +175,29 @@
 - **Encapsulated Auth Helpers**: Repositories and database connector import functions from `src/lib/auth/client.ts` rather than importing `supabase` directly to isolate auth logic.
 - **Throttled Database Logger**: Integrated a warning throttle in `db.ts` to limit connection error logging to once every 30 seconds, improving dev console usability during offline debugging.
 
+## Phase 6 — Clients & Document Links
+- **Phase**: 6
+- **Status**: Complete & Verified (37 tests passing total)
 
+### What Was Built
+1. **Unified Clients Dashboard (`src/app/clients/page.tsx`)**:
+   - Live client query lists binding reactively to `useClients()` and ordering alphabetically by name.
+   - Client-side filtering input matching queries against client name, company, or email fields.
+   - Master-Detail layout: on desktop, splits the screen into a client list and a detail profile pane; on mobile viewports (≤ 375px), opens an overlay sliding detail drawer with full back-navigation controls.
+   - Add/Edit Client Modals: modal forms that support full client profile CRUD operations instantly offline. Sets default currency using the user profile's currency.
+   - Document Links Panel: displays labeled URLs attached to a client. Each link opens in a new tab with `target="_blank" rel="noopener noreferrer"`.
+   - Add/Edit Link Modals: validates that links are absolute URLs (`http://` or `https://`) and saves/modifies records instantly offline.
+   - Soft deletion hooks: Client deletions (`ClientRepo.softDelete`) and document link deletions (`ClientLinkRepo.softDelete`) trigger soft-deletes (updating `deleted_at`) instantly offline.
+2. **Repository Unit & Integration Tests (`tests/repositories.test.ts`)**:
+   - Added `Client CRUD` test case confirming offline creation, reactive lists, local updates, soft delete visibility, and historic database row retention.
+   - Added `Link CRUD` test case confirming link additions, label/URL modifications, URL prefix verification, soft deletes, and list updates.
 
+### What Was Verified
+- **Vitest Unit Suite**: Running `npx vitest run` confirms all 37 tests (including the new client/link CRUD tests) pass cleanly.
+- **TypeScript Typecheck**: Compiles cleanly with no type check errors.
+- **ESLint checks**: `npx eslint src/app/clients/page.tsx` checks out with 0 lint errors or warnings.
+- **Static Confinement Scan**: `git grep "@powersync"` confirms PowerSync imports remain confined to `src/lib/sync/` (with dev diagnostics page as the accepted exception).
+- **Outstanding Balances Separation**: Verified that outstanding balances display each currency on its own line in the details drawer, formatted using `formatMoney`.
+
+### Specification Deviations
+- **Mock DB Query Subscription Watch Re-subscription**: In unit tests, a fresh query subscription is instantiated after each write operation due to Vitest mock DB `watch` iterator limitations.
