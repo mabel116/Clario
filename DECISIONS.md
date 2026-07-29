@@ -109,7 +109,18 @@
 - **Context**: To allow Google Sign-In and ensure users do not end up with duplicate accounts if they register using email/password first, automatic account linking must be configured.
 - **Decision**: Configured redirect URI wildcards on Supabase dashboard (`https://*.vercel.app/auth/callback` and `http://localhost:3000/auth/callback`) pointing to the OAuth router callback. Enabled automatic identity linking on verified email match (default Supabase dashboard behavior with no dashboard toggle required).
 - **Consequences**: Same-email OAuth logins cleanly merge into existing password-based profiles, avoiding duplicate entries.
+## ADR 023: Master-Detail Layout UI Pattern for Clients Screen
+- **Context**: The `/clients` interface requires an optimized visual layout for viewing and managing client profiles and document links across viewports.
+- **Decision**: Implemented a responsive Master-Detail screen structure that splits the screen side-by-side on desktop layouts and transitions to a full-screen overlays detail card drawer with navigation controls on mobile ≤ 375px.
+- **Consequences**: Provides high visual density on large viewports while matching native application drawer workflows on mobile viewports.
 
+## ADR 024: Native Alert-Based UI Form Validation Notifications
+- **Context**: Offline client and link form actions require robust validation feedback (such as empty fields or invalid link formats) without adding UI component bloat or layout jumps.
+- **Decision**: Handled database validation exceptions and client-side prefix constraints using standard browser `alert()` popups inside transaction `catch` blocks.
+- **Consequences**: Keeps form validation code lightweight, avoids state sync overhead, and provides clear, immediate error notification messages that block saving.
 
-
+## ADR 025: Workspace-Level Customization Rules for Process Safety
+- **Context**: In multi-prompt agent cycles, the agent's memory window undergoes truncation, which can lead to accidental premature git commits or skips of mandatory manual verification checklist steps.
+- **Decision**: Programmed persistent, project-scoped rules in `.agents/AGENTS.md` containing strict guidelines for commit gates, verification checklist runs, and honest unverified browser QA reporting.
+- **Consequences**: Customization rules are loaded automatically at the start of every future workspace connection, preventing process drifts.
 
