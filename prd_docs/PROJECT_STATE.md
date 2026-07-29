@@ -209,11 +209,63 @@
 - **Binary/Upload Exclusions (Criterion 10)**: Scans show zero storage or file inputs.
 
 ### Carried-Forward / Deferred Items
-- **Invoice & Payments Queryability (Criterion 8 half)**: Confirming that soft-deleted clients' invoices and payments remain queryable is deferred to Prompts 7 and 8 (when those tables are populated with data).
-- **Outstanding Balances Verification (Criterion 9)**: Real outstanding multi-currency balance rendering is deferred to Prompts 7 and 8 (when invoices can be created to compute ledger values). Code mapping separates currencies cleanly.
+- **Invoice Queryability (Criterion 8 half)**: Verified in Prompt 7 integration tests that soft-deleted clients' invoices remain queryable.
+- **Payments Queryability (Criterion 8 half)**: Confirming that soft-deleted clients' payments remain queryable is deferred to Prompt 8 (when that table is populated with data).
+- **Outstanding Balances Verification (Criterion 9)**: Real outstanding multi-currency balance rendering is deferred to Prompt 8 (when invoices can be subtracted by payment events to compute ledger values). Code mapping separates currencies cleanly.
 
 ### Specification Deviations
 - **Master-Detail Layout**: Implemented master-detail panel switching (slides in on mobile ≤ 375px, splits on desktop) for enhanced mobile usability.
 - **Alert-based Form Validation Errors**: Blocks invalid client-side inputs (e.g. invalid email or link URLs) via UI alert prompts instead of complex inline form blocks.
 - **Mock DB Query Subscription Watch Re-subscription**: In unit tests, a fresh query subscription is instantiated after each write operation due to Vitest mock DB `watch` iterator limitations.
+
+
+## Prompt 7: Invoices, Line Items & Lifecycle
+- **Status**: Complete & Verified (37 tests passing total)
+
+### What Was Built
+1. **Invoice Hooks & Repositories (`src/lib/data/`)**:
+   - Implemented `useCanEditFinancials(invoiceId)` in `hooks.ts` to reactively track if payments are recorded.
+   - Added `isNumberDuplicate(invoiceNumber)` query check to `InvoiceRepo` in `invoice.ts`.
+2. **Client Dashboard Invoices List (`src/app/clients/page.tsx`)**:
+   - Replaced empty shell with reactive list using `useInvoicesForClient(clientId)`.
+   - Displays invoice number, timelines, totals, outstanding balances, and display status badges.
+   - Orders unpaid/overdue invoices first, then date descending.
+   - Added navigation triggers to invoice details/new invoice forms.
+3. **Invoice Creation Route (`src/app/clients/[id]/invoices/new/page.tsx`)**:
+   - Dynamic form suggesting next invoice number on load.
+   - Fixed client/profile default currency resolution.
+   - Stacked line-item editor supporting add, remove, and reorder (shift up/down).
+   - Real-time total aggregations and soft duplicate number alert validation checks.
+4. **Invoice Detail Viewer (`src/app/invoices/[id]/page.tsx`)**:
+   - Renders client, timelines, line items list, statement summary (total, amount paid, balance due), and private internal notes (marked with a private label).
+   - Conditional lifecycle actions: Mark as Sent (timeline modal), Void Invoice (confirmation prompt), and Delete Draft (soft-deletes).
+   - Integrates `useCanEditFinancials` lock banner explaining read-only fields.
+5. **Invoice Edit Route (`src/app/invoices/[id]/edit/page.tsx`)**:
+   - Mirrors creation form layout but respects the financial edit lock state.
+   - Disables number, dates, line items, and notes if payments exist. Keeps `due_date` and `internal_note` always editable.
+
+### What Was Verified
+- **Manual Browser QA (Criteria 1–6, 7 positive half, 8–10, 12)**: Verified firsthand via manual offline-first testing:
+  - Offline creation of invoices with three line items computes total, saves locally, and syncs on reconnect (Criterion 1).
+  - Floating-point precision validation: quantity `2.5` × unit price `3.33` yields `8.33` with no visual float bugs (Criterion 2).
+  - JPY currency formats without decimal places (Criterion 3).
+  - Pre-fills next number; duplicate invoice number alerts but saves (Criterion 4).
+  - Marking as sent captures timelines and updates status badge to Sent (Criterion 5).
+  - Backdated due dates instantly shift display status from Sent to Overdue (Criterion 6).
+  - Financial editing permitted on Sent status with 0 payments (Criterion 7 positive half).
+  - `due_date` and `internal_note` remain editable regardless of status or locking state (Criterion 8).
+  - Voiding an invoice updates status badge to Void and subtracts from outstanding balance (Criterion 9).
+  - Drafts display Delete option; Sent/Void/Overdue hide it (Criterion 10).
+  - Mobile viewport ≤ 375px formats the line items editor into stacked responsive grids (Criterion 12).
+- **Automated Verification (Criterion 11)**: Ripgrep scans confirm `'paid'` and `'overdue'` are never written to the database `status` column (only computed dynamically for display badges).
+- **Vitest Unit Suite**: Running `npm run test` confirms all 37 tests continue to pass cleanly.
+- **TypeScript Typecheck**: Compiles cleanly with no compilation type errors.
+
+### Carried-Forward / Deferred Items
+- **Payments Queryability (Criterion 8 half)**: Confirming that soft-deleted clients' payments remain queryable is deferred to Prompt 8 (when that table is populated with data).
+- **Outstanding Balances Verification (Criterion 9)**: Real outstanding multi-currency balance rendering is deferred to Prompt 8 (when payment events can be created to compute ledger values).
+- **Financial Lock Negative Control (Criterion 7 negative half)**: Locking financial editing once a payment event is recorded is deferred to Prompt 8 (when the manual payments ledger is implemented).
+
+### Specification Deviations
+- None.
 
