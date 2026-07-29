@@ -150,4 +150,30 @@
 - **Mock DB Array Return Type Alignment**: Mapped mock PGlite DB environment in Vitest to return rows arrays directly, matching real PowerSync client SDK behavior.
 - **Diagnostic Route PowerSync Import Exception**: Confirmed that the import of `@powersync/react` on line 4 of `src/app/dev/sync/page.tsx` is an accepted exception strictly tied to the temporary diagnostics console route, which is scheduled for permanent deletion in Prompt 12.
 
+## Phase 5 — Authentication & Profile Settings
+- **Phase**: 5
+- **Status**: Complete & Verified (35 tests passing total)
+
+### What Was Built
+1. **Supabase Auth Confinement wrappers (`src/lib/auth/`)**:
+   - `client.ts`: Exposes client-friendly error mapping, network connectivity checks, sign-up, sign-in, Google OAuth trigger, password reset, and session helper functions (`getAuthUserId()`, `getAuthSession()`, `onAuthStateChange()`, `supabaseSignOut()`) to confine native `supabase.auth` calls.
+   - `provider.tsx`: Implements React `AuthProvider` context managing loaded sessions, preserving authentication states during transient offline periods, and avoiding logging out when offline token refreshes fail.
+2. **Client-side Router Protection (`src/components/`)**:
+   - `ProtectedRoute`: Guards authenticated pages (like Settings or Dashboard), redirecting unauthenticated users to `/sign-in`.
+   - `UnprotectedRoute`: Guards guest auth screens, redirecting authenticated users to the home dashboard.
+3. **Application Shell & Settings Screen**:
+   - `AppShell.tsx`: Responsive navigation layout container utilizing modern CSS gradients and responsive mobile sidebars/drawer toggles.
+   - `/settings/page.tsx`: Interactive profile editing dashboard displaying sync engine status, pending upload queues, and last success sync times.
+   - Placeholders for `/` and `/clients` utilizing route protection wrappers to prevent 404s.
+
+### What Was Verified
+- **Manual Web QA**: Verified sign-up profile creation (`default_currency = 'USD'`), Google OAuth authentication, automatic same-email identity linking, offline reload session retention, offline profile modifications, and CASCADE truncation database clearing upon signing out.
+- **Unit Test Suite**: Added two new tests inside `tests/repositories.test.ts` verifying `ProfileRepo` offline update cache syncs and `disconnectAndClear` database purge. All 35 tests pass cleanly.
+- **Strict Confinement Scan**: `git grep` verified that direct `supabase.auth` calls are completely confined to `src/lib/auth/`, the redirect handler, and dev-console exceptions.
+
+### Specification Deviations
+- **Encapsulated Auth Helpers**: Repositories and database connector import functions from `src/lib/auth/client.ts` rather than importing `supabase` directly to isolate auth logic.
+- **Throttled Database Logger**: Integrated a warning throttle in `db.ts` to limit connection error logging to once every 30 seconds, improving dev console usability during offline debugging.
+
+
 
