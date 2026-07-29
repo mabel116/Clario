@@ -95,5 +95,21 @@
 - **Decision**: Implemented an automated bypass flag (`isTest`) that checks if `process.env.NODE_ENV === 'test'` or `process.env.VITEST === 'true'`.
 - **Consequences**: Enables unit tests to mock and execute database transactions inside Node Vitest environments without throwing SSR guard errors, while remaining strictly disabled in Next.js production server-side code (where `process.env.NODE_ENV === 'production'`).
 
+## ADR 020: Auth-Confinement Interface Boundary Refactor
+- **Context**: Codebase constraints require that Supabase Auth client methods (e.g. `supabase.auth.*`) must be confined to the `src/lib/auth/` directory. Direct leakages of auth calls in repository or backend connector scopes are prohibited.
+- **Decision**: Implemented four encapsulation helper functions in `src/lib/auth/client.ts` (`getAuthUserId()`, `getAuthSession()`, `onAuthStateChange()`, `supabaseSignOut()`) that act as the sole interface boundary between the app modules and Supabase Auth.
+- **Consequences**: Confinement is fully enforced, enabling clean verification using static grep scans. Repositories and sync logic import helper functions rather than reference the global Supabase Auth client directly.
+
+## ADR 021: Throttled Console Logger for Offline Sync Errors
+- **Context**: PowerSync client SDK triggers continuous sync reconnect attempts while offline, causing fetch and network timeout exceptions to be repeatedly logged to the console, spamming debugging outputs.
+- **Decision**: Created a custom `ThrottledLogger` wrapper class passing warning and error events to the console, which checks for network/connection failure messages and throttles duplicates to once every 30 seconds.
+- **Consequences**: Significantly improves developer console readability during extended offline testing sessions while safely logging a count of suppressed warnings when reconnect attempts continue in the background.
+
+## ADR 022: Google OAuth Configuration and Automatic Email-Match Identity Linking
+- **Context**: To allow Google Sign-In and ensure users do not end up with duplicate accounts if they register using email/password first, automatic account linking must be configured.
+- **Decision**: Configured redirect URI wildcards on Supabase dashboard (`https://*.vercel.app/auth/callback` and `http://localhost:3000/auth/callback`) pointing to the OAuth router callback. Enabled automatic identity linking on verified email match (default Supabase dashboard behavior with no dashboard toggle required).
+- **Consequences**: Same-email OAuth logins cleanly merge into existing password-based profiles, avoiding duplicate entries.
+
+
 
 
