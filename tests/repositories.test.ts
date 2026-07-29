@@ -565,5 +565,95 @@ describe('Data-Access Repositories Layer Invariants', () => {
     expect(profilesCountAfter.rows[0].count).toBe(0);
   });
 
+  // Client CRUD Offline Validation
+  it('Epic 1 — Client CRUD: create, update, and soft delete works offline', async () => {
+    const id = await ClientRepo.create({
+      name: 'Client Alpha',
+      email: 'alpha@example.com',
+      company: 'Alpha Inc',
+      default_currency: 'GBP'
+    });
+    expect(id).toBeDefined();
+
+    // Verify it is in list
+    let clients: any[] = [];
+    subscribeAndTrack(ClientRepo.list(), (data) => {
+      clients = data;
+    });
+    await sleep(20);
+    expect(clients.some(c => c.id === id && c.name === 'Client Alpha')).toBe(true);
+
+    // Update details
+    await ClientRepo.update(id, {
+      name: 'Client Alpha Updated',
+      email: 'alpha.new@example.com'
+    });
+
+    // Verify details updated in list (re-subscribe due to watch mock once-only limitation)
+    subscribeAndTrack(ClientRepo.list(), (data) => {
+      clients = data;
+    });
+    await sleep(20);
+    expect(clients.some(c => c.id === id && c.name === 'Client Alpha Updated' && c.email === 'alpha.new@example.com')).toBe(true);
+
+    // Soft delete
+    await ClientRepo.softDelete(id);
+
+    // Verify soft-deleted client is filtered out of lists
+    subscribeAndTrack(ClientRepo.list(), (data) => {
+      clients = data;
+    });
+    await sleep(20);
+    expect(clients.some(c => c.id === id)).toBe(false);
+
+    // Verify record remains in database table for historic ledger records
+    const row = await pgliteInstance.query<any>('SELECT deleted_at FROM clients WHERE id = $1', [id]);
+    expect(row.rows[0].deleted_at).not.toBeNull();
+  });
+
+  // Link CRUD Offline Validation
+  it('Epic 2 — Link CRUD: add, update, and soft delete works offline', async () => {
+    const clientId = await ClientRepo.create({ name: 'Client Beta' });
+
+    // Add valid link
+    const linkId = await ClientLinkRepo.add(clientId, 'Invoice Folder', 'https://drive.google.com/folder');
+    expect(linkId).toBeDefined();
+
+    // Verify link lists reactively
+    let links: any[] = [];
+    subscribeAndTrack(ClientLinkRepo.listForClient(clientId), (data) => {
+      links = data;
+    });
+    await sleep(20);
+    expect(links.some(l => l.id === linkId && l.label === 'Invoice Folder' && l.url === 'https://drive.google.com/folder')).toBe(true);
+
+    // Update link details
+    await ClientLinkRepo.update(linkId, {
+      label: 'Invoice Drive Folder',
+      url: 'https://drive.google.com/folder2'
+    });
+
+    // Verify details updated
+    subscribeAndTrack(ClientLinkRepo.listForClient(clientId), (data) => {
+      links = data;
+    });
+    await sleep(20);
+    expect(links.some(l => l.id === linkId && l.label === 'Invoice Drive Folder' && l.url === 'https://drive.google.com/folder2')).toBe(true);
+
+    // Soft delete link
+    await ClientLinkRepo.softDelete(linkId);
+
+    // Verify link is filtered out of live lists
+    subscribeAndTrack(ClientLinkRepo.listForClient(clientId), (data) => {
+      links = data;
+    });
+    await sleep(20);
+    expect(links.some(l => l.id === linkId)).toBe(false);
+
+    // Verify link row exists in DB with deleted_at set
+    const row = await pgliteInstance.query<any>('SELECT deleted_at FROM client_links WHERE id = $1', [linkId]);
+    expect(row.rows[0].deleted_at).not.toBeNull();
+  });
+
 });
 
