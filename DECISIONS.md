@@ -124,3 +124,9 @@
 - **Decision**: Programmed persistent, project-scoped rules in `.agents/AGENTS.md` containing strict guidelines for commit gates, verification checklist runs, and honest unverified browser QA reporting.
 - **Consequences**: Customization rules are loaded automatically at the start of every future workspace connection, preventing process drifts.
 
+## ADR 026: TypeScript Resolution of displayStatus Life Cycle Bounds
+- **Context**: The `displayStatus` on invoices is dynamically derived as `'draft' | 'void' | 'paid' | 'overdue' | 'sent'` (where partially paid invoices display as `'sent'` until overdue per PRD §6.1). A comparison in `src/app/invoices/[id]/page.tsx` checked `invoice.displayStatus === 'partially_paid'`, causing a compile-time type mismatch error.
+- **Decision**: Refactored the invoice status evaluation to remove the invalid `'partially_paid'` comparison. Resolved the active/issued check `isSent` as `invoice.displayStatus !== 'draft' && invoice.displayStatus !== 'void'`.
+- **Consequences**: Ensures perfect alignment between compiler static types and PRD display definitions, preventing lifecycle badge rendering glitches on partially paid invoices.
+
+
