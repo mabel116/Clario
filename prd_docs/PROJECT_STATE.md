@@ -193,11 +193,27 @@
    - Added `Link CRUD` test case confirming link additions, label/URL modifications, URL prefix verification, soft deletes, and list updates.
 
 ### What Was Verified
-- **Vitest Unit Suite**: Running `npx vitest run` confirms all 37 tests (including the new client/link CRUD tests) pass cleanly.
+- **Manual Browser QA (Criteria 1–8)**: Verified firsthand via manual offline-first testing:
+  - Client offline creation immediately loads in UI and syncs to Supabase on reconnect (Criterion 1).
+  - Client offline editing persists and syncs on reconnect (Criterion 2).
+  - Search filters instantly with the network disabled (Criterion 3).
+  - Labeled URL link saving and redirection opens in a new tab (Criterion 4).
+  - URL validations block `ftp://` and `not-a-url` inputs inline (Criterion 5).
+  - Document link addition offline persists and syncs on reconnect (Criterion 6).
+  - Soft-deleting document link updates UI and sets `deleted_at` in Postgres (Criterion 7).
+  - Soft-deleting client updates UI immediately and keeps historic DB rows (Criterion 8).
+- **Vitest Unit Suite**: Running `npx vitest run` confirms all 37 tests pass cleanly.
 - **TypeScript Typecheck**: Compiles cleanly with no type check errors.
 - **ESLint checks**: `npx eslint src/app/clients/page.tsx` checks out with 0 lint errors or warnings.
-- **Static Confinement Scan**: `git grep "@powersync"` confirms PowerSync imports remain confined to `src/lib/sync/` (with dev diagnostics page as the accepted exception).
-- **Outstanding Balances Separation**: Verified that outstanding balances display each currency on its own line in the details drawer, formatted using `formatMoney`.
+- **Static Confinement Scan (Criterion 11)**: Confirms PowerSync/Supabase imports are confined.
+- **Binary/Upload Exclusions (Criterion 10)**: Scans show zero storage or file inputs.
+
+### Carried-Forward / Deferred Items
+- **Invoice & Payments Queryability (Criterion 8 half)**: Confirming that soft-deleted clients' invoices and payments remain queryable is deferred to Prompts 7 and 8 (when those tables are populated with data).
+- **Outstanding Balances Verification (Criterion 9)**: Real outstanding multi-currency balance rendering is deferred to Prompts 7 and 8 (when invoices can be created to compute ledger values). Code mapping separates currencies cleanly.
 
 ### Specification Deviations
+- **Master-Detail Layout**: Implemented master-detail panel switching (slides in on mobile ≤ 375px, splits on desktop) for enhanced mobile usability.
+- **Alert-based Form Validation Errors**: Blocks invalid client-side inputs (e.g. invalid email or link URLs) via UI alert prompts instead of complex inline form blocks.
 - **Mock DB Query Subscription Watch Re-subscription**: In unit tests, a fresh query subscription is instantiated after each write operation due to Vitest mock DB `watch` iterator limitations.
+
