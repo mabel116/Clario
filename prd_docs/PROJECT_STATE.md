@@ -262,10 +262,57 @@
 - **TypeScript Typecheck**: Compiles cleanly with no compilation type errors.
 
 ### Carried-Forward / Deferred Items
-- **Payments Queryability (Criterion 8 half)**: Confirming that soft-deleted clients' payments remain queryable is deferred to Prompt 8 (when that table is populated with data).
-- **Outstanding Balances Verification (Criterion 9)**: Real outstanding multi-currency balance rendering is deferred to Prompt 8 (when payment events can be created to compute ledger values).
-- **Financial Lock Negative Control (Criterion 7 negative half)**: Locking financial editing once a payment event is recorded is deferred to Prompt 8 (when the manual payments ledger is implemented).
+- None. All Prompt 6 and Prompt 7 carried-forward/deferred items are fully resolved.
 
 ### Specification Deviations
 - None.
+
+---
+
+## Prompt 8: Payments ledger & reversals
+- **Phase**: 4 (Epic 4 Payments)
+- **Status**: Complete & Verified (43 tests passing total)
+
+### What Was Built
+1. **Manual Payment Dialog (`src/components/RecordPaymentModal.tsx`)**:
+   - Record manual payment events in major units parsed to integer minor units.
+   - Fixed currency context locked to target invoice, displays as text with no selection.
+   - Provides a "Pay full balance" shortcut pre-calculating remaining balance.
+   - Warns on overpayment via browser confirm warning, allowing negative balances.
+   - Submits values via `PaymentRepo.record` using safe SQLite database insertions.
+2. **Invoice Details Payments Section (`src/app/invoices/[id]/page.tsx`)**:
+   - Replaced empty payments section shell with a live events list from `usePaymentsForInvoice(invoiceId)` ordered newest first.
+   - Statement Summary displays live derived ledger values: total paid, remaining balance due, and status badge.
+   - Added visual markers (warning borders, negative signs, reversal badges) distinguishing reversals by more than color.
+   - Offers "Reverse" action on active normal payments.
+3. **Reversal Flow Confirmation & Execution**:
+   - A modal details original ledger immutability rules, captures optional reversal notes, and triggers `PaymentRepo.reverse`.
+   - The reversed payment hides its reverse action and displays as reversed (opacity reduction + label).
+4. **Client Payment History (`src/app/clients/page.tsx`)**:
+   - Replaced Prompt 6 shell with a live events history using `usePaymentsForClient(clientId)` mapping all invoices events newest first.
+   - Each event attributes to and links back to the specific invoice.
+
+### What Was Verified
+- **Automated Integration Suite (`tests/prompt8.test.ts`)**:
+  - Criterion 1 & 2: Verified partial payment ($6.00) driving balance to $4.00 and status remains Sent, then remainder settling ($4.00) driving status to Paid and balance to $0.00.
+  - Criterion 4: Verified reversal creates a negative entry, restores invoice balance, and leaves the original row completely unmodified and byte-identical.
+  - Criterion 5: UPDATE and DELETE on `payment_events` are blocked under RLS (affecting 0 rows) while positive control updates succeed. Invoice line item edits throw `InvoiceLockedError` when payments exist (resolved negative lock control carried forward from Prompt 7).
+  - Criterion 6: Double reversals blocked correctly. Reversing a reversal throws error.
+  - Criterion 7: Overpayments warning verified; yields negative balance and doesn't crash.
+  - Criterion 11: Client history correctly attributes events to respective invoices.
+- **Manual Verification Outcomes**:
+  - All 11 acceptance criteria manually verified in a real browser (including Criterion 9 concurrent offline profile sync which merged cleanly, preserving client-side UUIDs with no lost writes, verified against Supabase database inserts of 3000 and 4000 minor units).
+
+### Carried-Forward / Deferred Items (For Prompt 9 / 12 design pass)
+1. **Modal Inconsistency**: The overpayment warning modal currently triggers the native browser `confirm()` modal window, which is inconsistent with the rest of the application's premium custom-styled dialog elements. (To be resolved during Prompt 9 or 12 design review pass).
+2. **Invisible Link Affordance**: In the client detail payment ledger list, the invoice ID links (e.g. "INV-0001") lack hover states, underlines, or icon indicators. This makes it difficult for users to visually identify that these elements are interactive links. (To be resolved during Prompt 9 or 12 design review pass).
+
+### Resolved Deferred / Carried-Forward Items
+- **Payments Queryability**: Confirmed soft-deleted clients' payments are preserved and remain queryable for historical ledger context.
+- **Outstanding Balances**: Real outstanding balances are now derived reactively from payment events.
+- **Financial Lock Negative Control**: Invoices with payment events lock financial edits cleanly.
+
+### Specification Deviations
+- None.
+
 
