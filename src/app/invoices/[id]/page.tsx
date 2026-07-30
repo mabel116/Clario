@@ -4,12 +4,14 @@ import React, { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ProtectedRoute } from '../../../components/ProtectedRoute';
 import { AppShell } from '../../../components/AppShell';
-import { useInvoice, useCanEditFinancials } from '../../../lib/data/hooks';
+import { useInvoice, useCanEditFinancials, usePaymentsForInvoice } from '../../../lib/data/hooks';
 import { InvoiceRepo } from '../../../lib/data/invoice';
+import { PaymentRepo } from '../../../lib/data/payment';
+import { RecordPaymentModal } from '../../../components/RecordPaymentModal';
 import { formatMoney } from '../../../lib/money';
 import { 
   ArrowLeft, Edit3, Send, Ban, Trash2, Calendar, FileText, 
-  MessageSquare, User, Lock, AlertTriangle, CreditCard, Download
+  MessageSquare, User, Lock, AlertTriangle, CreditCard, Download, Undo2, Plus
 } from 'lucide-react';
 
 export default function InvoiceDetailsPage() {
@@ -31,11 +33,33 @@ function InvoiceDetails({ invoiceId }: { invoiceId: string }) {
   // Queries
   const { data: invoice, isLoading: isInvoiceLoading } = useInvoice(invoiceId);
   const { data: canEditFinancials } = useCanEditFinancials(invoiceId);
+  const { data: payments } = usePaymentsForInvoice(invoiceId);
 
   // Modal dialog states
   const [showMarkSent, setShowMarkSent] = useState(false);
   const [sentIssueDate, setSentIssueDate] = useState('');
   const [sentDueDate, setSentDueDate] = useState('');
+  const [showRecordPayment, setShowRecordPayment] = useState(false);
+  const [reversalTargetEvent, setReversalTargetEvent] = useState<any>(null);
+  const [reversalNote, setReversalNote] = useState('');
+  const [isReversing, setIsReversing] = useState(false);
+
+  const handleReversePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reversalTargetEvent || isReversing) return;
+
+    try {
+      setIsReversing(true);
+      await PaymentRepo.reverse(reversalTargetEvent.id, reversalNote.trim() || undefined);
+      setReversalTargetEvent(null);
+      setReversalNote('');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to reverse payment.';
+      alert(message);
+    } finally {
+      setIsReversing(false);
+    }
+  };
 
   // Setup date defaults when Mark as Sent is opened
   const handleOpenMarkSent = () => {
@@ -333,31 +357,108 @@ function InvoiceDetails({ invoiceId }: { invoiceId: string }) {
               </div>
             </div>
           </div>
-
-          {/* Payments ledger section placeholder (Prompt 8) */}
+          {/* Payments ledger section (Prompt 8) */}
           <div className="rounded-3xl border border-slate-900 bg-slate-950/20 p-6 space-y-4 backdrop-blur-xl">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">Payments Ledger</h3>
-              <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Prompt 8</span>
+              <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400">Payments Ledger</h3>
+              {invoice.displayStatus !== 'draft' && invoice.displayStatus !== 'void' && (
+                <button
+                  onClick={() => setShowRecordPayment(true)}
+                  className="inline-flex items-center gap-1 rounded bg-indigo-600 hover:bg-indigo-500 px-2.5 py-1.5 text-xs font-semibold text-white transition shadow shadow-indigo-600/10"
+                >
+                  <Plus className="h-3 w-3" /> Record
+                </button>
+              )}
             </div>
-            
-            <div className="rounded-2xl border border-dashed border-slate-900 p-6 text-center space-y-4">
-              <p className="text-xs text-slate-500">Manual payment log events will list here.</p>
-              
-              <div className="flex flex-col gap-2">
-                <button
-                  disabled
-                  className="inline-flex justify-center items-center gap-1.5 rounded-lg bg-slate-900 border border-slate-800 px-4 py-2.5 text-xs font-semibold text-slate-600 cursor-not-allowed"
-                >
-                  <CreditCard className="h-3.5 w-3.5" /> Record Payment
-                </button>
-                <button
-                  disabled
-                  className="inline-flex justify-center items-center gap-1.5 rounded-lg bg-slate-900 border border-slate-800 px-4 py-2.5 text-xs font-semibold text-slate-600 cursor-not-allowed"
-                >
-                  <Download className="h-3.5 w-3.5" /> Download PDF
-                </button>
+
+            {/* List of Payments */}
+            {payments && payments.length > 0 ? (
+              <div className="space-y-3">
+                {(() => {
+                  const reversedIds = new Set(payments.map(p => p.reverses_id).filter(Boolean) as string[]);
+                  return payments.map((pmt) => {
+                    const isReversal = !!pmt.reverses_id || pmt.amount_minor < 0;
+                    const isReversed = reversedIds.has(pmt.id);
+
+                    return (
+                      <div
+                        key={pmt.id}
+                        className={`rounded-2xl border p-3.5 space-y-2 text-left transition ${
+                          isReversal
+                            ? 'border-red-950/40 bg-red-950/5'
+                            : isReversed
+                            ? 'border-slate-900 bg-slate-950/40 opacity-60'
+                            : 'border-slate-900/60 bg-slate-950/20'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-sm font-extrabold ${isReversal ? 'text-red-400' : 'text-white'}`}>
+                                {isReversal ? '-' : ''}
+                                {formatMoney({ amountMinor: Math.abs(pmt.amount_minor), currency: invoice.currency })}
+                              </span>
+                              {isReversal && (
+                                <span className="inline-flex items-center gap-0.5 rounded bg-red-950 border border-red-900/50 px-1 py-0.2 text-[8px] font-bold text-red-400 uppercase">
+                                  Reversal
+                                </span>
+                              )}
+                              {isReversed && (
+                                <span className="inline-flex items-center gap-0.5 rounded bg-slate-900 border border-slate-800 px-1 py-0.2 text-[8px] font-bold text-slate-500 uppercase">
+                                  Reversed
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-slate-500 mt-0.5">
+                              {pmt.occurred_at} · {pmt.method ? pmt.method.replace('_', ' ') : 'other'}
+                            </div>
+                          </div>
+
+                          {/* Reversal action button */}
+                          {!isReversal && !isReversed && invoice.displayStatus !== 'void' && (
+                            <button
+                              onClick={() => setReversalTargetEvent(pmt)}
+                              className="inline-flex items-center gap-1 rounded bg-slate-900 border border-slate-800 hover:border-slate-700 hover:text-white px-2 py-1 text-[10px] font-bold text-slate-400 transition"
+                            >
+                              <Undo2 className="h-3 w-3" /> Reverse
+                            </button>
+                          )}
+                        </div>
+
+                        {pmt.note && (
+                          <p className={`text-xs text-slate-400 bg-slate-950/30 p-2 rounded-lg border border-slate-900/30 ${isReversed ? 'line-through' : ''}`}>
+                            {pmt.note}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
               </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-900 p-6 text-center space-y-3">
+                <p className="text-xs text-slate-500">No payment events recorded against this invoice.</p>
+                {invoice.displayStatus !== 'draft' && invoice.displayStatus !== 'void' ? (
+                  <button
+                    onClick={() => setShowRecordPayment(true)}
+                    className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-400 hover:underline"
+                  >
+                    Record first payment
+                  </button>
+                ) : (
+                  <p className="text-[10px] text-slate-600 italic">Invoice is in {invoice.displayStatus} state.</p>
+                )}
+              </div>
+            )}
+
+            {/* Other actions (Download PDF placeholder) */}
+            <div className="pt-2 border-t border-slate-900">
+              <button
+                disabled
+                className="w-full inline-flex justify-center items-center gap-1.5 rounded-lg bg-slate-900 border border-slate-800 px-4 py-2 text-xs font-semibold text-slate-600 cursor-not-allowed"
+              >
+                <Download className="h-3.5 w-3.5" /> Download PDF
+              </button>
             </div>
           </div>
         </div>
@@ -412,6 +513,89 @@ function InvoiceDetails({ invoiceId }: { invoiceId: string }) {
                   className="px-4 py-2.5 rounded-lg bg-indigo-600 text-sm font-semibold text-white hover:bg-indigo-500 transition"
                 >
                   Confirm Sent
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Record Payment Dialog Modal */}
+      {showRecordPayment && (
+        <RecordPaymentModal
+          clientId={invoice.client_id}
+          invoiceId={invoiceId}
+          onClose={() => setShowRecordPayment(false)}
+        />
+      )}
+
+      {/* Reversal Confirmation Dialog Modal */}
+      {reversalTargetEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md rounded-3xl border border-slate-900 bg-slate-950 p-6 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-400" />
+                <h3 className="text-lg font-bold text-white">Confirm Reversal</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setReversalTargetEvent(null);
+                  setReversalNote('');
+                }}
+                className="p-1 rounded-lg text-slate-500 hover:text-white transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleReversePayment} className="space-y-4 text-left">
+              <div className="rounded-2xl border border-red-950/20 bg-red-950/5 p-4 text-xs text-slate-400 space-y-2">
+                <p>
+                  You are about to reverse the payment of{' '}
+                  <span className="font-extrabold text-white">
+                    {formatMoney({ amountMinor: reversalTargetEvent.amount_minor, currency: invoice.currency })}
+                  </span>{' '}
+                  recorded on <span className="font-semibold text-white">{reversalTargetEvent.occurred_at}</span>.
+                </p>
+                <p>
+                  The original payment record remains immutable in the ledger. A correcting entry with negative amount{' '}
+                  <span className="font-extrabold text-red-400">
+                    -{formatMoney({ amountMinor: reversalTargetEvent.amount_minor, currency: invoice.currency })}
+                  </span>{' '}
+                  will be appended to offset the balance. This cannot be undone.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="revNote" className="text-xs font-semibold text-slate-400">Reason for Reversal (Optional)</label>
+                <textarea
+                  id="revNote"
+                  rows={3}
+                  value={reversalNote}
+                  onChange={(e) => setReversalNote(e.target.value)}
+                  placeholder="e.g. Correcting double entry, check bounced, data entry mistake..."
+                  className="block w-full rounded-lg border border-slate-800 bg-slate-900/40 py-2 px-3 text-sm text-white focus:border-indigo-500 focus:outline-none transition resize-none"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-3 border-t border-slate-900">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReversalTargetEvent(null);
+                    setReversalNote('');
+                  }}
+                  className="px-4 py-2.5 rounded-lg border border-slate-800 text-sm font-semibold text-slate-400 hover:text-white transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isReversing}
+                  className="px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 text-sm font-semibold text-white transition shadow-lg shadow-red-600/20"
+                >
+                  {isReversing ? 'Reversing...' : 'Confirm Reversal'}
                 </button>
               </div>
             </form>
