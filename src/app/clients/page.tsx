@@ -4,7 +4,8 @@ import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '../../components/ProtectedRoute';
 import { AppShell } from '../../components/AppShell';
-import { useClients, useClient, useClientLinks, useProfile, useInvoicesForClient } from '../../lib/data/hooks';
+import { useClients, useClient, useClientLinks, useProfile, useInvoicesForClient, usePaymentsForClient } from '../../lib/data/hooks';
+import { RecordPaymentModal } from '../../components/RecordPaymentModal';
 import { ClientRepo } from '../../lib/data/client';
 import { ClientLinkRepo } from '../../lib/data/client-link';
 import { formatMoney } from '../../lib/money';
@@ -60,6 +61,9 @@ function ClientsDashboard() {
   const { data: selectedClientDetail } = useClient(selectedClientId || '');
   const { data: selectedClientLinks } = useClientLinks(selectedClientId || '');
   const { data: selectedClientInvoices } = useInvoicesForClient(selectedClientId || '');
+  const { data: selectedClientPayments } = usePaymentsForClient(selectedClientId || '');
+
+  const [showRecordPayment, setShowRecordPayment] = useState(false);
 
   // Sort unpaid and overdue first, then date descending
   const sortedInvoices = useMemo(() => {
@@ -464,15 +468,72 @@ function ClientsDashboard() {
               )}
             </div>
 
-            {/* Payment History Section (Prompt 8 Shell) */}
-            <div className="space-y-4">
-              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                <Landmark className="h-4 w-4 text-indigo-400" />
-                Payment History
-              </h4>
-              <div className="rounded-xl border border-dashed border-slate-900 p-6 text-center">
-                <p className="text-xs text-slate-500">No payment history recorded.</p>
+            {/* Payment History Section */}
+            <div className="space-y-4 font-sans text-left">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                  <Landmark className="h-4 w-4 text-indigo-400" />
+                  Payment History
+                </h4>
+                {selectedClientInvoices && selectedClientInvoices.some(inv => inv.displayStatus !== 'draft' && inv.displayStatus !== 'void') && (
+                  <button
+                    onClick={() => setShowRecordPayment(true)}
+                    className="inline-flex items-center gap-1 rounded bg-slate-900 border border-slate-800 hover:border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-300 transition"
+                  >
+                    <Plus className="h-3 w-3" /> Record Payment
+                  </button>
+                )}
               </div>
+
+              {selectedClientPayments && selectedClientPayments.length > 0 ? (
+                <div className="space-y-2.5">
+                  {selectedClientPayments.map((pmt) => {
+                    const isReversal = !!pmt.reverses_id || pmt.amount_minor < 0;
+                    const invRef = selectedClientInvoices?.find(i => i.id === pmt.invoice_id);
+
+                    return (
+                      <div
+                        key={pmt.id}
+                        className={`rounded-xl border p-3.5 flex items-center justify-between transition ${
+                          isReversal
+                            ? 'border-red-950/40 bg-red-950/5'
+                            : 'border-slate-900/60 bg-slate-950/20'
+                        }`}
+                      >
+                        <div className="min-w-0 pr-3 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`font-extrabold text-sm ${isReversal ? 'text-red-400' : 'text-white'}`}>
+                              {isReversal ? '-' : ''}
+                              {formatMoney({ amountMinor: Math.abs(pmt.amount_minor), currency: pmt.currency })}
+                            </span>
+                            {isReversal && (
+                              <span className="inline-flex rounded bg-red-950 border border-red-900/50 px-1 py-0.2 text-[8px] font-bold text-red-400 uppercase">
+                                Reversal
+                              </span>
+                            )}
+                            {invRef && (
+                              <button
+                                onClick={() => router.push(`/invoices/${pmt.invoice_id}`)}
+                                className="text-[10px] text-indigo-400 hover:underline font-mono"
+                              >
+                                {invRef.invoice_number}
+                              </button>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            {pmt.occurred_at} · {pmt.method ? pmt.method.replace('_', ' ') : 'other'}
+                            {pmt.note ? ` · ${pmt.note}` : ''}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-900 p-6 text-center">
+                  <p className="text-xs text-slate-500">No payment history recorded.</p>
+                </div>
+              )}
             </div>
 
             {/* Document Links Section */}
@@ -575,6 +636,13 @@ function ClientsDashboard() {
           link={showEditLink}
           onClose={() => setShowEditLink(null)}
           onSubmit={(fields: LinkFormFields) => handleUpdateLink(showEditLink.id, fields)}
+        />
+      )}
+
+      {showRecordPayment && (
+        <RecordPaymentModal
+          clientId={selectedClientId || ''}
+          onClose={() => setShowRecordPayment(false)}
         />
       )}
     </div>
