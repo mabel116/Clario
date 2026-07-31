@@ -316,3 +316,32 @@
 - None.
 
 
+## Prompt 9 — Client Financial View
+
+### 1. Features Implemented & Changes Made
+- **Restructured Client Detail Drawer Layout**: Restructured layout to position client name, company, and multi-currency outstanding balance panels prominently at the top ("money-first, context-second").
+- **Segmented Currencies**: Segmented outstanding balance cards by currency (default currency sorting first) and appended total paid to date in muted secondary text, preventing any cross-currency summation.
+- **Invoice Filters & Sorting**: Introduced tabs (`All`, `Outstanding`, `Overdue`, `Paid`, `Draft`) filtering list content offline, sorted with unpaid and overdue invoices first, then date descending.
+- **Collapsible Payment Statements**: Collapsed client payment statement log to the most recent 10 items, offering an expandable "Show all" / "Show less" toggle.
+- **Link Affordances & A11y**: Enhanced invoice reference links in payment history with underlines on hover and inline external link icons (`ExternalLink`). Status badges include descriptive `aria-label` screen reader tags.
+- **Custom Overpayment Warning**: Replaced native browser `confirm()` with a custom in-app overpayment warning modal overlay containing custom styling and AlertTriangle icons.
+- **Quick Payments**: Added quick record-payment actions directly within unpaid/overdue invoice list items.
+
+### 2. Verification Outcomes
+- **Automated Tests**:
+  - All 43 Vitest tests (including prompt8 ledger test cases) pass successfully.
+  - TypeScript build compiles cleanly with zero errors.
+- **Manual Verification Outcomes**:
+  - All 13 Prompt 9 acceptance criteria manually verified in a real browser, including performance verification under "Perf Test Client" (55 invoices, 105 payments loading instantly).
+
+### 3. Carried-Forward / Deferred Items (For Prompt 12 design pass)
+1. **Balance Subtext Visual Spacing**: On mobile screens at exactly 375px width, the outstanding count details label (e.g. `(55 invoices · 1 overdue)`) sits visually tight against the large outstanding balance amount figure. Legible, but worth a minor spacing tweak during a future cosmetic review pass.
+
+### 4. Resolved Deferred / Carried-Forward Items
+- **Modal Inconsistency**: The overpayment warning dialog has been replaced with a custom styled modal, resolving the native browser `confirm()` discrepancy.
+- **Invisible Link Affordance**: Payment history invoice link buttons now have clear underlines on hover and inline icons.
+
+### 5. Specification Deviations
+- None.
+
+
