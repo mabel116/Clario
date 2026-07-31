@@ -130,3 +130,7 @@
 - **Consequences**: Ensures perfect alignment between compiler static types and PRD display definitions, preventing lifecycle badge rendering glitches on partially paid invoices.
 
 
+## ADR 027: Custom Styled In-App Overpayment Warning Dialog
+- **Context**: The overpayment warning dialog previously triggered the native browser `confirm()` modal window, which is visually inconsistent with the rest of the application's premium custom-styled Dark Mode dialog elements.
+- **Decision**: Replaced the native `confirm()` window with an in-app custom modal overlay (`overpaymentWarning` state) styled with a yellow AlertTriangle, detailed information on the overpayment difference amount, and distinct action buttons for "Cancel" and "Confirm Overpayment".
+- **Consequences**: Unifies modal aesthetics across manual payment recording, correction reversals, and invoice deletion flows, improving design cohesiveness.
