@@ -64,24 +64,138 @@ function ClientsDashboard() {
   const { data: selectedClientPayments } = usePaymentsForClient(selectedClientId || '');
 
   const [showRecordPayment, setShowRecordPayment] = useState(false);
+  const [quickRecordInvoiceId, setQuickRecordInvoiceId] = useState<string | null>(null);
+  const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'outstanding' | 'overdue' | 'paid' | 'draft'>('all');
+  const [showAllPayments, setShowAllPayments] = useState(false);
 
-  // Sort unpaid and overdue first, then date descending
-  const sortedInvoices = useMemo(() => {
+  // Compute multi-currency summary dynamically with default currency sorting
+  const financialSummary = useMemo(() => {
     if (!selectedClientInvoices) return [];
-    return [...selectedClientInvoices].sort((a, b) => {
-      const isUnpaidOrOverdue = (status: string) => status === 'sent' || status === 'overdue' || status === 'partially_paid';
-      const aUnpaid = isUnpaidOrOverdue(a.displayStatus);
-      const bUnpaid = isUnpaidOrOverdue(b.displayStatus);
+    
+    const summaryMap = new Map<string, {
+      currency: string;
+      outstandingMinor: number;
+      overdueMinor: number;
+      paidMinor: number;
+      outstandingCount: number;
+      overdueCount: number;
+    }>();
+
+    for (const inv of selectedClientInvoices) {
+      if (inv.displayStatus === 'void') continue;
+
+      const curr = inv.currency.toUpperCase();
+      if (!summaryMap.has(curr)) {
+        summaryMap.set(curr, {
+          currency: curr,
+          outstandingMinor: 0,
+          overdueMinor: 0,
+          paidMinor: 0,
+          outstandingCount: 0,
+          overdueCount: 0
+        });
+      }
+
+      const val = summaryMap.get(curr)!;
+      val.paidMinor += inv.amountPaidMinor;
+
+      if (inv.balanceDueMinor > 0) {
+        val.outstandingMinor += inv.balanceDueMinor;
+        val.outstandingCount += 1;
+
+        if (inv.displayStatus === 'overdue') {
+          val.overdueMinor += inv.balanceDueMinor;
+          val.overdueCount += 1;
+        }
+      }
+    }
+
+    const list = Array.from(summaryMap.values());
+
+    const defaultCurrency = (profile?.default_currency || 'USD').toUpperCase();
+    list.sort((a, b) => {
+      if (a.currency === defaultCurrency && b.currency !== defaultCurrency) return -1;
+      if (a.currency !== defaultCurrency && b.currency === defaultCurrency) return 1;
+      return b.outstandingMinor - a.outstandingMinor;
+    });
+
+    return list;
+  }, [selectedClientInvoices, profile?.default_currency]);
+
+  // Compute filter counts
+  const filterCounts = useMemo(() => {
+    const counts = { all: 0, outstanding: 0, overdue: 0, paid: 0, draft: 0 };
+    if (!selectedClientInvoices) return counts;
+    
+    for (const inv of selectedClientInvoices) {
+      counts.all += 1;
+      if ((inv.displayStatus === 'sent' || inv.displayStatus === 'overdue') && inv.balanceDueMinor > 0) {
+        counts.outstanding += 1;
+      }
+      if (inv.displayStatus === 'overdue' && inv.balanceDueMinor > 0) {
+        counts.overdue += 1;
+      }
+      if (inv.displayStatus === 'paid') {
+        counts.paid += 1;
+      }
+      if (inv.displayStatus === 'draft') {
+        counts.draft += 1;
+      }
+    }
+    return counts;
+  }, [selectedClientInvoices]);
+
+  // Filter and sort invoices
+  const filteredAndSortedInvoices = useMemo(() => {
+    if (!selectedClientInvoices) return [];
+    
+    const filtered = selectedClientInvoices.filter((inv) => {
+      switch (invoiceFilter) {
+        case 'outstanding':
+          return (inv.displayStatus === 'sent' || inv.displayStatus === 'overdue') && inv.balanceDueMinor > 0;
+        case 'overdue':
+          return inv.displayStatus === 'overdue' && inv.balanceDueMinor > 0;
+        case 'paid':
+          return inv.displayStatus === 'paid';
+        case 'draft':
+          return inv.displayStatus === 'draft';
+        case 'all':
+        default:
+          return true;
+      }
+    });
+
+    return [...filtered].sort((a, b) => {
+      const isUnpaidOrOverdue = (inv: typeof a) => {
+        return (inv.displayStatus === 'sent' || inv.displayStatus === 'overdue') && inv.balanceDueMinor > 0;
+      };
+      const aUnpaid = isUnpaidOrOverdue(a);
+      const bUnpaid = isUnpaidOrOverdue(b);
 
       if (aUnpaid && !bUnpaid) return -1;
       if (!aUnpaid && bUnpaid) return 1;
 
-      // Handle issue_date sorting (nullable)
       const dateA = a.issue_date || '';
       const dateB = b.issue_date || '';
+      if (dateA === dateB) {
+        return b.invoice_number.localeCompare(a.invoice_number);
+      }
       return dateB.localeCompare(dateA);
     });
-  }, [selectedClientInvoices]);
+  }, [selectedClientInvoices, invoiceFilter]);
+
+  // Slice payments list to show first 10 unless showAllPayments is true
+  const displayedPayments = useMemo(() => {
+    if (!selectedClientPayments) return [];
+    if (showAllPayments) return selectedClientPayments;
+    return selectedClientPayments.slice(0, 10);
+  }, [selectedClientPayments, showAllPayments]);
+
+  const handleQuickRecordPayment = (e: React.MouseEvent, invoiceId: string) => {
+    e.stopPropagation();
+    setQuickRecordInvoiceId(invoiceId);
+    setShowRecordPayment(true);
+  };
 
   // Alphabetically sorted and filtered clients
   const filteredClients = useMemo(() => {
@@ -326,65 +440,57 @@ function ClientsDashboard() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
-            {/* Base Contact Card */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent text-left">
+            {/* 1. Header & Outstanding balances (Prominent) */}
             <div className="space-y-4">
-              <h2 className="text-2xl font-extrabold text-white leading-tight">{selectedClientDetail.name}</h2>
-              
-              {selectedClientDetail.company && (
-                <div className="flex items-center gap-2.5 text-sm text-slate-400">
-                  <Building className="h-4.5 w-4.5 text-slate-600" />
-                  <span>{selectedClientDetail.company}</span>
-                </div>
-              )}
-              {selectedClientDetail.email && (
-                <div className="flex items-center gap-2.5 text-sm text-slate-400">
-                  <Mail className="h-4.5 w-4.5 text-slate-600" />
-                  <a href={`mailto:${selectedClientDetail.email}`} className="hover:underline hover:text-indigo-400 transition">{selectedClientDetail.email}</a>
-                </div>
-              )}
-              {selectedClientDetail.phone && (
-                <div className="flex items-center gap-2.5 text-sm text-slate-400">
-                  <Phone className="h-4.5 w-4.5 text-slate-600" />
-                  <span>{selectedClientDetail.phone}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Notes Section */}
-            {selectedClientDetail.notes && (
-              <div className="rounded-2xl border border-slate-900 bg-slate-950/30 p-4 space-y-2">
-                <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                  <MessageSquare className="h-3 w-3" />
-                  Internal Notes
-                </span>
-                <p className="text-sm text-slate-400 whitespace-pre-line leading-relaxed">{selectedClientDetail.notes}</p>
-              </div>
-            )}
-
-            {/* Outstanding Balance (Separated per currency) */}
-            <div className="rounded-2xl border border-slate-900 bg-gradient-to-br from-slate-900/40 to-slate-950/40 p-5 space-y-3">
-              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                <Landmark className="h-4 w-4 text-indigo-400" />
-                Outstanding Balance
-              </h4>
-              <div className="space-y-2">
-                {selectedClientDetail.outstandingBalances && selectedClientDetail.outstandingBalances.length > 0 ? (
-                  selectedClientDetail.outstandingBalances.map((bal) => (
-                    <div key={bal.currency} className="flex justify-between items-baseline border-b border-slate-900/30 pb-2 last:border-0 last:pb-0">
-                      <span className="text-sm text-slate-400 font-semibold">{bal.currency}</span>
-                      <span className="text-lg font-extrabold text-white">
-                        {formatMoney({ amountMinor: bal.amountMinor, currency: bal.currency })}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-500 italic">No outstanding ledger balances</p>
+              <div>
+                <h2 className="text-2xl font-extrabold text-white leading-tight">{selectedClientDetail.name}</h2>
+                {selectedClientDetail.company && (
+                  <p className="text-sm font-semibold text-slate-400 mt-1">{selectedClientDetail.company}</p>
                 )}
               </div>
+
+              {/* Outstanding per currency summary */}
+              <div className="space-y-3">
+                {(() => {
+                  const activeBalances = financialSummary.filter(s => s.outstandingMinor > 0);
+                  if (activeBalances.length > 0) {
+                    return activeBalances.map((sum) => {
+                      const overdueText = sum.overdueCount > 0 
+                        ? ` · ${sum.overdueCount} overdue` 
+                        : '';
+                      return (
+                        <div key={sum.currency} className="rounded-2xl border border-slate-900 bg-gradient-to-br from-indigo-950/20 to-slate-950/20 p-5 space-y-1 hover:border-slate-800 transition">
+                          <span className="text-[10px] font-extrabold text-indigo-400 uppercase tracking-widest block">
+                            Outstanding Balance ({sum.currency})
+                          </span>
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-3xl font-black text-white tracking-tight">
+                              {formatMoney({ amountMinor: sum.outstandingMinor, currency: sum.currency })}
+                            </span>
+                            <span className="text-xs text-slate-400 font-semibold">
+                              {sum.outstandingCount} {sum.outstandingCount === 1 ? 'invoice' : 'invoices'}{overdueText}
+                            </span>
+                          </div>
+                          <div className="pt-2 border-t border-slate-900/40 text-[10px] text-slate-500 font-semibold">
+                            Total paid to date: {formatMoney({ amountMinor: sum.paidMinor, currency: sum.currency })}
+                          </div>
+                        </div>
+                      );
+                    });
+                  } else {
+                    return (
+                      <div className="rounded-2xl border border-green-950/20 bg-green-950/5 p-4 flex items-center gap-3 text-green-400">
+                        <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Settled — No Outstanding Balance</span>
+                      </div>
+                    );
+                  }
+                })()}
+              </div>
             </div>
- 
-            {/* Invoices Section */}
+
+            {/* 2. Invoices Section with Filters */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
@@ -399,9 +505,34 @@ function ClientsDashboard() {
                 </button>
               </div>
 
-              {selectedClientInvoices && selectedClientInvoices.length > 0 ? (
+              {/* Filter Tabs */}
+              <div className="flex flex-wrap gap-1.5 border-b border-slate-900 pb-2">
+                {(['all', 'outstanding', 'overdue', 'paid', 'draft'] as const).map((tab) => {
+                  const count = filterCounts[tab];
+                  const label = tab.charAt(0).toUpperCase() + tab.slice(1);
+                  const isActive = invoiceFilter === tab;
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => setInvoiceFilter(tab)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                        isActive
+                          ? 'bg-indigo-600/10 border border-indigo-500/30 text-indigo-400'
+                          : 'bg-transparent text-slate-500 border border-transparent hover:text-slate-300'
+                      }`}
+                    >
+                      {label}
+                      <span className={`px-1 rounded text-[10px] font-extrabold ${isActive ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-900 text-slate-500'}`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {filteredAndSortedInvoices.length > 0 ? (
                 <div className="space-y-2.5">
-                  {sortedInvoices.map((inv) => {
+                  {filteredAndSortedInvoices.map((inv) => {
                     const statusColors: Record<string, string> = {
                       draft: 'bg-slate-900 border-slate-800 text-slate-400',
                       sent: 'bg-indigo-950/40 border-indigo-900/40 text-indigo-400',
@@ -431,24 +562,41 @@ function ClientsDashboard() {
                             <span className="font-bold text-sm text-white group-hover:text-indigo-400 transition truncate">
                               {inv.invoice_number}
                             </span>
-                            <span className={`inline-flex rounded px-1.5 py-0.5 text-[9px] font-bold border ${statusColors[inv.displayStatus]}`}>
+                            <span 
+                              className={`inline-flex rounded px-1.5 py-0.5 text-[9px] font-bold border ${statusColors[inv.displayStatus]}`}
+                              aria-label={`Status: ${badgeText[inv.displayStatus]}`}
+                            >
                               {badgeText[inv.displayStatus]}
                             </span>
                           </div>
-                          <div className="text-[10px] text-slate-500">
+                          <div className="text-[10px] text-slate-500 font-semibold">
                             {inv.issue_date ? `Issued: ${inv.issue_date}` : 'Draft'}
                             {inv.due_date ? ` · Due: ${inv.due_date}` : ''}
                           </div>
                         </div>
 
-                        <div className="text-right shrink-0">
-                          <div className="text-sm font-extrabold text-white">
-                            {formatMoney({ amountMinor: inv.total_minor, currency: inv.currency })}
-                          </div>
-                          {inv.balanceDueMinor > 0 && inv.displayStatus !== 'void' && (
-                            <div className="text-[10px] text-slate-400">
-                              Due: {formatMoney({ amountMinor: inv.balanceDueMinor, currency: inv.currency })}
+                        <div className="flex items-center gap-3.5 shrink-0">
+                          <div className="text-right">
+                            <div className="text-sm font-extrabold text-white">
+                              {formatMoney({ amountMinor: inv.total_minor, currency: inv.currency })}
                             </div>
+                            {inv.balanceDueMinor > 0 && inv.displayStatus !== 'void' && (
+                              <div className="text-[10px] text-slate-400">
+                                Due: {formatMoney({ amountMinor: inv.balanceDueMinor, currency: inv.currency })}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Quick Record Payment Action Button */}
+                          {inv.balanceDueMinor > 0 && (inv.displayStatus === 'sent' || inv.displayStatus === 'overdue') && (
+                            <button
+                              onClick={(e) => handleQuickRecordPayment(e, inv.id)}
+                              className="p-1.5 rounded-lg bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-600 hover:text-white hover:border-indigo-500 transition shadow-sm"
+                              title="Record payment for this invoice"
+                              aria-label={`Record payment for invoice ${inv.invoice_number}`}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
                           )}
                         </div>
                       </div>
@@ -456,19 +604,13 @@ function ClientsDashboard() {
                   })}
                 </div>
               ) : (
-                <div className="rounded-xl border border-dashed border-slate-900 p-6 text-center space-y-2">
-                  <p className="text-xs text-slate-500">No invoices generated for this client.</p>
-                  <button
-                    onClick={() => router.push(`/clients/${selectedClientId}/invoices/new`)}
-                    className="text-[10px] text-indigo-400 hover:underline"
-                  >
-                    Create first invoice
-                  </button>
+                <div className="rounded-xl border border-dashed border-slate-900 p-6 text-center">
+                  <p className="text-xs text-slate-500">No invoices match this filter.</p>
                 </div>
               )}
             </div>
 
-            {/* Payment History Section */}
+            {/* 3. Payment History Section */}
             <div className="space-y-4 font-sans text-left">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
@@ -487,7 +629,7 @@ function ClientsDashboard() {
 
               {selectedClientPayments && selectedClientPayments.length > 0 ? (
                 <div className="space-y-2.5">
-                  {selectedClientPayments.map((pmt) => {
+                  {displayedPayments.map((pmt) => {
                     const isReversal = !!pmt.reverses_id || pmt.amount_minor < 0;
                     const invRef = selectedClientInvoices?.find(i => i.id === pmt.invoice_id);
 
@@ -514,9 +656,11 @@ function ClientsDashboard() {
                             {invRef && (
                               <button
                                 onClick={() => router.push(`/invoices/${pmt.invoice_id}`)}
-                                className="text-[10px] text-indigo-400 hover:underline font-mono"
+                                className="inline-flex items-center gap-0.5 text-[10px] text-indigo-400 font-mono border-b border-indigo-400/20 hover:border-indigo-400 hover:text-indigo-300 transition"
+                                title="View invoice details"
                               >
                                 {invRef.invoice_number}
+                                <ExternalLink className="h-2.5 w-2.5 opacity-60" />
                               </button>
                             )}
                           </div>
@@ -528,6 +672,15 @@ function ClientsDashboard() {
                       </div>
                     );
                   })}
+
+                  {selectedClientPayments.length > 10 && (
+                    <button
+                      onClick={() => setShowAllPayments(!showAllPayments)}
+                      className="w-full text-center py-2 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition"
+                    >
+                      {showAllPayments ? 'Show less' : `Show all (${selectedClientPayments.length})`}
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="rounded-xl border border-dashed border-slate-900 p-6 text-center">
@@ -536,65 +689,105 @@ function ClientsDashboard() {
               )}
             </div>
 
-            {/* Document Links Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                  <FileText className="h-4 w-4 text-indigo-400" />
-                  Document Links
-                </h4>
-                <button
-                  onClick={() => setShowAddLink(true)}
-                  className="inline-flex items-center gap-1 rounded bg-slate-900 border border-slate-800 hover:border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-300 transition"
-                >
-                  <Plus className="h-3 w-3" /> Add Link
-                </button>
+            {/* 4. Supporting Context Section (Visually Quieter) */}
+            <div className="border-t border-slate-900 pt-6 space-y-6">
+              <h4 className="text-xs font-bold text-slate-600 uppercase tracking-widest">
+                Supporting Context
+              </h4>
+
+              {/* Contact Details Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-slate-500">
+                {selectedClientDetail.email && (
+                  <a
+                    href={`mailto:${selectedClientDetail.email}`}
+                    className="flex items-center gap-2 bg-slate-950/10 border border-slate-900/50 hover:border-slate-800 hover:text-indigo-400 p-3 rounded-xl transition"
+                  >
+                    <Mail className="h-4 w-4 text-slate-600 shrink-0" />
+                    <span className="truncate">{selectedClientDetail.email}</span>
+                  </a>
+                )}
+                {selectedClientDetail.phone && (
+                  <a
+                    href={`tel:${selectedClientDetail.phone}`}
+                    className="flex items-center gap-2 bg-slate-950/10 border border-slate-900/50 hover:border-slate-800 hover:text-indigo-400 p-3 rounded-xl transition"
+                  >
+                    <Phone className="h-4 w-4 text-slate-600 shrink-0" />
+                    <span>{selectedClientDetail.phone}</span>
+                  </a>
+                )}
               </div>
 
-              {/* Links Grid */}
-              {selectedClientLinks && selectedClientLinks.length > 0 ? (
-                <div className="space-y-2.5">
-                  {selectedClientLinks.map((link) => (
-                    <div
-                      key={link.id}
-                      className="rounded-xl border border-slate-900/60 bg-slate-950/20 p-3.5 flex items-center justify-between group hover:border-slate-800 transition"
-                    >
-                      <div className="min-w-0 pr-3">
-                        <span className="block font-bold text-sm text-white truncate">{link.label}</span>
-                        <a
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-400 hover:underline transition truncate max-w-full mt-1.5"
-                        >
-                          {link.url}
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      </div>
-
-                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => setShowEditLink(link)}
-                          className="p-1.5 rounded hover:bg-slate-900 text-slate-500 hover:text-white transition"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteLink(link.id)}
-                          className="p-1.5 rounded hover:bg-red-950/20 text-slate-500 hover:text-red-400 transition"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-slate-900 p-6 text-center space-y-2">
-                  <p className="text-xs text-slate-500">No document links attached to this client.</p>
-                  <p className="text-[10px] text-slate-600">Link shared Google Drive folders, specifications, or agreements.</p>
+              {/* Notes */}
+              {selectedClientDetail.notes && (
+                <div className="rounded-xl border border-slate-900 bg-slate-950/10 p-3.5 space-y-1.5 text-left">
+                  <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                    <MessageSquare className="h-3 w-3" />
+                    Internal Notes
+                  </span>
+                  <p className="text-xs text-slate-400 whitespace-pre-line leading-relaxed">{selectedClientDetail.notes}</p>
                 </div>
               )}
+
+              {/* Document Links Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                    <FileText className="h-4 w-4 text-indigo-400" />
+                    Document Links
+                  </h4>
+                  <button
+                    onClick={() => setShowAddLink(true)}
+                    className="inline-flex items-center gap-1 rounded bg-slate-900 border border-slate-800 hover:border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-300 transition"
+                  >
+                    <Plus className="h-3 w-3" /> Add Link
+                  </button>
+                </div>
+
+                {/* Links Grid */}
+                {selectedClientLinks && selectedClientLinks.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {selectedClientLinks.map((link) => (
+                      <div
+                        key={link.id}
+                        className="rounded-xl border border-slate-900/60 bg-slate-950/20 p-3.5 flex items-center justify-between group hover:border-slate-800 transition"
+                      >
+                        <div className="min-w-0 pr-3">
+                          <span className="block font-bold text-sm text-white truncate">{link.label}</span>
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-400 hover:underline transition truncate max-w-full mt-1.5"
+                          >
+                            {link.url}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => setShowEditLink(link)}
+                            className="p-1.5 rounded hover:bg-slate-900 text-slate-500 hover:text-white transition"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteLink(link.id)}
+                            className="p-1.5 rounded hover:bg-red-950/20 text-slate-500 hover:text-red-400 transition"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-slate-900 p-6 text-center space-y-2">
+                    <p className="text-xs text-slate-500">No document links attached to this client.</p>
+                    <p className="text-[10px] text-slate-600">Link shared Google Drive folders, specifications, or agreements.</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -642,7 +835,11 @@ function ClientsDashboard() {
       {showRecordPayment && (
         <RecordPaymentModal
           clientId={selectedClientId || ''}
-          onClose={() => setShowRecordPayment(false)}
+          invoiceId={quickRecordInvoiceId || undefined}
+          onClose={() => {
+            setShowRecordPayment(false);
+            setQuickRecordInvoiceId(null);
+          }}
         />
       )}
     </div>

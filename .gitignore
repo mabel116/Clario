@@ -8,3 +8,5 @@ supabase/.temp/
 .DS_Store
 *.tsbuildinfo
 .agents/skills/gstack/
+scripts/seed-perf-test.js
+scripts/test-query.js

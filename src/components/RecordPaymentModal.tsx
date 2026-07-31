@@ -24,6 +24,7 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose }: RecordPayme
   const [method, setMethod] = useState<string>('cash');
   const [note, setNote] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [overpaymentWarning, setOverpaymentWarning] = useState<{ amountMinor: number; formattedDiff: string } | null>(null);
 
   // Set default occurred_at to today
   useEffect(() => {
@@ -75,6 +76,34 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose }: RecordPayme
     setAmount(Math.max(0, balanceMajor).toString());
   };
 
+  const executeRecordPayment = async (amountMinor: number) => {
+    if (!activeInvoice) return;
+    await PaymentRepo.record({
+      invoice_id: activeInvoice.id,
+      client_id: clientId,
+      amount_minor: amountMinor,
+      currency,
+      method: method || 'cash',
+      note: note.trim() || null,
+      occurred_at: occurredAt || undefined
+    });
+    onClose();
+  };
+
+  const handleConfirmOverpayment = async () => {
+    if (!overpaymentWarning) return;
+    try {
+      setIsSubmitting(true);
+      await executeRecordPayment(overpaymentWarning.amountMinor);
+      setOverpaymentWarning(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to record payment.';
+      alert(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Submit payment event handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,42 +117,27 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose }: RecordPayme
 
     try {
       setIsSubmitting(true);
-
       const parsedMoney = parseMoneyInput(amount, currency);
       
       // Warn on overpayment
       if (parsedMoney.amountMinor > activeInvoice.balanceDueMinor) {
-        const exponent = currency === 'JPY' || currency === 'KRW' ? 0 : 2;
-        const diffMajor = (parsedMoney.amountMinor - activeInvoice.balanceDueMinor) / Math.pow(10, exponent);
         const formattedDiff = formatMoney({
           amountMinor: parsedMoney.amountMinor - activeInvoice.balanceDueMinor,
           currency
         });
 
-        const proceed = confirm(
-          `Warning: This payment exceeds the outstanding balance of this invoice by ${formattedDiff}.\n\nDo you want to record this overpayment?`
-        );
-        if (!proceed) {
-          setIsSubmitting(false);
-          return;
-        }
+        setOverpaymentWarning({
+          amountMinor: parsedMoney.amountMinor,
+          formattedDiff
+        });
+        setIsSubmitting(false);
+        return;
       }
 
-      await PaymentRepo.record({
-        invoice_id: activeInvoice.id,
-        client_id: clientId,
-        amount_minor: parsedMoney.amountMinor,
-        currency,
-        method: method || 'cash',
-        note: note.trim() || null,
-        occurred_at: occurredAt || undefined
-      });
-
-      onClose();
+      await executeRecordPayment(parsedMoney.amountMinor);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to record payment.';
       alert(msg);
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -309,6 +323,62 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose }: RecordPayme
           </form>
         )}
       </div>
+
+      {/* Overpayment Warning Dialog Modal */}
+      {overpaymentWarning && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md rounded-3xl border border-slate-900 bg-slate-950 p-6 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                <h3 className="text-lg font-bold text-white">Overpayment Warning</h3>
+              </div>
+              <button
+                onClick={() => setOverpaymentWarning(null)}
+                className="p-1 rounded-lg text-slate-500 hover:text-white transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-left">
+              <div className="rounded-2xl border border-yellow-950/20 bg-yellow-950/5 p-4 text-xs text-slate-400 space-y-2">
+                <p>
+                  This payment of{' '}
+                  <span className="font-extrabold text-white">
+                    {formatMoney({ amountMinor: overpaymentWarning.amountMinor, currency })}
+                  </span>{' '}
+                  exceeds the outstanding balance of this invoice by{' '}
+                  <span className="font-extrabold text-yellow-400">
+                    {overpaymentWarning.formattedDiff}
+                  </span>.
+                </p>
+                <p>
+                  Are you sure you want to record this overpayment? This will result in a negative invoice balance.
+                </p>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-3 border-t border-slate-900">
+                <button
+                  type="button"
+                  onClick={() => setOverpaymentWarning(null)}
+                  className="px-4 py-2.5 rounded-lg border border-slate-800 text-sm font-semibold text-slate-400 hover:text-white transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmOverpayment}
+                  disabled={isSubmitting}
+                  className="px-4 py-2.5 rounded-lg bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 text-sm font-semibold text-white transition shadow-lg shadow-yellow-600/20"
+                >
+                  {isSubmitting ? 'Recording...' : 'Confirm Overpayment'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
