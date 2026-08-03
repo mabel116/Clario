@@ -104,3 +104,8 @@ export function useDashboard(periodDays = 30): {
 
   return { data, isLoading };
 }
+
+export function useInvoices(): { data: InvoiceSummary[] | undefined; isLoading: boolean } {
+  const query = useMemo(() => InvoiceRepo.listAll(), []);
+  return useLiveQuery(query);
+}
