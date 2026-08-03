@@ -134,3 +134,13 @@
 - **Context**: The overpayment warning dialog previously triggered the native browser `confirm()` modal window, which is visually inconsistent with the rest of the application's premium custom-styled Dark Mode dialog elements.
 - **Decision**: Replaced the native `confirm()` window with an in-app custom modal overlay (`overpaymentWarning` state) styled with a yellow AlertTriangle, detailed information on the overpayment difference amount, and distinct action buttons for "Cancel" and "Confirm Overpayment".
 - **Consequences**: Unifies modal aesthetics across manual payment recording, correction reversals, and invoice deletion flows, improving design cohesiveness.
+
+## ADR 028: Unified Invoices List Route for Multi-Currency Drill-Downs
+- **Context**: The financial dashboard requires drill-through links from outstanding balances per currency to a list of matching outstanding invoices. Storing lists inside client drawers is difficult to navigate from overall dashboard summaries.
+- **Decision**: Created a new root invoices route at `/invoices/page.tsx` that uses Suspense and `useSearchParams` to extract `currency` and `status` queries, rendering a filtered list of all matching invoices across all clients offline.
+- **Consequences**: Avoids complex state hoisting, respects user navigation history, and provides a clear, scalable list for tracking invoices across the freelance app.
+
+## ADR 029: Dynamic Client-Side Aggregations Mapping to Avoid Aggregate Model Pollutions
+- **Context**: Types like `CurrencyOutstanding` do not store outstanding invoice counts or overdue counts natively, but adding these fields to core schemas pollutes repositories and database derivation functions.
+- **Decision**: Mapped invoice counts and overdue counts per currency dynamically client-side (`invoiceCountsByCurrency` memo) by aggregating active objects returned from the `useInvoices()` subscriber hook.
+- **Consequences**: Guarantees compile-time type safety, matches database aggregates perfectly, and keeps aggregate core models clean.
