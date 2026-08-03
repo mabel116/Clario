@@ -345,3 +345,33 @@
 - None.
 
 
+## Prompt 10 — Multi-Currency Dashboard
+
+### 1. Features Implemented & Changes Made
+- **Segregated Currency Outstanding Balances**: Lists outstanding sums per currency at the top of the dashboard. Sorted dynamically with default profile currency first, then by outstanding amount descending.
+- **Progressive Disclosure Visuals**: Single-currency users see standard metric panels without currency selectors or selectors chrome. Multi-currency treatment (segmented rows and currency tiles) automatically triggers only when >1 active currency exists.
+- **Top-3 + N Collapse control**: Outstanding list collapses extra currencies beyond the top 3 under a `+N more currencies` button which expands the list in-place and toggles to `Show less`.
+- **Query Param Invoices List Route**: Created `/invoices/page.tsx` displaying all invoices, which parses `status=outstanding` and `currency={currency}` from URL search parameters to filter invoices offline.
+- **Attention Overdue Panel**: Adds a "Needs Attention" side panel showing overdue invoices sorted by days overdue descending. Hidden completely if no invoices are overdue.
+- **Rolling Period Earnings Grid**: Added metric tiles showing signed earnings totals per currency, updated dynamically by a shared period selector button group (`Last 30 Days`, `Last 90 Days`, `This Year`).
+- **Recent Payments Activity Log**: Displays the 10 most recent positive payment events showing client name, invoice number, date, amount in its own currency inline, and a navigation link.
+- **Empty State Onboarding**: Provides a new account checklist guiding users to "Add your first client" and "Create your first invoice" instead of rendering a wall of zeros.
+
+### 2. Verification Outcomes
+- **Automated Tests**:
+  - All 43 Vitest tests pass successfully.
+  - TypeScript build compiles cleanly with zero errors.
+- **Manual Verification Outcomes**:
+  - All 12 Prompt 10 acceptance criteria manually verified in a real browser (including single-currency progressive disclosure, "+N more" collapse/expand, and overdue attention lists).
+
+### 3. Carried-Forward / Deferred Items (For Prompt 12 design pass)
+1. **Historical Multi-Currency Display Edge Case**: As noted in verification discussions, fully-settled historical multi-currency transactions falling outside outstanding balances, selected rolling period earnings, and the 10 most recent payments will trigger single-currency progressive disclosure. Correct under the "never hide unpaid money" constraint, but recorded for future dashboard iteration passes.
+
+### 4. Resolved Deferred / Carried-Forward Items
+- **Modal Inconsistency**: Custom overpayment modal warning dialog fully implemented.
+- **Invisible Link Affordance**: Payment ledger links now show hover underlines and icons.
+
+### 5. Specification Deviations
+- None.
+
+
