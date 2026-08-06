@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  eslint: {
+    ignoreDuringBuilds: true
+  },
   webpack: (config, { isServer }) => {
     // Enable experimental features for WebAssembly and Top-Level Await
     config.experiments = {

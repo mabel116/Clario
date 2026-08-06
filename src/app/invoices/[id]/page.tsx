@@ -4,15 +4,17 @@ import React, { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ProtectedRoute } from '../../../components/ProtectedRoute';
 import { AppShell } from '../../../components/AppShell';
-import { useInvoice, useCanEditFinancials, usePaymentsForInvoice } from '../../../lib/data/hooks';
+import { useInvoice, useCanEditFinancials, usePaymentsForInvoice, useClient, useProfile } from '../../../lib/data/hooks';
 import { InvoiceRepo } from '../../../lib/data/invoice';
 import { PaymentRepo } from '../../../lib/data/payment';
 import { RecordPaymentModal } from '../../../components/RecordPaymentModal';
 import { formatMoney } from '../../../lib/money';
 import { 
   ArrowLeft, Edit3, Send, Ban, Trash2, Calendar, FileText, 
-  MessageSquare, User, Lock, AlertTriangle, CreditCard, Download, Undo2, Plus
+  User, Lock, AlertTriangle, Download, Undo2, Plus
 } from 'lucide-react';
+
+import { PaymentEventRow } from '../../../lib/sync/schema';
 
 export default function InvoiceDetailsPage() {
   const params = useParams();
@@ -34,13 +36,33 @@ function InvoiceDetails({ invoiceId }: { invoiceId: string }) {
   const { data: invoice, isLoading: isInvoiceLoading } = useInvoice(invoiceId);
   const { data: canEditFinancials } = useCanEditFinancials(invoiceId);
   const { data: payments } = usePaymentsForInvoice(invoiceId);
+  const { data: client } = useClient(invoice?.client_id || '');
+  const { data: profile } = useProfile();
+
+  // PDF Generation State
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    if (isGeneratingPDF || !invoice || !profile || !client) return;
+
+    try {
+      setIsGeneratingPDF(true);
+      const { generateInvoicePDF } = await import('../../../lib/pdf/generator');
+      await generateInvoicePDF({ invoice, profile, client });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to generate PDF document.';
+      alert(message);
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
 
   // Modal dialog states
   const [showMarkSent, setShowMarkSent] = useState(false);
   const [sentIssueDate, setSentIssueDate] = useState('');
   const [sentDueDate, setSentDueDate] = useState('');
   const [showRecordPayment, setShowRecordPayment] = useState(false);
-  const [reversalTargetEvent, setReversalTargetEvent] = useState<any>(null);
+  const [reversalTargetEvent, setReversalTargetEvent] = useState<PaymentEventRow | null>(null);
   const [reversalNote, setReversalNote] = useState('');
   const [isReversing, setIsReversing] = useState(false);
 
@@ -206,6 +228,17 @@ function InvoiceDetails({ invoiceId }: { invoiceId: string }) {
               className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 hover:text-white text-slate-400 px-3.5 py-2 text-xs font-semibold transition"
             >
               <Ban className="h-3.5 w-3.5" /> Void Invoice
+            </button>
+          )}
+
+          {invoice && profile && client && (
+            <button
+              onClick={handleDownloadPDF}
+              disabled={isGeneratingPDF}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/40 hover:bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition disabled:opacity-50"
+            >
+              <Download className={`h-3.5 w-3.5 ${isGeneratingPDF ? 'animate-pulse' : ''}`} />
+              {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
             </button>
           )}
         </div>
@@ -450,16 +483,6 @@ function InvoiceDetails({ invoiceId }: { invoiceId: string }) {
                 )}
               </div>
             )}
-
-            {/* Other actions (Download PDF placeholder) */}
-            <div className="pt-2 border-t border-slate-900">
-              <button
-                disabled
-                className="w-full inline-flex justify-center items-center gap-1.5 rounded-lg bg-slate-900 border border-slate-800 px-4 py-2 text-xs font-semibold text-slate-600 cursor-not-allowed"
-              >
-                <Download className="h-3.5 w-3.5" /> Download PDF
-              </button>
-            </div>
           </div>
         </div>
       </div>

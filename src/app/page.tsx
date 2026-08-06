@@ -7,8 +7,8 @@ import { AppShell } from '../components/AppShell';
 import { useDashboard, useClients, useInvoices, useProfile } from '../lib/data/hooks';
 import { formatMoney } from '../lib/money';
 import { 
-  LayoutDashboard, Receipt, Landmark, FileText, AlertTriangle, 
-  Users, Plus, ArrowRight, ChevronRight, Calendar, TrendingUp, CheckCircle, Clock 
+  LayoutDashboard, Receipt, Landmark, AlertTriangle, 
+  ChevronRight, TrendingUp, CheckCircle, Clock 
 } from 'lucide-react';
 
 export default function Home() {
@@ -205,7 +205,7 @@ function DashboardView() {
             <CheckCircle className="h-7 w-7" />
           </div>
           <div className="space-y-2">
-            <h3 className="text-xl font-bold text-white">Let's set up your business</h3>
+            <h3 className="text-xl font-bold text-white">Let&apos;s set up your business</h3>
             <p className="text-sm text-slate-400 leading-relaxed max-w-sm mx-auto">
               Follow these simple steps to register offline-first clients, generate professional billing documents, and track manual payments.
             </p>
@@ -373,7 +373,6 @@ function DashboardView() {
                   dashboard.recentPayments
                     .filter(p => p.amount_minor > 0) // Render only positive payment events
                     .map((pmt) => {
-                      const isReversal = !!pmt.reverses_id;
                       return (
                         <div
                           key={pmt.id}

@@ -88,6 +88,16 @@ export function formatMoney(money: Money): string {
   if (result.includes(currencyCode)) {
     result = result.replace(currencyCode, info.symbol);
   }
+
+  // Remove any spaces or non-breaking spaces between symbol and number to ensure flush formatting
+  const spaceTypes = [' ', '\u00A0', '\u202F'];
+  for (const space of spaceTypes) {
+    const target = info.symbol + space;
+    if (result.includes(target)) {
+      result = result.replace(target, info.symbol);
+    }
+  }
+
   return result;
 }
 
