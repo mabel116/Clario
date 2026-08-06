@@ -375,3 +375,45 @@
 - None.
 
 
+## Prompt 11 — On-Device Invoice PDF
+
+### 1. Features Implemented & Changes Made
+- **On-Device PDF Generation (`src/lib/pdf/generator.ts` & `src/components/InvoicePDFDocument.tsx`)**:
+  - Dynamically imports `@react-pdf/renderer` and the custom React PDF component at generation time to keep the initial app bundle size unaffected (lazy-loading).
+  - Employs on-device rendering using a client-side Blob compiled completely offline.
+  - Omits the private `internal_note` field (only the client-facing `notes` are rendered).
+  - Normalizes native locale currency formatting, showing zero decimals for JPY/KRW and two decimals for other currencies.
+  - Formats fractional quantities up to 3 decimals, and whole number quantities as integers.
+- **Embedded Base64 Typography (`src/components/fonts.ts` & `scripts/download_fonts.js`)**:
+  - Sourced and base64-embedded full versions of the Inter Regular and Inter Bold fonts from the jsdelivr/xz-fonts CDN, replacing CDN URLs to ensure complete offline reliability.
+  - Full font embedding resolved a character encoding rendering issue where the Naira (`₦`, `U+20A6`) symbol originally rendered as a broken bar (`¦`) in PDF reports.
+- **Sanitized Filename Compilation**:
+  - Sanitizes the compiled PDF filename by replacing filesystem-invalid characters, spaces, and duplicate hyphens, resulting in standard lowercase names (e.g. `inv-001-client-name.pdf`).
+- **Running Page Numbering & Multi-Page Pagination**:
+  - Renders dynamic page counters (`pageNumber / totalPages`) at the bottom footer.
+  - Automatically handles row spacing and text wrapping for long client names and line item descriptions across multi-page invoice layouts (tested with 35+ items).
+- **Graceful Mobile Share Sheet Abort**:
+  - Integrates capability check features (`navigator.share` and `navigator.canShare` verification on the file payload) on mobile user agents.
+  - Intercepts and handles `AbortError` (cancellations) silently so no error notifications trigger when a user decides to close the native share sheet.
+
+### 2. Verification Outcomes
+- **Automated Tests**:
+  - Compiled and executed a dedicated suite (`tests/pdf.test.ts` and `tests/verify_currencies.test.ts`) validating document compiles, data mapping, note omissions, and full-glyph currency renders.
+  - All 46 Vitest tests pass cleanly. TypeScript compiles successfully (`npx tsc --noEmit`).
+- **Manual Verification Outcomes**:
+  - Verification results for all 11 criteria are fully detailed in [prompt-11.md](file:///c:/Users/i7/Documents/Clario/prd_docs/verification/prompt-11.md).
+  - All features are verified locally in the browser. 
+  - Mobile Share Sheet logic was verified correct via walk-through, but not run on a real phone due to HTTP local IP non-secure context blockers (which disable modern browser `crypto.randomUUID` and PowerSync engine initialization over non-secure connections).
+
+### 3. Carried-Forward / Deferred Items (For Prompt 12 offline/PWA pass)
+1. **HTTP/Local-IP Device Test Blockers**: Non-localhost HTTP connections block the PWA's access to the Web Cryptography API (`crypto.randomUUID`) and the PowerSync wa-sqlite OPFS worker. This must be reviewed/fixed (e.g. via local HTTPS proxying, custom development profiles, or polyfills) for PWA device testing in Prompt 12.
+2. **PowerSync Toast Network Error Handling**: Spontaneous "Sync error" TypeError network toast occurrences noted in `src/lib/sync/db.ts` to be reviewed during offline hardening.
+
+### 4. Resolved Deferred / Carried-Forward Items
+- **Duplicate/Dead PDF Download Button**: Removed the redundant and disabled download button from the payments ledger card view model.
+
+
+### 5. Specification Deviations
+- **Mobile Share Sheet Real Device Verification**: Gated on logic code review and simulator walkthrough rather than real-device testing due to secure-context local IP blockers on the test network.
+
+
