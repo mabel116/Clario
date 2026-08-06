@@ -144,3 +144,14 @@
 - **Context**: Types like `CurrencyOutstanding` do not store outstanding invoice counts or overdue counts natively, but adding these fields to core schemas pollutes repositories and database derivation functions.
 - **Decision**: Mapped invoice counts and overdue counts per currency dynamically client-side (`invoiceCountsByCurrency` memo) by aggregating active objects returned from the `useInvoices()` subscriber hook.
 - **Consequences**: Guarantees compile-time type safety, matches database aggregates perfectly, and keeps aggregate core models clean.
+
+## ADR 030: Application-Wide Currency Symbol Spacing Normalization
+- **Context**: Standard `Intl.NumberFormat('en-US', { style: 'currency' })` implementation in V8 engines formats less-common locale currencies (e.g. NGN, KES, GHS, ZAR) with a non-breaking space `\u00A0` between the symbol and the digits, while rendering common ones (USD, EUR, GBP) flush. This caused a visible rendering inconsistency app-wide on the dashboard, invoices list, client details page, and generated PDFs.
+- **Decision**: Normalised currency outputs inside the core `formatMoney` helper (originally created in Prompt 3) in `src/lib/money/index.ts`. The helper now proactively strips any whitespace, non-breaking space (`\u00A0`), or narrow non-breaking space (`\u202F`) immediately following the currency symbol, ensuring all currency displays render flush app-wide.
+- **Consequences**: Standardises monetary presentation consistently across the entire user interface and PDF reports, resolving a latent formatting bug surfaced during Prompt 11 currency verification.
+
+## ADR 031: Pure-Platform Verification Seeding Guidelines to Avoid DB Divergence
+- **Context**: Seeding mock records directly via PostgreSQL SQL script bypasses application repository logic and validation boundaries. If done carelessly, this leaves critical fields uninitialized (e.g. `issue_date` for `sent` invoices) or conflicts with soft-delete states (`deleted_at`), rendering seeded invoices unusable or orphaned.
+- **Decision**: Future verification test cases must either write test records strictly through app-level repository layers (in automated tests/simulators) or, if direct SQL seeding is used, explicitly populate every field associated with that lifecycle state (e.g., `issue_date`, `due_date` for `sent` status) and verify related entities are in an active, non-soft-deleted state (`deleted_at IS NULL`).
+- **Consequences**: Guarantees visual and functional database consistency during developer testing, preventing orphan rows or broken UI elements.
+
