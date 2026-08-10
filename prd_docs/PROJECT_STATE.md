@@ -416,4 +416,6 @@
 ### 5. Specification Deviations
 - **Mobile Share Sheet Real Device Verification**: Gated on logic code review and simulator walkthrough rather than real-device testing due to secure-context local IP blockers on the test network.
 
+### 6. Known Concurrency / Multi-Tab Constraints
+- **PowerSync Multi-Tab Limitation**: As observed during testing and warned in PowerSync's client console ("Multiple tab support is not enabled. Using this site across multiple tabs may not function correctly"), opening multiple browser tabs simultaneously against the same origin causes replication connection drops, resulting in secondary tabs showing "Sync Offline". Closing concurrent tabs and running a single active session immediately restores sync connection state. For the v1 release, this is an accepted behavior and single-tab operation is required.
 
