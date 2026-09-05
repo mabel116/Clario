@@ -3,7 +3,9 @@ import { db } from './db';
 
 export interface SyncStatus {
   connected: boolean;
+  connecting: boolean;
   lastSyncedAt: Date | null;
+  hasSynced: boolean;
   pendingUploads: number;
 }
 
@@ -11,7 +13,9 @@ export interface SyncStatus {
 export function useSyncStatus(): SyncStatus {
   const [status, setStatus] = useState<SyncStatus>({
     connected: false,
+    connecting: false,
     lastSyncedAt: null,
+    hasSynced: false,
     pendingUploads: 0
   });
 
@@ -26,7 +30,9 @@ export function useSyncStatus(): SyncStatus {
         const stats = await db.getUploadQueueStats();
         setStatus({
           connected: db.currentStatus?.connected ?? false,
+          connecting: db.currentStatus?.connecting ?? false,
           lastSyncedAt: db.currentStatus?.lastSyncedAt ?? null,
+          hasSynced: db.currentStatus?.hasSynced ?? false,
           pendingUploads: stats.count
         });
       } catch (err) {

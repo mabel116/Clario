@@ -224,5 +224,23 @@ export const ClientRepo = {
       `UPDATE clients SET deleted_at = ?, updated_at = ? WHERE id = ?`,
       [now, now, id]
     );
+  },
+
+  /**
+   * Deterministic one-shot check of SQLite database state to verify if active clients are 0.
+   * Runs in ~1ms directly against local SQLite without creating a watch stream.
+   */
+  async isEmpty(): Promise<boolean> {
+    if (!db) return false;
+    try {
+      const result = await db.getAll<{ count: number }>(
+        `SELECT COUNT(*) as count FROM clients WHERE deleted_at IS NULL`
+      );
+      const count = (result as any)[0]?.count ?? 0;
+      return count === 0;
+    } catch (err) {
+      console.error('Failed to check clients empty state:', err);
+      return false;
+    }
   }
 };

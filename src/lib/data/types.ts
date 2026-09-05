@@ -157,19 +157,26 @@ export function createLiveQuery<Row, T>(
   const startWatching = async () => {
     if ((typeof window === 'undefined' && !isTest) || !db) return;
     try {
+      const queryLabel = `[DB QUERY] ${sql.trim().replace(/\s+/g, ' ').substring(0, 60)}...`;
+      console.log(`⏱️ [WATCH CREATED] ${queryLabel}`);
       const asyncIterable = db.watch(sql, params);
       iterator = asyncIterable[Symbol.asyncIterator]();
       
       while (active) {
+        const startTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        
         const result = await iterator.next();
         if (result.done) break;
         if (!active) break;
         
+        const elapsed = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startTime;
         const rows = result.value?.rows?._array ?? [];
+        console.log(`⚡ ${queryLabel} completed in ${elapsed.toFixed(1)}ms (${rows.length} rows)`);
+
         const transformed = transform(rows);
         value = transformed;
         
-        for (const listener of listeners) {
+        for (const listener of Array.from(listeners)) {
           listener(transformed);
         }
       }
@@ -184,18 +191,6 @@ export function createLiveQuery<Row, T>(
       listeners.add(callback);
       if (value !== undefined) {
         callback(value);
-      } else {
-        if (db && (typeof window !== 'undefined' || isTest)) {
-          db.getAll(sql, params).then((rows) => {
-            const transformed = transform(rows as any);
-            value = transformed;
-            if (listeners.has(callback)) {
-              callback(value);
-            }
-          }).catch(err => {
-            console.error('Error in initial LiveQuery load:', err);
-          });
-        }
       }
 
       if (!active) {
@@ -215,3 +210,57 @@ export function createLiveQuery<Row, T>(
     }
   };
 }
+
+// Generic combinator to merge two LiveQuery streams reactively
+export function combineLiveQueries<T1, T2, R>(
+  q1: LiveQuery<T1>,
+  q2: LiveQuery<T2>,
+  combine: (v1: T1, v2: T2) => R
+): LiveQuery<R> {
+  let value: R | undefined;
+  const listeners = new Set<(data: R) => void>();
+  let unsub1: (() => void) | null = null;
+  let unsub2: (() => void) | null = null;
+
+  const notify = () => {
+    const v1 = q1.getValue();
+    const v2 = q2.getValue();
+    if (v1 !== undefined && v2 !== undefined) {
+      value = combine(v1, v2);
+      for (const listener of Array.from(listeners)) {
+        listener(value);
+      }
+    }
+  };
+
+  return {
+    getValue: () => {
+      const v1 = q1.getValue();
+      const v2 = q2.getValue();
+      return v1 !== undefined && v2 !== undefined ? combine(v1, v2) : undefined;
+    },
+    subscribe: (callback: (data: R) => void) => {
+      listeners.add(callback);
+      if (listeners.size === 1) {
+        unsub1 = q1.subscribe(() => notify());
+        unsub2 = q2.subscribe(() => notify());
+      }
+      const current = q1.getValue() !== undefined && q2.getValue() !== undefined
+        ? combine(q1.getValue()!, q2.getValue()!)
+        : undefined;
+      if (current !== undefined) {
+        callback(current);
+      }
+      return () => {
+        listeners.delete(callback);
+        if (listeners.size === 0) {
+          unsub1?.();
+          unsub2?.();
+          unsub1 = null;
+          unsub2 = null;
+        }
+      };
+    }
+  };
+}
+

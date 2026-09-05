@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '../supabase';
 import { AuthActions } from './client';
 import { Session, User } from '@supabase/supabase-js';
@@ -20,6 +20,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const currentSessionRef = useRef<Session | null>(null);
 
   useEffect(() => {
     // Check initial session from local cache (synchronous or async)
@@ -27,6 +28,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         if (initialSession) {
+          currentSessionRef.current = initialSession;
           setSession(initialSession);
           setUser(initialSession.user);
         }
@@ -48,14 +50,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('Auth state changed event:', event);
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+        const tokenChanged = currentSessionRef.current?.access_token !== currentSession?.access_token;
+        const userChanged = currentSessionRef.current?.user?.id !== currentSession?.user?.id;
+
+        if (tokenChanged || userChanged) {
+          currentSessionRef.current = currentSession;
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
+        }
         setIsLoading(false);
       } else if (event === 'SIGNED_OUT') {
+        currentSessionRef.current = null;
         setSession(null);
         setUser(null);
         setIsLoading(false);
       } else if (event === 'USER_UPDATED') {
+        currentSessionRef.current = currentSession;
         setUser(currentSession?.user ?? null);
       }
     });
@@ -65,7 +75,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     setIsLoading(true);
     try {
       await AuthActions.signOut();
@@ -76,18 +86,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  const contextValue = useMemo(() => ({
+    session,
+    user,
+    isLoading,
+    error,
+    signOut: handleSignOut
+  }), [session, user, isLoading, error, handleSignOut]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        session,
-        user,
-        isLoading,
-        error,
-        signOut: handleSignOut
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

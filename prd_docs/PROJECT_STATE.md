@@ -419,3 +419,151 @@
 ### 6. Known Concurrency / Multi-Tab Constraints
 - **PowerSync Multi-Tab Limitation**: As observed during testing and warned in PowerSync's client console ("Multiple tab support is not enabled. Using this site across multiple tabs may not function correctly"), opening multiple browser tabs simultaneously against the same origin causes replication connection drops, resulting in secondary tabs showing "Sync Offline". Closing concurrent tabs and running a single active session immediately restores sync connection state. For the v1 release, this is an accepted behavior and single-tab operation is required.
 
+---
+
+## Session Update — Prompt 12: Large-Dataset Sync Performance Investigation & Dashboard Cached-Snapshot Architecture
+
+### 1. Performance Investigation & Root Cause Confirmation
+- **Diagnosis**: On accounts populated with thousands of rows (e.g. 200 clients, 1,000 invoices, 2,000 payment events, ~4,200 total records), `db.connect()` consistently blocks for ~9.5s–10.5s before releasing the database lock to live queries.
+- **Root Cause**: PowerSync client's `db.connect()` executes a full checksum verification and checkpoint validation across all rows in subscribed sync buckets within WebAssembly SQLite (`wa-sqlite`). This computational verification costs ~2.3ms per row in WASM.
+- **Ruled-Out Factors**:
+  - **Not query execution complexity or missing indexes**: Local SQLite `SELECT` queries across all 4,200 rows execute in 1.5ms–4.5ms once the connection unblocks.
+  - **Not SQL JOIN overhead**: Splitting `InvoiceRepo.listAll()` into two sequential queries (`invoices LEFT JOIN clients` + separate `payment_events`) was verified and retained, but does not alter the initial `db.connect()` delay.
+  - **Not Auth listener churn**: Eliminating duplicate `onAuthStateChange` reconnect triggers fixed reconnection churn, but `db.connect()` itself remained ~9.5s on the large dataset.
+  - **Not client library version**: Upgrading `@powersync/web` from `2.0.0` to `2.2.0` and `@powersync/common` to `2.1.0` (with `v0.5.2` WASM assets) completed cleanly but demonstrated identical checksum validation timings. Upgraded packages are retained for ongoing stability.
+
+### 2. Two-Tier Sync Streams Experiment & Reversion
+- **Design & Deployment**: A two-tier Sync Streams architecture (`config: edition: 3`) was designed to prioritize active billing data in Tier 1 (`user_active`: `auto_subscribe: true`, priority 1) and historical data in Tier 2 (`user_history`: `auto_subscribe: false`, priority 3) to test background subscription via `db.syncStream('user_history').subscribe()`.
+- **Findings & Constraint**:
+  - In our accounting model, `payment_events` (~2,000 rows) and `invoice_line_items` (~1,049 rows) constitute the vast majority of database volume.
+  - Because `payment_events` is an immutable append-only ledger without invoice status columns, and invoice balance calculations require summing all related ledger events, ledger entries cannot be partitioned by invoice status without violating the immutable append-only ledger rule (ADR 002) or causing balance drift on active invoices.
+  - Consequently, 96.1% of all rows remained in Tier 1 (`user_active`), and `db.connect()` still took ~9.4s–9.7s.
+- **Reversion**: The two-tier experiment was completely reverted in application code (`src/lib/sync/provider.tsx`) and the sync configuration was restored to the clean, single-stream `user_data` stream (`edition: 3`, `auto_subscribe: true` for all 6 tables). Verified via manual dashboard redeployment and test suite execution.
+
+### 3. Accepted Architectural Fix: Cached-Snapshot Pattern (ADR 035)
+- **Implementation**:
+  - Created [`src/lib/data/snapshot.ts`](file:///c:/Users/i7/Documents/Clario/src/lib/data/snapshot.ts) providing fault-tolerant IndexedDB storage (`clario_cache`, store `dashboard_snapshots` keyed by `${userId}_${periodDays}`).
+  - Updated `useDashboard` in [`src/lib/data/hooks.ts`](file:///c:/Users/i7/Documents/Clario/src/lib/data/hooks.ts) to read the snapshot immediately on mount, initializing state with `isCached: true` and `cachedAt: timestamp`.
+  - Stored `defaultCurrency` directly inside `DashboardSnapshot`, allowing the cached render path to immediately establish exact currency card ordering on frame 0 without waiting for profile queries (~750ms–1.3s in worker).
+  - Updated [`src/app/page.tsx`](file:///c:/Users/i7/Documents/Clario/src/app/page.tsx) with a non-blocking loading gate on warm cache:
+    `const isLoading = isDashboardLoading || (!isCached && (isClientsLoading || isInvoicesLoading || isProfileLoading));`
+  - Rendered a transparent staleness disclosure badge: `• Showing snapshot from [X ago] (syncing...)` with `min-h-[22px]` to completely eliminate layout reflow when live data swaps in.
+  - Added dynamic cursor cleanup on `SIGNED_OUT` in [`src/lib/sync/provider.tsx`](file:///c:/Users/i7/Documents/Clario/src/lib/sync/provider.tsx) to wipe all snapshot keys matching `${userId}_*`.
+- **Strict Scope**: Applies solely to read-only summary widgets on the Dashboard. All actionable screens (Record Payment modal, Edit Invoice, Client Detail, Invoice Detail) always execute against live queries.
+
+### 4. Standing Engineering Lessons from this Session
+1. **Never Trust Documentation-Based Time Estimates Without Measurement**: Predictions from research (e.g. "~500ms initial connect" or "~15ms checksums") were contradicted by live WASM measurements (~2.3ms/row on client hardware). Always measure and profile directly on the target runtime.
+2. **PowerSync Sync Streams (Edition 3) SQL Syntax Rules**:
+   - The `IN (...)` list expression is unsupported in Edition 3 Sync Streams SQL.
+   - Separate queries per status or equality chains must be used if filtering.
+3. **PowerSync Configuration Deployment**: Sync stream rules must be deployed via the PowerSync dashboard editor rather than CLI tooling for this project setup.
+
+### 5. Current Working Tree Status (Uncommitted)
+All code changes from tonight's session remain **uncommitted** pending human review:
+- `modified: .gitignore`
+- `modified: DECISIONS.md` (Added ADR 035, ADR 036)
+- `modified: package.json` / `package-lock.json` (@powersync/web 2.2.0 upgrade)
+- `modified: public/@powersync/*` (Updated WASM and worker binaries)
+- `modified: src/app/page.tsx` (Cached snapshot badge, deterministic isAccountEmpty readiness gate)
+- `modified: src/lib/data/dashboard.ts` (Added isAccountEmpty deterministic one-shot query)
+- `modified: src/lib/data/hooks.ts` (useDashboard snapshot read/persist, combineLiveQueries integration)
+- `modified: src/lib/data/invoice.ts` (listAll query separation)
+- `modified: src/lib/data/types.ts` (combineLiveQueries helper)
+- `modified: src/lib/sync/hooks.ts` (Exposed hasSynced and connecting status)
+- `modified: src/lib/sync/provider.tsx` (Auth loop deduplication, clearDashboardSnapshot on signout)
+- `untracked: scripts/reset-dev-password.js` (Dev-only safeguarded password reset utility)
+- `untracked: src/lib/data/snapshot.ts` (IndexedDB snapshot storage utility)
+- `untracked: sync-rules.yaml` (Single-stream edition 3 reference configuration)
+
+### 6. Prompt 12 Follow-Up: Dashboard Cold-Boot Readiness & Race-Condition Hardening
+- **Status**: Complete & Verified (46 / 46 Vitest tests passing, 0 TypeScript errors)
+
+#### 1. The Bug & Root Cause
+On cold boot (brand-new device, or cleared browser site data with zero cached snapshot in IndexedDB), the Dashboard could briefly flash incorrect UI states before real synced data arrived from the server:
+- **Phase 1**: Active accounts with hundreds of clients/invoices briefly flashed the "Let's set up your business" first-run onboarding screen.
+- **Phase 2**: When onboarding was suppressed via basic boolean checks, the dashboard summary widgets instead briefly rendered empty states ("No outstanding invoices", "No earnings", "No payment transactions") with sync status "Last: Never" before real records loaded.
+
+**Root Cause**: Relying on query loading flags (`isLoading`, `isClientsLoading`, `isDashboardLoading`) or composite loading/synced boolean flags. In `useLiveQuery` (and React query patterns generally), `isLoading` represents "resolved once, ever" and permanently sets to `false` on Iteration 0 against empty local SQLite (~1ms on cold boot). When PowerSync later commits downloaded server batches to SQLite and flips `hasSynced = true`, `isClientsLoading` stays `false` and does *not* re-arm, creating an asynchronous timing gap where queries appear "loaded" with stale 0-row results before reactive `db.watch()` iterations yield.
+
+#### 2. Failed Naive Fix Attempts (In Order)
+1. **Gating on `isLoading` alone**: Failed because Iteration 0 resolved in ~1ms against empty local SQLite, setting `isLoading = false` with `clients = []` and `allInvoices = []`, triggering first-run onboarding immediately.
+2. **Combining `isClientsLoading` + `hasSynced`**: Failed because `isClientsLoading` was already stale `false` from Iteration 0 when `hasSynced` flipped to `true`. In that tick, `db.watch()` had not yielded Iteration 1 into React state, so `clients.length === 0` still evaluated to `true`.
+3. **150ms Settling Timeout (`isSyncSettled`)**: Rejected as non-deterministic. Guessed timer windows fail on slower mobile CPUs, heavy network throttling, or background tab throttling, reproducing the exact race condition.
+
+#### 3. The Accepted Architectural Fix (ADR 036)
+- **Deterministic One-Shot Read (`DashboardRepo.isAccountEmpty`)**:
+  Added a direct one-shot query to [`src/lib/data/dashboard.ts`](file:///c:/Users/i7/Documents/Clario/src/lib/data/dashboard.ts) using `db.getAll` to execute `SELECT COUNT(*) FROM clients WHERE deleted_at IS NULL` and `SELECT COUNT(*) FROM invoices WHERE deleted_at IS NULL`. Runs directly in local SQLite in ~1ms without creating an async watch stream.
+- **Asymmetric Unified Readiness Gate (`src/app/page.tsx`)**:
+  Consolidated all page loading, onboarding, and widget decisions into a single gate:
+  `const isDataReady = hasProvenData || isConfirmedEmpty === true;`
+  where `hasProvenData = isCached || (clients !== undefined && clients.length > 0) || allInvoices.length > 0`.
+  - **Confirmed Empty (`isConfirmedEmpty === true`)**: Unblocks `isDataReady` immediately $\rightarrow$ renders first-run onboarding cleanly.
+  - **Confirmed Has Data (`isConfirmedEmpty === false`)**: `isDataReady` stays `false`, holding the loading skeleton until the real reactive queries (`hasProvenData`) deliver their rows to React state $\rightarrow$ transitions directly to real dashboard with zero empty-widget flash.
+  - **Pending (`isConfirmedEmpty === null`)**: Holds the skeleton.
+- **Cross-Account Session Reset**:
+  Added `useEffect(() => { setIsConfirmedEmpty(null); }, [user?.id])` to reset disk confirmation on user ID change, ensuring no state leakage across account switches in the same browser tab.
+
+#### 4. Design Principle Worth Carrying Forward
+- **Never trust a "loading finished" boolean as proof that current data is accurate** — only trust actual data content (`hasProvenData`) or an explicit, deterministic one-shot check.
+- **Fail toward "show a skeleton a bit longer" rather than "risk a false negative/empty state"** — an extra millisecond on a loading skeleton is a minor UX cost, whereas flashing "You have no clients / No outstanding invoices" actively misleads the freelancer in a financial clarity app.
+
+#### 5. New Known Issue (Unresolved / Deferred)
+- **Google OAuth Redirect Loop on Dev Project**:
+  Google OAuth sign-in for `mabelmarkus116@gmail.com` got stuck in a redirect loop during dev testing (repeated console warning: `"message port closed before a response was received"`, plausibly related to Supabase/Google OAuth state or dev origin redirect configuration; confirmed not caused by browser extensions as it also reproduced in Incognito).
+  - **Workaround**: Created `scripts/reset-dev-password.js` (dev-only, dual-safeguarded against project ref `ukjdwoldakcapojcpfas`) and reset the account's password to `Password123!` to enable standard email/password authentication.
+  - **Status**: Open known issue for OAuth investigation in a dedicated session. Email/password authentication is fully functional.
+
+#### 6. Next Steps
+- Perform end-to-end manual verification across all 4 dashboard test scenarios:
+  1. Test 1 (Large seeded account, cold boot, no cache).
+  2. Test 2 (Small account with data, cold boot, no cache).
+  3. Test 3 (Genuinely empty account, cold boot, no cache).
+  4. Test 4 (Warm cache instant load, offline-first reload).
+- Resume the offline-hardening audit across remaining screens (`/clients`, `/invoices`, `/invoices/[id]`, `/invoices/new`, `/invoices/[id]/edit`, Record Payment modal, `/settings`).
+
+---
+
+## Prompt 13: Offline-Hardening Audit for `/clients` and `/` (Dashboard)
+- **Status**: Complete & Verified (58 / 58 Vitest tests passing, 0 TypeScript errors, Manual QA Passed)
+
+### 1. Scope & Objective
+Audit and harden the Clients List (`/clients`) and Dashboard (`/`) against cold-boot race conditions, false-empty UI flashes, and offline state inaccuracies by applying the architectural lessons from ADR 035 (Cached-Snapshot Pattern) and ADR 036 (Lifted Deterministic Readiness Gate).
+
+### 2. Architectural Implementations
+
+#### A. Lifted Deterministic Readiness Gate (`src/lib/data/readiness.ts`)
+- **Shared Hook (`useDataReady`)**: Extracted and generalized the asymmetric readiness gate into a reusable hook conforming to ADR 036.
+- **Injectable Domain Empty Checks**:
+  - Dashboard: Injects `DashboardRepo.isAccountEmpty()` (checks both active clients and invoices).
+  - Clients: Injects `ClientRepo.isEmpty()` (checks `SELECT COUNT(*) FROM clients WHERE deleted_at IS NULL` directly against local SQLite via `db.getAll`). Avoids the "Infinite Skeleton Trap" where an account with 0 clients but historic invoices would never unblock.
+- **Strict Error Safety**: If SQLite direct read throws an error, `isConfirmedEmpty` remains `null`, failing safely toward maintaining the loading skeleton rather than flashing false-empty states.
+- **Cross-User Session Reset**: Listens to `user?.id` and resets `isConfirmedEmpty = null` upon user change to prevent state leakage across account switches in the same browser tab.
+- **Exports**: Exposes `{ isDataReady, isLoading, isConfirmedEmpty }`.
+
+#### B. Deterministic Onboarding & Search Gates (`src/app/clients/page.tsx`)
+- **Strict Evaluation Ladder**:
+  1. `isLoading === true`: Renders loading skeleton.
+  2. `isConfirmedEmpty === true`: Explicitly verified 0 clients on local disk $\rightarrow$ renders "Add your first client" onboarding.
+  3. `filteredClients.length > 0`: Renders live client master-detail list.
+  4. Fallthrough (clients exist on disk, but filtered results are empty): Renders "No matching clients found for query" with a "Clear Search Query" button.
+- **Eliminated Race Condition**: Replaced naive `clients?.length === 0` checks that flashed false empty states during the ~1ms window where `useLiveQuery` returned `undefined` before emitting `[]`.
+
+#### C. Cached-Snapshot Poisoning Fix (`src/app/page.tsx` & `src/lib/data/hooks.ts`)
+- **The Issue**: During Empty Cold Boot (Test 2), `useDashboard` saved an empty snapshot `{ outstanding: [], earnings: [], recentPayments: [], invoices: [] }` to IndexedDB. On the next load, `isCached` immediately flipped to `true`, causing `hasProvenData = isCached || ...` to evaluate `true` on Frame 1. This dropped the loading skeleton (`isLoading = false`) before the 1ms SQLite check completed, flashing empty widgets ("No outstanding invoices") for 1 frame before dropping into onboarding.
+- **The Fix**:
+  1. **Guarded `hasProvenData` in `src/app/page.tsx`**: A cached snapshot is only considered proven if it actually contains non-empty records (`hasCachedData = isCached && (invoices.length > 0 || outstanding.some(o => o.amountMinor > 0) || earnings.length > 0 || recentPayments.length > 0)`).
+  2. **Purge Empty Snapshots in `src/lib/data/hooks.ts`**: In `useDashboard`, `saveDashboardSnapshot` is only called when `liveData` has real business records. If the account is completely empty, it calls `clearDashboardSnapshot(userId)` to purge any lingering empty cache from IndexedDB.
+
+### 3. Automated & Manual Verification
+- **Vitest Unit Suite**: 11 new tests in `tests/clients_readiness.test.ts` covering:
+  - `ClientRepo.isEmpty()` invariants (returns true on 0 rows, false on active rows, true on soft-deleted rows).
+  - `useDataReady` asymmetric latching, empty vs data unblocking, error safety, and user switch resets.
+  - All 7 test files (**58 / 58 tests**) pass cleanly.
+- **TypeScript Typecheck**: `npm run typecheck` (`tsc --noEmit`) passes with 0 errors.
+- **Manual QA**: Verified in real browser on Empty Cold Boot (Test 2) — 0 UI flicker, perfectly smooth transition directly into onboarding.
+
+### 4. Next Steps
+- Begin offline-hardening audit for the `/invoices` (Invoices list) and `/invoices/[id]` (Invoice Detail) screens.
+
+
+

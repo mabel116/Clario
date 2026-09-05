@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '../../components/ProtectedRoute';
 import { AppShell } from '../../components/AppShell';
 import { useClients, useClient, useClientLinks, useProfile, useInvoicesForClient, usePaymentsForClient } from '../../lib/data/hooks';
+import { useDataReady } from '../../lib/data/readiness';
 import { RecordPaymentModal } from '../../components/RecordPaymentModal';
 import { ClientRepo } from '../../lib/data/client';
 import { ClientLinkRepo } from '../../lib/data/client-link';
@@ -44,8 +45,12 @@ export default function ClientsPage() {
 
 function ClientsDashboard() {
   const router = useRouter();
-  const { data: clients, isLoading: isClientsLoading } = useClients();
+  const { data: clients } = useClients();
   const { data: profile } = useProfile();
+
+  // Unified readiness gate (ADR 036)
+  const hasClientsData = clients !== undefined && clients.length > 0;
+  const { isLoading, isConfirmedEmpty } = useDataReady(hasClientsData, ClientRepo.isEmpty);
 
   // Search and selection states
   const [searchQuery, setSearchQuery] = useState('');
@@ -335,10 +340,28 @@ function ClientsDashboard() {
         </div>
 
         {/* Clients Grid/List */}
-        {isClientsLoading ? (
+        {isLoading ? (
           <div className="flex-1 space-y-4">
             <div className="rounded-2xl border border-slate-900 bg-slate-900/10 p-6 animate-pulse h-24"></div>
             <div className="rounded-2xl border border-slate-900 bg-slate-900/10 p-6 animate-pulse h-24"></div>
+          </div>
+        ) : isConfirmedEmpty === true ? (
+          <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-slate-800 rounded-3xl p-12 text-center max-w-md mx-auto space-y-5">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-950/40 text-indigo-400">
+              <Users className="h-7 w-7" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">Add your first client</h3>
+              <p className="text-sm text-slate-400 mt-2 leading-relaxed">
+                Build your client database to quickly issue invoices, track custom drive folders, and review outstanding ledgers.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowAddClient(true)}
+              className="inline-flex justify-center items-center gap-1.5 rounded-lg bg-indigo-600 px-5 py-3 text-xs font-semibold text-white hover:bg-indigo-500 transition shadow-lg shadow-indigo-600/20"
+            >
+              <Plus className="h-4 w-4" /> Create Client Profile
+            </button>
           </div>
         ) : filteredClients.length > 0 ? (
           <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
@@ -383,21 +406,21 @@ function ClientsDashboard() {
             ))}
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-slate-800 rounded-3xl p-12 text-center max-w-md mx-auto space-y-5">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-950/40 text-indigo-400">
-              <Users className="h-7 w-7" />
+          <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-slate-800 rounded-3xl p-12 text-center max-w-md mx-auto space-y-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 border border-slate-800 text-slate-400">
+              <Search className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white">Add your first client</h3>
-              <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-                Build your client database to quickly issue invoices, track custom drive folders, and review outstanding ledgers.
+              <h3 className="text-base font-bold text-white">No matching clients found</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                No client records match your search for &quot;<span className="text-white font-medium">{searchQuery}</span>&quot;.
               </p>
             </div>
             <button
-              onClick={() => setShowAddClient(true)}
-              className="inline-flex justify-center items-center gap-1.5 rounded-lg bg-indigo-600 px-5 py-3 text-xs font-semibold text-white hover:bg-indigo-500 transition shadow-lg shadow-indigo-600/20"
+              onClick={() => setSearchQuery('')}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition"
             >
-              <Plus className="h-4 w-4" /> Create Client Profile
+              Clear Search Query
             </button>
           </div>
         )}

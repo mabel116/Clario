@@ -27,6 +27,12 @@ function SignUpForm() {
     setIsLoading(true);
     setErrorMsg(null);
 
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      setErrorMsg('Account registration requires an active network connection. Please check your network and try again.');
+      setIsLoading(false);
+      return;
+    }
+
     if (password !== confirmPassword) {
       setErrorMsg('Passwords do not match.');
       setIsLoading(false);
@@ -47,6 +53,7 @@ function SignUpForm() {
       setIsLoading(false);
     }
   };
+
 
   if (success) {
     return (

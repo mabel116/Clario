@@ -4,7 +4,9 @@ import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { AppShell } from '../components/AppShell';
-import { useDashboard, useClients, useInvoices, useProfile } from '../lib/data/hooks';
+import { useDashboard, useClients, useProfile } from '../lib/data/hooks';
+import { DashboardRepo } from '../lib/data/dashboard';
+import { useDataReady } from '../lib/data/readiness';
 import { formatMoney } from '../lib/money';
 import { 
   LayoutDashboard, Receipt, Landmark, AlertTriangle, 
@@ -29,12 +31,30 @@ function DashboardView() {
   const [showAllOutstanding, setShowAllOutstanding] = useState(false);
 
   // Queries
-  const { data: dashboard, isLoading: isDashboardLoading } = useDashboard(periodDays);
-  const { data: clients, isLoading: isClientsLoading } = useClients();
-  const { data: allInvoices, isLoading: isInvoicesLoading } = useInvoices();
   const { data: profile } = useProfile();
+  const liveDefaultCurrency = (profile?.default_currency || 'USD').toUpperCase();
 
-  const isLoading = isDashboardLoading || isClientsLoading || isInvoicesLoading;
+  const { data: dashboard, isCached, cachedAt } = useDashboard(periodDays, liveDefaultCurrency);
+  const { data: clients } = useClients();
+
+  // If dashboard is cached, use its cached defaultCurrency and invoices immediately without waiting
+  const defaultCurrency = (isCached && dashboard?.defaultCurrency) ? dashboard.defaultCurrency : liveDefaultCurrency;
+  const allInvoices = dashboard?.invoices || [];
+
+  // 1. Proven data exists if cached snapshot has actual records OR real rows have landed in React state
+  const hasCachedData = isCached && (
+    (dashboard?.invoices && dashboard.invoices.length > 0) ||
+    (dashboard?.outstanding && dashboard.outstanding.some(o => o.amountMinor > 0)) ||
+    (dashboard?.earnings && dashboard.earnings.length > 0) ||
+    (dashboard?.recentPayments && dashboard.recentPayments.length > 0)
+  );
+  const hasProvenData = hasCachedData || (clients !== undefined && clients.length > 0) || allInvoices.length > 0;
+
+  // 2. Lifted deterministic readiness gate (ADR 036)
+  const { isLoading, isConfirmedEmpty } = useDataReady(hasProvenData, DashboardRepo.isAccountEmpty);
+
+  // 3. First-run onboarding: ONLY true if SQLite explicitly confirmed 0 rows on disk
+  const isFirstRun = isConfirmedEmpty === true;
 
   // Resolve active currencies in dashboard context
   const activeCurrencies = useMemo(() => {
@@ -141,13 +161,6 @@ function DashboardView() {
     return Math.max(0, diffDays);
   };
 
-  // Determine if it's first run state
-  const isFirstRun = useMemo(() => {
-    if (isLoading) return false;
-    const hasNoClients = !clients || clients.length === 0;
-    const hasNoInvoices = !allInvoices || allInvoices.length === 0;
-    return hasNoClients && hasNoInvoices;
-  }, [clients, allInvoices, isLoading]);
 
   // Period label translation
   const periodLabel = {
@@ -155,6 +168,18 @@ function DashboardView() {
     90: 'Last 90 Days',
     365: 'This Year'
   }[periodDays];
+
+  // Format relative timestamp for cached snapshot badge
+  const formatCachedAgo = (timestamp?: number) => {
+    if (!timestamp) return 'earlier';
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return `${Math.max(1, seconds)}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  };
 
   return (
     <div className="space-y-8 animate-fade-in text-left">
@@ -166,7 +191,15 @@ function DashboardView() {
             <LayoutDashboard className="h-8 w-8 text-indigo-500" />
             Financial Dashboard
           </h1>
-          <p className="text-xs text-slate-400 mt-1">Real-time ledger balances and aggregates</p>
+          <div className="flex flex-wrap items-center gap-2 mt-1 min-h-[22px]">
+            <p className="text-xs text-slate-400">Real-time ledger balances and aggregates</p>
+            {isCached && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 transition-opacity duration-300 animate-fade-in">
+                <Clock className="w-3 h-3 text-amber-400 shrink-0" />
+                Showing snapshot from {formatCachedAgo(cachedAt)}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Global Period Selector (disclosed on header/earnings card) */}
@@ -198,8 +231,6 @@ function DashboardView() {
           <div className="h-96 rounded-3xl border border-slate-900 bg-slate-900/10"></div>
         </div>
       ) : isFirstRun ? (
-        
-        /* 2. Onboarding/First-Run Empty State Checklist */
         <div className="max-w-xl mx-auto rounded-3xl border border-slate-900 bg-gradient-to-br from-slate-950 to-slate-900/50 p-8 shadow-2xl space-y-6 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-950/40 text-indigo-400">
             <CheckCircle className="h-7 w-7" />
@@ -212,7 +243,6 @@ function DashboardView() {
           </div>
 
           <div className="space-y-3.5 text-left max-w-sm mx-auto">
-            {/* Step 1 */}
             <div 
               onClick={() => router.push('/clients')}
               className="rounded-2xl border border-slate-900 bg-slate-950/50 p-4 flex items-start gap-4 hover:border-slate-800 transition cursor-pointer group"
@@ -225,7 +255,6 @@ function DashboardView() {
               <ChevronRight className="h-4 w-4 text-slate-600 ml-auto self-center group-hover:text-slate-400 group-hover:translate-x-0.5 transition" />
             </div>
 
-            {/* Step 2 */}
             <div 
               onClick={() => router.push('/clients')}
               className="rounded-2xl border border-slate-900 bg-slate-950/50 p-4 flex items-start gap-4 hover:border-slate-800 transition cursor-pointer group opacity-60 hover:opacity-100"
@@ -239,31 +268,17 @@ function DashboardView() {
             </div>
           </div>
         </div>
-
       ) : (
-        
-        /* 3. Primary Dashboard Layout Grid */
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           
-          {/* Main Dashboard Cards (Left 2 Columns) */}
           <div className="lg:col-span-2 space-y-6">
             
-            {/* A. Outstanding Balance Segmented Card */}
             <div className="rounded-3xl border border-slate-900 bg-gradient-to-br from-slate-950 to-slate-950/20 p-6 space-y-5 shadow-lg">
               <div className="flex items-center justify-between border-b border-slate-900/60 pb-3">
                 <div className="flex items-center gap-2">
                   <Landmark className="h-5 w-5 text-amber-500" />
                   <h3 className="text-base font-extrabold text-white uppercase tracking-wider">Outstanding Balances</h3>
                 </div>
-                {!isMultiCurrency && sortedOutstanding[0] && (() => {
-                  const singleCurr = sortedOutstanding[0].currency.toUpperCase();
-                  const totalCounts = invoiceCountsByCurrency[singleCurr]?.total || 0;
-                  return (
-                    <span className="text-xs font-semibold text-slate-400">
-                      {totalCounts} {totalCounts === 1 ? 'Invoice' : 'Invoices'} total
-                    </span>
-                  );
-                })()}
               </div>
 
               <div className="space-y-3">
@@ -279,23 +294,26 @@ function DashboardView() {
                           onClick={() => router.push(`/invoices?status=outstanding&currency=${out.currency}`)}
                           className="rounded-2xl border border-slate-900/60 bg-slate-950/40 p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group hover:border-slate-800 transition cursor-pointer"
                         >
-                          <div className="space-y-0.5 text-left">
-                            <span className="text-[10px] font-extrabold text-indigo-400 uppercase tracking-widest block">
-                              {isMultiCurrency ? `${out.currency} Ledger` : 'Active Ledger'}
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono font-bold text-sm bg-slate-900 text-indigo-400 border border-slate-800 px-2 py-0.5 rounded-lg">
+                              {out.currency.toUpperCase()}
                             </span>
-                            <span className="text-2xl font-black text-white tracking-tight block">
-                              {formatMoney({ amountMinor: out.amountMinor, currency: out.currency })}
-                            </span>
+                            {isMultiCurrency && (
+                              <span className="text-xs text-slate-500 font-medium">
+                                {invoiceCount} {invoiceCount === 1 ? 'Invoice' : 'Invoices'}
+                              </span>
+                            )}
                           </div>
 
-                          <div className="flex items-center gap-3 sm:ml-auto">
-                            <div className="text-right text-xs text-slate-400 font-semibold space-y-0.5">
-                              <div>{invoiceCount} outstanding {invoiceCount === 1 ? 'invoice' : 'invoices'}</div>
+                          <div className="flex items-center gap-4 sm:justify-end">
+                            <div className="text-right">
+                              <span className="text-lg font-black text-white group-hover:text-indigo-400 transition tracking-tight">
+                                {formatMoney({ amountMinor: out.amountMinor, currency: out.currency })}
+                              </span>
                               {overdueCount > 0 && (
-                                <div className="text-amber-500 flex items-center gap-1 justify-end">
-                                  <AlertTriangle className="h-3 w-3 shrink-0" />
-                                  <span aria-label={`Overdue invoices: ${overdueCount}`}>{overdueCount} overdue</span>
-                                </div>
+                                <span className="block text-[11px] font-bold text-red-400">
+                                  {overdueCount} overdue
+                                </span>
                               )}
                             </div>
                             <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-slate-400 group-hover:translate-x-0.5 transition" />
@@ -304,102 +322,107 @@ function DashboardView() {
                       );
                     })}
 
-                    {/* "+N more" Collapse Trigger */}
-                    {sortedOutstanding.length > 3 && (
+                    {sortedOutstanding.length > 2 && (
                       <button
                         onClick={() => setShowAllOutstanding(!showAllOutstanding)}
-                        className="w-full text-center py-2 text-xs font-extrabold text-indigo-400 hover:text-indigo-300 transition"
+                        className="w-full text-center py-2 text-xs font-bold text-indigo-400 hover:text-indigo-300 transition"
                       >
-                        {showAllOutstanding 
-                          ? 'Show less' 
-                          : `+${sortedOutstanding.length - 3} more currencies`}
+                        {showAllOutstanding ? 'Show Less' : `+${sortedOutstanding.length - 2} More Currencies`}
                       </button>
                     )}
                   </>
                 ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-900 p-8 text-center text-slate-500">
-                    <p className="text-xs font-semibold">No outstanding balance due.</p>
+                  <div className="text-center py-6 text-slate-500 text-xs">
+                    No outstanding invoices. You&apos;re completely caught up!
                   </div>
                 )}
               </div>
             </div>
 
-            {/* B. Rolling Earnings Card */}
             <div className="rounded-3xl border border-slate-900 bg-gradient-to-br from-slate-950 to-slate-950/20 p-6 space-y-5 shadow-lg">
               <div className="flex items-center justify-between border-b border-slate-900/60 pb-3">
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-emerald-500" />
+                  <TrendingUp className="h-5 w-5 text-emerald-400" />
                   <h3 className="text-base font-extrabold text-white uppercase tracking-wider">Earnings</h3>
                 </div>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{periodLabel}</span>
+                <span className="text-xs font-medium text-slate-500">
+                  Past {periodDays === 365 ? '12 Months' : `${periodDays} Days`}
+                </span>
               </div>
 
-              {/* Earnings Tiles Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-3">
                 {sortedEarnings.length > 0 ? (
-                  sortedEarnings.map((earning) => (
+                  sortedEarnings.map((e) => (
                     <div 
-                      key={earning.currency} 
-                      className="rounded-2xl border border-slate-900/60 bg-slate-950/30 p-5 space-y-1 hover:border-slate-800 transition text-left"
+                      key={e.currency}
+                      className="rounded-2xl border border-slate-900/60 bg-slate-950/40 p-4.5 flex items-center justify-between gap-3"
                     >
-                      <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block">
-                        {earning.currency} Earnings
+                      <span className="font-mono font-bold text-sm bg-slate-900 text-emerald-400 border border-slate-800 px-2 py-0.5 rounded-lg">
+                        {e.currency.toUpperCase()}
                       </span>
-                      <span className={`text-2xl font-black block tracking-tight ${earning.amountMinor < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                        {formatMoney({ amountMinor: earning.amountMinor, currency: earning.currency })}
-                      </span>
-                      <span className="block text-[9px] text-slate-500 font-semibold pt-1 border-t border-slate-900/50 mt-1.5 uppercase">
-                        Net ledger period sum
+                      <span className="text-lg font-black text-white tracking-tight">
+                        {formatMoney({ amountMinor: e.amountMinor, currency: e.currency })}
                       </span>
                     </div>
                   ))
                 ) : (
-                  <div className="col-span-full rounded-2xl border border-dashed border-slate-900 p-8 text-center text-slate-500">
-                    <p className="text-xs font-semibold">No payments recorded during this period.</p>
+                  <div className="text-center py-6 text-slate-500 text-xs">
+                    No earnings collected in this period.
                   </div>
                 )}
               </div>
             </div>
 
-            {/* C. Recent Payments Table */}
-            <div className="rounded-3xl border border-slate-900 bg-gradient-to-br from-slate-950 to-slate-950/20 p-6 space-y-4 shadow-lg text-left">
-              <h3 className="text-base font-extrabold text-white uppercase tracking-wider border-b border-slate-900/60 pb-3 flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-indigo-400" />
-                Recent Payments
-              </h3>
+            <div className="rounded-3xl border border-slate-900 bg-gradient-to-br from-slate-950 to-slate-950/20 p-6 space-y-5 shadow-lg">
+              <div className="flex items-center justify-between border-b border-slate-900/60 pb-3">
+                <div className="flex items-center gap-2">
+                  <Receipt className="h-5 w-5 text-indigo-400" />
+                  <h3 className="text-base font-extrabold text-white uppercase tracking-wider">Recent Activity</h3>
+                </div>
+                <span className="text-xs font-medium text-slate-500">Latest 10 Events</span>
+              </div>
 
-              <div className="space-y-3.5">
+              <div className="divide-y divide-slate-900/50">
                 {dashboard?.recentPayments && dashboard.recentPayments.length > 0 ? (
-                  dashboard.recentPayments
-                    .filter(p => p.amount_minor > 0) // Render only positive payment events
-                    .map((pmt) => {
-                      return (
-                        <div
-                          key={pmt.id}
-                          onClick={() => router.push(`/invoices/${pmt.invoice_id}`)}
-                          className="rounded-2xl border border-slate-900/60 bg-slate-950/40 p-4 flex items-center justify-between group hover:border-slate-800 transition cursor-pointer"
-                        >
-                          <div className="min-w-0 pr-3 space-y-1">
-                            <span className="block font-bold text-sm text-white truncate group-hover:text-indigo-400 transition">
-                              {pmt.client_name}
+                  dashboard.recentPayments.map((p) => {
+                    const isReversal = !!p.reverses_id || p.amount_minor < 0;
+                    return (
+                      <div key={p.id} className="py-3.5 flex items-center justify-between gap-4 first:pt-0 last:pb-0">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-sm text-white">
+                              {p.client_name || 'Client'}
                             </span>
-                            <div className="text-[10px] text-slate-500 font-semibold font-mono">
-                              Invoice: {pmt.invoice_number} · {pmt.occurred_at}
-                            </div>
+                            {p.invoice_number && (
+                              <span 
+                                onClick={() => router.push(`/invoices/${p.invoice_id}`)}
+                                className="text-xs text-indigo-400 hover:underline cursor-pointer font-medium"
+                              >
+                                #{p.invoice_number}
+                              </span>
+                            )}
                           </div>
-
-                          <div className="flex items-center gap-2.5 shrink-0">
-                            <span className="text-sm font-extrabold text-emerald-400 font-sans">
-                              {formatMoney({ amountMinor: pmt.amount_minor, currency: pmt.currency })}
-                            </span>
-                            <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-slate-400 group-hover:translate-x-0.5 transition" />
-                          </div>
+                          <span className="block text-[11px] text-slate-500 font-medium">
+                            {p.occurred_at || new Date(p.created_at).toLocaleDateString()} &bull; {p.method}
+                          </span>
                         </div>
-                      );
-                    })
+
+                        <div className="text-right">
+                          <span className={`text-sm font-extrabold tabular-nums ${isReversal ? 'text-rose-400' : 'text-emerald-400'}`}>
+                            {isReversal ? '-' : '+'}{formatMoney({ amountMinor: Math.abs(p.amount_minor), currency: p.currency })}
+                          </span>
+                          {isReversal && (
+                            <span className="block text-[10px] font-bold text-rose-500/80 uppercase">
+                              Reversal
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
                 ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-900 p-8 text-center text-slate-500">
-                    <p className="text-xs font-semibold">No recent payments recorded.</p>
+                  <div className="text-center py-6 text-slate-500 text-xs">
+                    No payment transactions recorded yet.
                   </div>
                 )}
               </div>
@@ -407,42 +430,25 @@ function DashboardView() {
 
           </div>
 
-          {/* Attention & Details Side Panel (Right Column) */}
           <div className="space-y-6">
-            
-            {/* Attention Card (Overdue items requiring attention) */}
             {attentionInvoices.length > 0 && (
               <div className="rounded-3xl border border-red-950/20 bg-gradient-to-br from-red-950/5 to-slate-950/20 p-6 space-y-4 shadow-lg">
                 <h3 className="text-xs font-bold text-red-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-red-950/30 pb-2.5">
                   <Clock className="h-4 w-4 text-red-500" />
                   Needs Attention
                 </h3>
-
                 <div className="space-y-3">
                   {attentionInvoices.map((inv) => {
-                    const overdueDays = getDaysOverdue(inv.due_date);
+                    const days = getDaysOverdue(inv.due_date);
                     return (
-                      <div
-                        key={inv.id}
-                        onClick={() => router.push(`/invoices/${inv.id}`)}
-                        className="rounded-2xl border border-slate-900 bg-slate-950/40 p-4 flex flex-col gap-2 hover:border-slate-800 transition cursor-pointer group"
-                      >
+                      <div key={inv.id} onClick={() => router.push(`/invoices/${inv.id}`)} className="rounded-2xl border border-slate-900 bg-slate-950/40 p-4 flex flex-col gap-2 hover:border-slate-800 transition cursor-pointer group">
                         <div className="flex items-center justify-between">
-                          <span className="font-extrabold text-sm text-white group-hover:text-indigo-400 transition truncate">
-                            {inv.invoice_number}
-                          </span>
-                          <span className="text-xs font-bold text-red-400 shrink-0">
-                            {overdueDays}d overdue
-                          </span>
+                          <span className="font-extrabold text-sm text-white group-hover:text-indigo-400 transition">{inv.invoice_number}</span>
+                          <span className="text-xs font-bold text-red-400">{days}d overdue</span>
                         </div>
-                        
                         <div className="flex items-end justify-between border-t border-slate-900/50 pt-2 text-[10px] text-slate-500 font-semibold">
-                          <div>
-                            Client: <span className="text-slate-300">{inv.client_name}</span>
-                          </div>
-                          <span className="font-extrabold text-xs text-white">
-                            {formatMoney({ amountMinor: inv.balanceDueMinor, currency: inv.currency })}
-                          </span>
+                          <span>{inv.client_name}</span>
+                          <span className="font-extrabold text-xs text-white">{formatMoney({ amountMinor: inv.balanceDueMinor, currency: inv.currency })}</span>
                         </div>
                       </div>
                     );
@@ -450,9 +456,7 @@ function DashboardView() {
                 </div>
               </div>
             )}
-            
           </div>
-
         </div>
       )}
     </div>

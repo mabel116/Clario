@@ -25,6 +25,12 @@ function ResetPasswordForm() {
     setIsLoading(true);
     setErrorMsg(null);
 
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      setErrorMsg('Password reset requests require an active network connection. Please check your network and try again.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       await AuthActions.resetPassword(email);
       setSuccess(true);
@@ -33,6 +39,7 @@ function ResetPasswordForm() {
       setIsLoading(false);
     }
   };
+
 
   if (success) {
     return (

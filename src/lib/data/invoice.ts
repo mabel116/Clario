@@ -1,6 +1,7 @@
 import { db } from '../sync/db';
 import {
   createLiveQuery,
+  combineLiveQueries,
   LiveQuery,
   InvoiceSummary,
   InvoiceDetail,
@@ -392,81 +393,72 @@ export const InvoiceRepo = {
   },
 
   listAll(): LiveQuery<InvoiceSummary[]> {
-    return createLiveQuery<any, InvoiceSummary[]>(
+    const invoicesQuery = createLiveQuery<any, any[]>(
       `SELECT 
          i.id as invoice_id, i.client_id, i.invoice_number, i.status, i.currency, i.total_minor, i.issue_date, i.due_date,
-         c.name as client_name,
-         p.id as payment_id, p.amount_minor, p.reverses_id
+         c.name as client_name
        FROM invoices i
        LEFT JOIN clients c ON c.id = i.client_id
-       LEFT JOIN payment_events p ON p.invoice_id = i.id
        WHERE i.deleted_at IS NULL`,
       [],
-      (rows) => {
-        const invoiceMap = new Map<string, {
-          id: string;
-          client_id: string;
-          invoice_number: string;
-          status: 'draft' | 'sent' | 'void';
-          currency: string;
-          total_minor: number;
-          issue_date: string | null;
-          due_date: string | null;
-          client_name: string;
-          payments: any[];
-        }>();
-
-        for (const row of rows) {
-          const id = row.invoice_id;
-          if (!invoiceMap.has(id)) {
-            invoiceMap.set(id, {
-              id,
-              client_id: row.client_id,
-              invoice_number: row.invoice_number,
-              status: row.status,
-              currency: row.currency,
-              total_minor: row.total_minor,
-              issue_date: row.issue_date,
-              due_date: row.due_date,
-              client_name: row.client_name || '',
-              payments: []
-            });
-          }
-
-          if (row.payment_id) {
-            invoiceMap.get(id)!.payments.push({
-              amount_minor: row.amount_minor,
-              currency: row.currency,
-              reverses_id: row.reverses_id
-            });
-          }
-        }
-
-        const today = new Date().toISOString().split('T')[0];
-        return Array.from(invoiceMap.values()).map((inv) => {
-          const derived = deriveInvoice(
-            { status: inv.status, total_minor: inv.total_minor, due_date: inv.due_date },
-            inv.payments,
-            today
-          );
-
-          return {
-            id: inv.id,
-            client_id: inv.client_id,
-            invoice_number: inv.invoice_number,
-            status: inv.status,
-            currency: inv.currency,
-            total_minor: inv.total_minor,
-            issue_date: inv.issue_date,
-            due_date: inv.due_date,
-            displayStatus: derived.displayStatus,
-            amountPaidMinor: derived.amountPaid,
-            balanceDueMinor: derived.balanceDue,
-            client_name: inv.client_name
-          };
-        }).sort((a, b) => b.invoice_number.localeCompare(a.invoice_number));
-      }
+      (rows) => rows
     );
+
+    const paymentsQuery = createLiveQuery<any, any[]>(
+      `SELECT id, invoice_id, amount_minor, currency, reverses_id FROM payment_events`,
+      [],
+      (rows) => rows
+    );
+
+    return combineLiveQueries(invoicesQuery, paymentsQuery, (invoices, payments) => {
+      const tMergeStart = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+      // Group payments by invoice_id
+      const paymentsByInvoice = new Map<string, any[]>();
+      for (const p of payments) {
+        if (!p.invoice_id) continue;
+        let list = paymentsByInvoice.get(p.invoice_id);
+        if (!list) {
+          list = [];
+          paymentsByInvoice.set(p.invoice_id, list);
+        }
+        list.push({
+          amount_minor: p.amount_minor,
+          currency: p.currency,
+          reverses_id: p.reverses_id
+        });
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const result: InvoiceSummary[] = invoices.map((inv) => {
+        const pmtList = paymentsByInvoice.get(inv.invoice_id) || [];
+        const derived = deriveInvoice(
+          { status: inv.status, total_minor: inv.total_minor, due_date: inv.due_date },
+          pmtList,
+          today
+        );
+
+        return {
+          id: inv.invoice_id,
+          client_id: inv.client_id,
+          invoice_number: inv.invoice_number,
+          status: inv.status,
+          currency: inv.currency,
+          total_minor: inv.total_minor,
+          issue_date: inv.issue_date,
+          due_date: inv.due_date,
+          displayStatus: derived.displayStatus,
+          amountPaidMinor: derived.amountPaid,
+          balanceDueMinor: derived.balanceDue,
+          client_name: inv.client_name || ''
+        };
+      }).sort((a, b) => b.invoice_number.localeCompare(a.invoice_number));
+
+      const tMergeElapsed = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - tMergeStart;
+      console.log(`⚡ [DB QUERY] two-query invoices+payments: JS merge completed in ${tMergeElapsed.toFixed(1)}ms (${result.length} invoices)`);
+
+      return result;
+    });
   },
 
   canEditFinancials(invoiceId: string): LiveQuery<boolean> {

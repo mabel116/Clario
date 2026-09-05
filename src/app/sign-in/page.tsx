@@ -40,6 +40,12 @@ function SignInForm() {
     setErrorMsg(null);
     setInfoMsg(null);
 
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      setErrorMsg('Authentication requires an active network connection. Please check your network and try again.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       await AuthActions.signInWithPassword(email, password);
     } catch (err: any) {
@@ -53,6 +59,12 @@ function SignInForm() {
     setErrorMsg(null);
     setInfoMsg(null);
 
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      setErrorMsg('Google Sign-In requires an active network connection. Please check your network and try again.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       await AuthActions.signInWithGoogle();
     } catch (err: any) {
@@ -60,6 +72,7 @@ function SignInForm() {
       setIsLoading(false);
     }
   };
+
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-8 bg-slate-950 text-slate-100">

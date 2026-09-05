@@ -3,19 +3,16 @@ import { createLiveQuery, LiveQuery, CurrencyTotal, PaymentWithContext, Currency
 import { outstandingByCurrency as deriveOutstanding, earningsByCurrency as deriveEarnings, sortCurrencyTotals } from '../derive/aggregates';
 
 export const DashboardRepo = {
-  outstandingByCurrency(): LiveQuery<CurrencyOutstanding[]> {
+  outstandingByCurrency(defaultCurrency = 'USD'): LiveQuery<CurrencyOutstanding[]> {
     return createLiveQuery<any, CurrencyOutstanding[]>(
       `SELECT 
          i.id as invoice_id, i.client_id, i.status, i.currency, i.total_minor, i.due_date,
-         p.id as payment_id, p.amount_minor, p.reverses_id,
-         (SELECT default_currency FROM profiles LIMIT 1) as default_currency
+         p.id as payment_id, p.amount_minor, p.reverses_id
        FROM invoices i
        LEFT JOIN payment_events p ON p.invoice_id = i.id
        WHERE i.deleted_at IS NULL AND i.status = 'sent'`,
       [],
       (rows) => {
-        const defaultCurrency = rows[0]?.default_currency || 'USD';
-        
         // Assemble invoices and payments
         const invoiceMap = new Map<string, any>();
         const payments: any[] = [];
@@ -81,16 +78,13 @@ export const DashboardRepo = {
     );
   },
 
-  earningsByCurrency(periodDays: number): LiveQuery<CurrencyTotal[]> {
+  earningsByCurrency(periodDays: number, defaultCurrency = 'USD'): LiveQuery<CurrencyTotal[]> {
     return createLiveQuery<any, CurrencyTotal[]>(
       `SELECT 
-         p.id, p.amount_minor, p.currency, p.occurred_at,
-         (SELECT default_currency FROM profiles LIMIT 1) as default_currency
+         p.id, p.amount_minor, p.currency, p.occurred_at
        FROM payment_events p`,
       [],
       (rows) => {
-        const defaultCurrency = rows[0]?.default_currency || 'USD';
-
         const payments = rows.map((row) => ({
           invoice_id: '',
           client_id: '',
@@ -109,5 +103,25 @@ export const DashboardRepo = {
         return sortCurrencyTotals(earnings, defaultCurrency);
       }
     );
+  },
+
+  /**
+   * Deterministic one-shot check of SQLite database state to verify if an account is genuinely empty.
+   * Runs in ~1ms directly against local SQLite without creating a watch stream.
+   */
+  async isAccountEmpty(): Promise<boolean> {
+    if (!db) return false;
+    try {
+      const [clientRes, invoiceRes] = await Promise.all([
+        db.getAll<{ count: number }>(`SELECT COUNT(*) as count FROM clients WHERE deleted_at IS NULL`),
+        db.getAll<{ count: number }>(`SELECT COUNT(*) as count FROM invoices WHERE deleted_at IS NULL`)
+      ]);
+      const clientCount = (clientRes as any)[0]?.count ?? 0;
+      const invoiceCount = (invoiceRes as any)[0]?.count ?? 0;
+      return clientCount === 0 && invoiceCount === 0;
+    } catch (err) {
+      console.error('Failed to check account empty state:', err);
+      return false;
+    }
   }
 };

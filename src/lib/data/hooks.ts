@@ -8,31 +8,37 @@ import { DashboardRepo } from './dashboard';
 import { ProfileRepo } from './profile';
 import { ClientLinkRow, PaymentEventRow, ProfileRow } from '../sync/schema';
 import { ClientSummary, ClientDetail, InvoiceSummary, InvoiceDetail, PaymentWithContext, CurrencyTotal, CurrencyOutstanding } from './types';
+import { getDashboardSnapshot, saveDashboardSnapshot, clearDashboardSnapshot, DashboardSnapshot } from './snapshot';
+import { getAuthSession } from '../auth/client';
 
 // Generic LiveQuery React subscriber hook
-function useLiveQuery<T>(liveQuery: LiveQuery<T>): { data: T | undefined; isLoading: boolean } {
-  const [data, setData] = useState<T | undefined>(liveQuery.getValue());
-  const [isLoading, setIsLoading] = useState<boolean>(data === undefined);
+function useLiveQuery<T>(liveQuery: LiveQuery<T>, name?: string): { data: T | undefined; isLoading: boolean } {
+  const [data, setData] = useState<T | undefined>(() => liveQuery.getValue());
+  const [isLoading, setIsLoading] = useState<boolean>(() => liveQuery.getValue() === undefined);
 
   useEffect(() => {
     let active = true;
+    const label = name ? `[HOOK: ${name}]` : '[HOOK]';
+    console.log(`🔌 ${label} Subscribing`);
     const unsubscribe = liveQuery.subscribe((newData) => {
       if (!active) return;
+      console.log(`🔔 ${label} Data received by hook. Setting isLoading -> false`);
       setData(newData);
       setIsLoading(false);
     });
     return () => {
       active = false;
+      console.log(`🔌 ${label} Unsubscribing`);
       unsubscribe();
     };
-  }, [liveQuery]);
+  }, [liveQuery, name]);
 
   return { data, isLoading };
 }
 
 export function useClients(): { data: ClientSummary[] | undefined; isLoading: boolean } {
   const query = useMemo(() => ClientRepo.list(), []);
-  return useLiveQuery(query);
+  return useLiveQuery(query, 'useClients');
 }
 
 export function useClient(id: string): { data: ClientDetail | null | undefined; isLoading: boolean } {
@@ -72,40 +78,123 @@ export function usePaymentsForClient(clientId: string): { data: PaymentEventRow[
 
 export function useProfile(): { data: ProfileRow | null | undefined; isLoading: boolean } {
   const query = useMemo(() => ProfileRepo.get(), []);
-  return useLiveQuery(query);
+  return useLiveQuery(query, 'useProfile');
 }
 
-export function useDashboard(periodDays = 30): {
+export function useDashboard(periodDays = 30, defaultCurrency = 'USD'): {
   data: {
     outstanding: CurrencyOutstanding[];
     earnings: CurrencyTotal[];
     recentPayments: PaymentWithContext[];
+    invoices: InvoiceSummary[];
+    defaultCurrency: string;
   } | undefined;
   isLoading: boolean;
+  isCached: boolean;
+  cachedAt?: number;
 } {
-  const outstandingQuery = useMemo(() => DashboardRepo.outstandingByCurrency(), []);
-  const earningsQuery = useMemo(() => DashboardRepo.earningsByCurrency(periodDays), [periodDays]);
+  const [cachedSnapshot, setCachedSnapshot] = useState<DashboardSnapshot | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getAuthSession().then((session) => {
+      const userId = session?.user?.id;
+      if (userId && active) {
+        getDashboardSnapshot(userId, periodDays).then((snap) => {
+          if (active && snap) {
+            setCachedSnapshot(snap);
+          }
+        });
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [periodDays]);
+
+  const outstandingQuery = useMemo(() => DashboardRepo.outstandingByCurrency(defaultCurrency), [defaultCurrency]);
+  const earningsQuery = useMemo(() => DashboardRepo.earningsByCurrency(periodDays, defaultCurrency), [periodDays, defaultCurrency]);
   const recentPaymentsQuery = useMemo(() => DashboardRepo.recentPayments(10), []);
+  const invoicesQuery = useMemo(() => InvoiceRepo.listAll(), []);
 
-  const outstanding = useLiveQuery(outstandingQuery);
-  const earnings = useLiveQuery(earningsQuery);
-  const recentPayments = useLiveQuery(recentPaymentsQuery);
+  const outstanding = useLiveQuery(outstandingQuery, 'Dashboard.outstanding');
+  const earnings = useLiveQuery(earningsQuery, 'Dashboard.earnings');
+  const recentPayments = useLiveQuery(recentPaymentsQuery, 'Dashboard.recentPayments');
+  const invoices = useLiveQuery(invoicesQuery, 'Dashboard.invoices');
 
-  const isLoading = outstanding.isLoading || earnings.isLoading || recentPayments.isLoading;
+  const isLiveLoading = outstanding.isLoading || earnings.isLoading || recentPayments.isLoading || invoices.isLoading;
 
-  const data = useMemo(() => {
-    if (isLoading) return undefined;
+  const liveData = useMemo(() => {
+    if (isLiveLoading) return undefined;
     return {
       outstanding: outstanding.data || [],
       earnings: earnings.data || [],
-      recentPayments: recentPayments.data || []
+      recentPayments: recentPayments.data || [],
+      invoices: invoices.data || [],
+      defaultCurrency: defaultCurrency.toUpperCase()
     };
-  }, [isLoading, outstanding.data, earnings.data, recentPayments.data]);
+  }, [isLiveLoading, outstanding.data, earnings.data, recentPayments.data, invoices.data, defaultCurrency]);
 
-  return { data, isLoading };
+  // Persist snapshot on live update only when account has real business data; clear if empty
+  useEffect(() => {
+    if (liveData) {
+      getAuthSession().then((session) => {
+        const userId = session?.user?.id;
+        if (userId) {
+          const hasData =
+            liveData.invoices.length > 0 ||
+            liveData.outstanding.some((o) => o.amountMinor > 0) ||
+            liveData.earnings.length > 0 ||
+            liveData.recentPayments.length > 0;
+
+          if (hasData) {
+            saveDashboardSnapshot({
+              userId,
+              periodDays,
+              timestamp: Date.now(),
+              defaultCurrency: liveData.defaultCurrency,
+              outstanding: liveData.outstanding,
+              earnings: liveData.earnings,
+              recentPayments: liveData.recentPayments,
+              invoices: liveData.invoices,
+              needsAttentionCount: liveData.invoices.filter((inv) => inv.displayStatus === 'overdue' && inv.balanceDueMinor > 0).length,
+              currencies: Array.from(
+                new Set([
+                  ...liveData.outstanding.filter((o) => o.amountMinor > 0).map((o) => o.currency.toUpperCase()),
+                  ...liveData.earnings.map((e) => e.currency.toUpperCase()),
+                  ...liveData.recentPayments.map((p) => p.currency.toUpperCase())
+                ])
+              )
+            });
+          } else {
+            clearDashboardSnapshot(userId);
+          }
+        }
+      });
+    }
+  }, [liveData, periodDays]);
+
+  const isCached = isLiveLoading && cachedSnapshot !== null;
+  const isLoading = isLiveLoading && cachedSnapshot === null;
+
+  const data = liveData ?? (cachedSnapshot ? {
+    outstanding: cachedSnapshot.outstanding,
+    earnings: cachedSnapshot.earnings,
+    recentPayments: cachedSnapshot.recentPayments,
+    invoices: cachedSnapshot.invoices || [],
+    defaultCurrency: cachedSnapshot.defaultCurrency || defaultCurrency.toUpperCase()
+  } : undefined);
+
+  return {
+    data,
+    isLoading,
+    isCached,
+    cachedAt: cachedSnapshot?.timestamp
+  };
 }
 
 export function useInvoices(): { data: InvoiceSummary[] | undefined; isLoading: boolean } {
   const query = useMemo(() => InvoiceRepo.listAll(), []);
-  return useLiveQuery(query);
+  return useLiveQuery(query, 'useInvoices (listAll)');
 }
+
