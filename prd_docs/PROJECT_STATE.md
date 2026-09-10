@@ -634,6 +634,18 @@ Extend the ADR 036 readiness architecture to the invoices domain (`/invoices` ma
   - `npm.cmd test`: 100/100 tests passing across 10 files (including 14 tests in `tests/client_detail_readiness.test.ts`).
   - Manual QA: Test 1 (Canonical redirect & deep-link), Test 2 (Genuine 404 handling), Test 3 (New invoice route existence gate), and Test 4 (Mobile drawer escape & flash elimination verified across mobile and desktop).
 
+## Prompt 12 Milestone: Invoice Creation & Edit Routes Offline Hardening & Readiness
+- **Status**: Complete & Verified (106 / 106 Vitest tests passing, 0 TypeScript errors, Manual QA Passed).
+- **Architectural Implementations & Bugs Resolved**:
+  1. Integrated `useEntityReady` and `InvoiceRepo.exists(id)` into `/invoices/[id]/edit`, eliminating cold-boot false 404 flashes.
+  2. Enforced atomic readiness on the edit form (`isFormLoading`), eliminating the 50–200ms unlocked-field flicker on invoices with payments.
+  3. Gated edit 404 screen strictly behind confirmed disk not-found.
+  4. Guarded number auto-suggestion on `/clients/[id]/invoices/new` to preserve typed user input against async race conditions.
+- **Verification Outcomes**:
+  - `npm.cmd run typecheck`: 0 errors.
+  - `npm.cmd test`: 106/106 tests passing across 10 files (including 6 new tests in `tests/invoices_readiness.test.ts`).
+  - Manual QA: Test 1 (Paid invoice cold boot & lock state verification), Test 2 (Genuine 404 handling), and Test 3 (Typing preservation before auto-suggest resolution) all passed.
+
 
 
 

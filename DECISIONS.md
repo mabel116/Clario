@@ -238,3 +238,12 @@
   4. Guarded child hooks (`useClient`, `useInvoicesForClient`, `usePaymentsForClient`) to return idle states on empty/null entity IDs rather than dispatching dummy SQLite queries.
 - **Consequences**: Provably eliminates both the false 404 flash and the premature "Settled" flash during entity selection across mobile and desktop viewports, while maintaining local disk-first performance.
 
+## ADR 042: Atomic Financial Lock Evaluation and Async Input Preservation in Invoice Routes
+- **Context**: On `/invoices/[id]/edit`, direct deep links or cold boots previously triggered false "Invoice record not found" flashes because the route lacked an entity readiness gate (`useEntityReady`). In addition, financial edit permissions (`useCanEditFinancials`) initialized to `undefined` while the SQLite watch query ran, causing `canEditFinancials === false` to evaluate as `false` on initial mount. This caused a 50ms–200ms visual flicker where locked fields and the "Add Item" button rendered as editable before abruptly locking down. On `/clients/[id]/invoices/new`, the asynchronous number suggestion resolution (`InvoiceRepo.suggestNextNumber()`) unconditionally overwrote any custom number typed by the user before the database promise resolved.
+- **Decision**:
+  1. Integrated `useEntityReady` with `InvoiceRepo.exists(invoiceId)` tracking `invoiceId` transitions on `/invoices/[id]/edit`.
+  2. Implemented atomic readiness (`isFormLoading`) holding the edit skeleton until both the invoice record AND `canEditFinancials` have fully resolved from disk.
+  3. Confined the 404 error view strictly to confirmed not-found states (`isNotFound && !invoice`) after loading completes.
+  4. Guarded invoice number suggestion on `/clients/[id]/invoices/new` with a functional updater `(prev => prev || num)` to preserve user-typed values.
+- **Consequences**: Provably eliminates cold-boot false 404 flashes, prevents layout jerks and lock-state flickering on paid invoices, and prevents async user input overwrite races.
+

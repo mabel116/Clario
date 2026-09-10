@@ -52,7 +52,7 @@ function NewInvoiceForm({ clientId }: { clientId: string }) {
   // Loading suggestion on mount
   useEffect(() => {
     InvoiceRepo.suggestNextNumber()
-      .then((num) => setInvoiceNumber(num))
+      .then((num) => setInvoiceNumber((prev) => prev || num))
       .catch((err) => console.error('Failed to suggest invoice number:', err));
 
     // Default dates

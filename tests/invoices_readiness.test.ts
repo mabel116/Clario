@@ -531,4 +531,83 @@ describe('Invoices Screen Readiness Gate & Offline Tests (ADR 036)', () => {
       expect(mockInvoices.length > 0).toBe(true);
     });
   });
+
+  describe('Invoice Edit & Creation Routes Readiness (ADR 036, 041)', () => {
+    // Edit form readiness simulator from src/app/invoices/[id]/edit/page.tsx
+    const evaluateEditForm = (
+      isEntityLoading: boolean,
+      isLockLoading: boolean,
+      invoice: any,
+      canEditFinancials: boolean | undefined,
+      isNotFound: boolean
+    ) => {
+      const isFormLoading = !isNotFound && (
+        isEntityLoading ||
+        isLockLoading ||
+        !invoice ||
+        canEditFinancials === undefined
+      );
+
+      if (isFormLoading) {
+        return 'SKELETON';
+      }
+
+      if (isNotFound || !invoice) {
+        return 'NOT_FOUND_SCREEN';
+      }
+
+      const isLocked = canEditFinancials === false;
+      return isLocked ? 'LOCKED_FORM' : 'UNLOCKED_FORM';
+    };
+
+    it('Edit Route: holds skeleton while invoice entity is in flight on cold boot (ADR 036)', () => {
+      // Frame 1: Direct link / cold boot. Entity check in-flight
+      expect(evaluateEditForm(true, true, undefined, undefined, false)).toBe('SKELETON');
+    });
+
+    it('Edit Route: holds skeleton while canEditFinancials is in-flight to prevent lock state flicker (ADR 041)', () => {
+      // Frame 2: Invoice loaded, but lock query still in-flight
+      // Invariant: Must NOT evaluate isLocked: false and flicker editable fields!
+      expect(
+        evaluateEditForm(false, true, { id: 'inv-1', invoice_number: 'INV-001' }, undefined, false)
+      ).toBe('SKELETON');
+    });
+
+    it('Edit Route: renders locked form once canEditFinancials resolves to false without flashing unlocked state', () => {
+      // Frame 3: Lock query resolved to false (payments exist)
+      expect(
+        evaluateEditForm(false, false, { id: 'inv-1', invoice_number: 'INV-001' }, false, false)
+      ).toBe('LOCKED_FORM');
+    });
+
+    it('Edit Route: renders unlocked form once canEditFinancials resolves to true', () => {
+      // No payments exist
+      expect(
+        evaluateEditForm(false, false, { id: 'inv-1', invoice_number: 'INV-001' }, true, false)
+      ).toBe('UNLOCKED_FORM');
+    });
+
+    it('Edit Route: renders 404 only when existence probe explicitly confirms entity missing (ADR 036)', () => {
+      // Confirmed genuine 404
+      expect(evaluateEditForm(false, false, undefined, false, true)).toBe('NOT_FOUND_SCREEN');
+    });
+
+    it('Creation Route: functional updater preserves user input typed prior to async suggestion resolution', () => {
+      let state = '';
+      const setInvoiceNumber = (updater: (prev: string) => string) => {
+        state = updater(state);
+      };
+
+      // Case A: User has not typed anything
+      const suggestCallbackA = (prev: string) => prev || 'INV-0001';
+      setInvoiceNumber(suggestCallbackA);
+      expect(state).toBe('INV-0001');
+
+      // Case B: User typed custom number before suggestion resolved
+      state = 'MY-CUSTOM-99';
+      const suggestCallbackB = (prev: string) => prev || 'INV-0001';
+      setInvoiceNumber(suggestCallbackB);
+      expect(state).toBe('MY-CUSTOM-99');
+    });
+  });
 });

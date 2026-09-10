@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ProtectedRoute } from '../../../../components/ProtectedRoute';
 import { AppShell } from '../../../../components/AppShell';
 import { useInvoice, useCanEditFinancials } from '../../../../lib/data/hooks';
+import { useEntityReady } from '../../../../lib/data/readiness';
 import { InvoiceRepo } from '../../../../lib/data/invoice';
 import { formatMoney, parseMoneyInput, multiplyMinor } from '../../../../lib/money';
 import { ArrowUp, ArrowDown, Trash2, Plus, ArrowLeft, Lock } from 'lucide-react';
@@ -26,8 +27,11 @@ function EditInvoiceForm({ invoiceId }: { invoiceId: string }) {
   const router = useRouter();
 
   // Queries
-  const { data: invoice, isLoading: isInvoiceLoading } = useInvoice(invoiceId);
-  const { data: canEditFinancials } = useCanEditFinancials(invoiceId);
+  const { data: invoice } = useInvoice(invoiceId);
+  const checkInvoiceExists = useCallback(() => InvoiceRepo.exists(invoiceId), [invoiceId]);
+  const hasInvoice = invoice !== null && invoice !== undefined;
+  const { isLoading: isEntityLoading, isNotFound } = useEntityReady(hasInvoice, checkInvoiceExists, invoiceId);
+  const { data: canEditFinancials, isLoading: isLockLoading } = useCanEditFinancials(invoiceId);
 
   // Form states
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -216,7 +220,14 @@ function EditInvoiceForm({ invoiceId }: { invoiceId: string }) {
     }
   };
 
-  if (isInvoiceLoading) {
+  const isFormLoading = !isNotFound && (
+    isEntityLoading ||
+    isLockLoading ||
+    !invoice ||
+    canEditFinancials === undefined
+  );
+
+  if (isFormLoading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
         <div className="animate-pulse text-slate-400">Loading invoice details...</div>
@@ -224,7 +235,7 @@ function EditInvoiceForm({ invoiceId }: { invoiceId: string }) {
     );
   }
 
-  if (!invoice) {
+  if (isNotFound || !invoice) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px] text-center space-y-4">
         <div className="text-red-400 font-semibold">Invoice record not found.</div>
