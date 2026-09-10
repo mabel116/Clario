@@ -470,5 +470,36 @@ export const InvoiceRepo = {
         return count === 0;
       }
     );
+  },
+
+  /**
+   * Deterministic one-shot check of SQLite database state to verify if active invoices count is 0.
+   * Runs in ~1ms directly against local SQLite without creating a watch stream.
+   */
+  async isEmpty(): Promise<boolean> {
+    if (!db) {
+      throw new Error('Database connection not available');
+    }
+    const result = await db.getAll<{ count: number }>(
+      `SELECT COUNT(*) as count FROM invoices WHERE deleted_at IS NULL`
+    );
+    const count = (result as any)[0]?.count ?? 0;
+    return count === 0;
+  },
+
+  /**
+   * Deterministic one-shot check of SQLite database state to verify if an active invoice exists by id.
+   * Runs directly against local SQLite without creating a watch stream.
+   */
+  async exists(id: string): Promise<boolean> {
+    if (!db) {
+      throw new Error('Database connection not available');
+    }
+    if (!id) return false;
+    const result = await db.getAll<{ id: string }>(
+      `SELECT id FROM invoices WHERE id = ? AND deleted_at IS NULL LIMIT 1`,
+      [id]
+    );
+    return result.length > 0;
   }
 };

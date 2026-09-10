@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { db } from './db';
 
 export interface SyncStatus {
@@ -9,58 +9,90 @@ export interface SyncStatus {
   pendingUploads: number;
 }
 
-// React Hook exposing connection status, sync times, and pending queue size
-export function useSyncStatus(): SyncStatus {
-  const [status, setStatus] = useState<SyncStatus>({
-    connected: false,
-    connecting: false,
-    lastSyncedAt: null,
-    hasSynced: false,
-    pendingUploads: 0
-  });
+let currentStatus: SyncStatus = {
+  connected: false,
+  connecting: false,
+  lastSyncedAt: null,
+  hasSynced: false,
+  pendingUploads: 0
+};
 
-  useEffect(() => {
-    if (!db) return;
+const listeners = new Set<() => void>();
+let pollingInterval: NodeJS.Timeout | null = null;
+let listenerUnsubscribe: (() => void) | null = null;
+let isUpdating = false;
 
-    let active = true;
-
-    const updateStatus = async () => {
-      if (!active) return;
-      try {
-        const stats = await db.getUploadQueueStats();
-        setStatus({
-          connected: db.currentStatus?.connected ?? false,
-          connecting: db.currentStatus?.connecting ?? false,
-          lastSyncedAt: db.currentStatus?.lastSyncedAt ?? null,
-          hasSynced: db.currentStatus?.hasSynced ?? false,
-          pendingUploads: stats.count
-        });
-      } catch (err) {
-        console.error('Failed to retrieve sync status:', err);
-      }
+async function updateSyncStatus() {
+  if (!db || isUpdating) return;
+  isUpdating = true;
+  try {
+    const stats = await db.getUploadQueueStats();
+    const newStatus: SyncStatus = {
+      connected: db.currentStatus?.connected ?? false,
+      connecting: db.currentStatus?.connecting ?? false,
+      lastSyncedAt: db.currentStatus?.lastSyncedAt ?? null,
+      hasSynced: db.currentStatus?.hasSynced ?? false,
+      pendingUploads: stats.count
     };
 
-    // Initial fetch
-    updateStatus();
+    const hasChanged =
+      currentStatus.connected !== newStatus.connected ||
+      currentStatus.connecting !== newStatus.connecting ||
+      currentStatus.hasSynced !== newStatus.hasSynced ||
+      currentStatus.pendingUploads !== newStatus.pendingUploads ||
+      currentStatus.lastSyncedAt?.getTime() !== newStatus.lastSyncedAt?.getTime();
 
-    // Register status change listener
+    if (hasChanged) {
+      currentStatus = newStatus;
+      for (const listener of Array.from(listeners)) {
+        listener();
+      }
+    }
+  } catch {
+    // Non-blocking
+  } finally {
+    isUpdating = false;
+  }
+}
+
+function subscribe(callback: () => void) {
+  listeners.add(callback);
+  if (listeners.size === 1 && typeof window !== 'undefined' && db) {
+    updateSyncStatus();
     const listener = {
       statusChanged: () => {
-        updateStatus();
+        updateSyncStatus();
       }
     };
-    
-    const unsubscribe = db.registerListener(listener);
+    listenerUnsubscribe = db.registerListener(listener);
+    pollingInterval = setInterval(updateSyncStatus, 2000);
+  }
 
-    // Periodic check to capture write mutations in local SQLite
-    const interval = setInterval(updateStatus, 1000);
-
-    return () => {
-      active = false;
-      unsubscribe();
-      clearInterval(interval);
-    };
-  }, []);
-
-  return status;
+  return () => {
+    listeners.delete(callback);
+    if (listeners.size === 0) {
+      if (listenerUnsubscribe) {
+        listenerUnsubscribe();
+        listenerUnsubscribe = null;
+      }
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
+    }
+  };
 }
+
+function getSnapshot(): SyncStatus {
+  return currentStatus;
+}
+
+function getServerSnapshot(): SyncStatus {
+  return currentStatus;
+}
+
+// React Hook exposing connection status, sync times, and pending queue size via a shared singleton
+export function useSyncStatus(): SyncStatus {
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
+

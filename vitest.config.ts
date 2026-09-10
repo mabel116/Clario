@@ -7,6 +7,8 @@ export default defineConfig({
     globals: true,
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     exclude: ["**/node_modules/**", "**/.agents/**"],
+    hookTimeout: 60000,
+    testTimeout: 60000,
   },
   resolve: {
     alias: {

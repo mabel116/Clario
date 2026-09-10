@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '../../components/ProtectedRoute';
 import { AppShell } from '../../components/AppShell';
 import { useInvoices } from '../../lib/data/hooks';
+import { InvoiceRepo } from '../../lib/data/invoice';
+import { useDataReady } from '../../lib/data/readiness';
 import { formatMoney } from '../../lib/money';
 import { FileText, ArrowLeft, Loader2 } from 'lucide-react';
 
@@ -14,7 +16,9 @@ function InvoicesListContent() {
   const targetCurrency = searchParams.get('currency');
   const targetStatus = searchParams.get('status');
 
-  const { data: invoices, isLoading } = useInvoices();
+  const { data: invoices } = useInvoices();
+  const hasInvoicesData = invoices !== undefined && invoices.length > 0;
+  const { isLoading, isConfirmedEmpty } = useDataReady(hasInvoicesData, InvoiceRepo.isEmpty);
 
   const filteredInvoices = useMemo(() => {
     if (!invoices) return [];
@@ -60,6 +64,17 @@ function InvoicesListContent() {
         <div className="py-20 flex flex-col items-center justify-center text-slate-500 gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
           <p className="text-sm font-semibold">Loading invoices...</p>
+        </div>
+      ) : isConfirmedEmpty === true ? (
+        <div className="rounded-2xl border border-dashed border-slate-900 p-12 text-center text-slate-500 space-y-3">
+          <p className="text-sm font-semibold">No invoices generated yet.</p>
+          <p className="text-xs text-slate-600">Create your first invoice by navigating to a client profile.</p>
+          <button
+            onClick={() => router.push('/clients')}
+            className="inline-flex justify-center items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition shadow shadow-indigo-600/20"
+          >
+            Go to Clients
+          </button>
         </div>
       ) : filteredInvoices.length > 0 ? (
         <div className="space-y-3">
@@ -122,8 +137,16 @@ function InvoicesListContent() {
           })}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-slate-900 p-12 text-center text-slate-500">
+        <div className="rounded-2xl border border-dashed border-slate-900 p-12 text-center text-slate-500 space-y-3">
           <p className="text-sm font-semibold">No invoices match the requested criteria.</p>
+          {(targetCurrency || targetStatus) && (
+            <button
+              onClick={() => router.push('/invoices')}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition"
+            >
+              Clear Filters
+            </button>
+          )}
         </div>
       )}
     </div>

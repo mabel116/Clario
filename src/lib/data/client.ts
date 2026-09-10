@@ -231,16 +231,13 @@ export const ClientRepo = {
    * Runs in ~1ms directly against local SQLite without creating a watch stream.
    */
   async isEmpty(): Promise<boolean> {
-    if (!db) return false;
-    try {
-      const result = await db.getAll<{ count: number }>(
-        `SELECT COUNT(*) as count FROM clients WHERE deleted_at IS NULL`
-      );
-      const count = (result as any)[0]?.count ?? 0;
-      return count === 0;
-    } catch (err) {
-      console.error('Failed to check clients empty state:', err);
-      return false;
+    if (!db) {
+      throw new Error('Database connection not available');
     }
+    const result = await db.getAll<{ count: number }>(
+      `SELECT COUNT(*) as count FROM clients WHERE deleted_at IS NULL`
+    );
+    const count = (result as any)[0]?.count ?? 0;
+    return count === 0;
   }
 };

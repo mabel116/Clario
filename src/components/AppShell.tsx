@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../lib/auth/provider';
-import { LayoutDashboard, Users, Settings, LogOut, Menu, X, User } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, Settings, LogOut, Menu, X, User } from 'lucide-react';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -13,6 +13,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { name: 'Invoices', href: '/invoices', icon: FileText },
     { name: 'Clients', href: '/clients', icon: Users },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
@@ -41,11 +42,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <nav className="space-y-4">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href;
+              const isActive = item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(`${item.href}/`));
               return (
                 <Link
                   key={item.name}
                   href={item.href}
+                  prefetch={false}
                   onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-3.5 px-4 py-3.5 rounded-xl font-medium transition text-base ${
                     isActive
@@ -97,11 +99,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <nav className="space-y-1.5">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href;
+              const isActive = item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(`${item.href}/`));
               return (
                 <Link
                   key={item.name}
                   href={item.href}
+                  prefetch={false}
                   className={`flex items-center gap-3.5 px-4 py-3 rounded-lg text-sm font-semibold transition ${
                     isActive
                       ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'

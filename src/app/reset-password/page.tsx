@@ -56,6 +56,7 @@ function ResetPasswordForm() {
           <div className="pt-2">
             <Link
               href="/sign-in"
+              prefetch={false}
               className="inline-flex items-center gap-1.5 font-semibold text-indigo-400 hover:text-indigo-300 transition text-sm"
             >
               Back to sign in <ArrowRight className="h-4 w-4" />
@@ -72,6 +73,7 @@ function ResetPasswordForm() {
         <div>
           <Link
             href="/sign-in"
+            prefetch={false}
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-300 transition"
           >
             <ArrowLeft className="h-4.5 w-4.5" /> Back to sign in
@@ -81,7 +83,7 @@ function ResetPasswordForm() {
               Reset your password
             </h2>
             <p className="mt-2 text-sm text-slate-400">
-              We'll send you instructions to choose a new password
+              We&apos;ll send you instructions to choose a new password
             </p>
           </div>
         </div>

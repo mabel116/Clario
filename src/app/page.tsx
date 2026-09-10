@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { AppShell } from '../components/AppShell';
 import { useDashboard, useClients, useProfile } from '../lib/data/hooks';
@@ -9,7 +9,7 @@ import { DashboardRepo } from '../lib/data/dashboard';
 import { useDataReady } from '../lib/data/readiness';
 import { formatMoney } from '../lib/money';
 import { 
-  LayoutDashboard, Receipt, Landmark, AlertTriangle, 
+  LayoutDashboard, Receipt, Landmark, 
   ChevronRight, TrendingUp, CheckCircle, Clock 
 } from 'lucide-react';
 
@@ -24,8 +24,6 @@ export default function Home() {
 }
 
 function DashboardView() {
-  const router = useRouter();
-
   // States
   const [periodDays, setPeriodDays] = useState<30 | 90 | 365>(30);
   const [showAllOutstanding, setShowAllOutstanding] = useState(false);
@@ -37,8 +35,6 @@ function DashboardView() {
   const { data: dashboard, isCached, cachedAt } = useDashboard(periodDays, liveDefaultCurrency);
   const { data: clients } = useClients();
 
-  // If dashboard is cached, use its cached defaultCurrency and invoices immediately without waiting
-  const defaultCurrency = (isCached && dashboard?.defaultCurrency) ? dashboard.defaultCurrency : liveDefaultCurrency;
   const allInvoices = dashboard?.invoices || [];
 
   // 1. Proven data exists if cached snapshot has actual records OR real rows have landed in React state
@@ -162,13 +158,6 @@ function DashboardView() {
   };
 
 
-  // Period label translation
-  const periodLabel = {
-    30: 'Last 30 Days',
-    90: 'Last 90 Days',
-    365: 'This Year'
-  }[periodDays];
-
   // Format relative timestamp for cached snapshot badge
   const formatCachedAgo = (timestamp?: number) => {
     if (!timestamp) return 'earlier';
@@ -243,8 +232,9 @@ function DashboardView() {
           </div>
 
           <div className="space-y-3.5 text-left max-w-sm mx-auto">
-            <div 
-              onClick={() => router.push('/clients')}
+            <Link 
+              href="/clients"
+              prefetch={false}
               className="rounded-2xl border border-slate-900 bg-slate-950/50 p-4 flex items-start gap-4 hover:border-slate-800 transition cursor-pointer group"
             >
               <div className="h-6 w-6 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-bold text-indigo-400 shrink-0">1</div>
@@ -253,10 +243,11 @@ function DashboardView() {
                 <span className="block text-xs text-slate-500">Log client billing coordinates and default currency.</span>
               </div>
               <ChevronRight className="h-4 w-4 text-slate-600 ml-auto self-center group-hover:text-slate-400 group-hover:translate-x-0.5 transition" />
-            </div>
+            </Link>
 
-            <div 
-              onClick={() => router.push('/clients')}
+            <Link 
+              href="/clients"
+              prefetch={false}
               className="rounded-2xl border border-slate-900 bg-slate-950/50 p-4 flex items-start gap-4 hover:border-slate-800 transition cursor-pointer group opacity-60 hover:opacity-100"
             >
               <div className="h-6 w-6 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-bold text-indigo-400 shrink-0">2</div>
@@ -265,7 +256,7 @@ function DashboardView() {
                 <span className="block text-xs text-slate-500">Build custom line items and set payment due dates.</span>
               </div>
               <ChevronRight className="h-4 w-4 text-slate-600 ml-auto self-center group-hover:text-slate-400 group-hover:translate-x-0.5 transition" />
-            </div>
+            </Link>
           </div>
         </div>
       ) : (
@@ -289,10 +280,11 @@ function DashboardView() {
                       const invoiceCount = invoiceCountsByCurrency[currKey]?.total || 0;
                       const overdueCount = invoiceCountsByCurrency[currKey]?.overdue || 0;
                       return (
-                        <div 
+                        <Link 
                           key={out.currency}
-                          onClick={() => router.push(`/invoices?status=outstanding&currency=${out.currency}`)}
-                          className="rounded-2xl border border-slate-900/60 bg-slate-950/40 p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group hover:border-slate-800 transition cursor-pointer"
+                          href={`/invoices?status=outstanding&currency=${out.currency}`}
+                          prefetch={false}
+                          className="rounded-2xl border border-slate-900/60 bg-slate-950/40 p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group hover:border-slate-800 transition cursor-pointer block"
                         >
                           <div className="flex items-center gap-3">
                             <span className="font-mono font-bold text-sm bg-slate-900 text-indigo-400 border border-slate-800 px-2 py-0.5 rounded-lg">
@@ -318,7 +310,7 @@ function DashboardView() {
                             </div>
                             <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-slate-400 group-hover:translate-x-0.5 transition" />
                           </div>
-                        </div>
+                        </Link>
                       );
                     })}
 
@@ -394,12 +386,13 @@ function DashboardView() {
                               {p.client_name || 'Client'}
                             </span>
                             {p.invoice_number && (
-                              <span 
-                                onClick={() => router.push(`/invoices/${p.invoice_id}`)}
+                              <Link 
+                                href={`/invoices/${p.invoice_id}`}
+                                prefetch={false}
                                 className="text-xs text-indigo-400 hover:underline cursor-pointer font-medium"
                               >
                                 #{p.invoice_number}
-                              </span>
+                              </Link>
                             )}
                           </div>
                           <span className="block text-[11px] text-slate-500 font-medium">
@@ -441,7 +434,7 @@ function DashboardView() {
                   {attentionInvoices.map((inv) => {
                     const days = getDaysOverdue(inv.due_date);
                     return (
-                      <div key={inv.id} onClick={() => router.push(`/invoices/${inv.id}`)} className="rounded-2xl border border-slate-900 bg-slate-950/40 p-4 flex flex-col gap-2 hover:border-slate-800 transition cursor-pointer group">
+                      <Link key={inv.id} href={`/invoices/${inv.id}`} prefetch={false} className="rounded-2xl border border-slate-900 bg-slate-950/40 p-4 flex flex-col gap-2 hover:border-slate-800 transition cursor-pointer group block">
                         <div className="flex items-center justify-between">
                           <span className="font-extrabold text-sm text-white group-hover:text-indigo-400 transition">{inv.invoice_number}</span>
                           <span className="text-xs font-bold text-red-400">{days}d overdue</span>
@@ -450,7 +443,7 @@ function DashboardView() {
                           <span>{inv.client_name}</span>
                           <span className="font-extrabold text-xs text-white">{formatMoney({ amountMinor: inv.balanceDueMinor, currency: inv.currency })}</span>
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>

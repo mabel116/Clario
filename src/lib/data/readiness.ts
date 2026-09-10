@@ -26,19 +26,30 @@ export function useDataReady(
   }, [user?.id]);
 
   useEffect(() => {
-    // Only check SQLite when initial sync has completed, we don't already have proven data,
+    // Only check SQLite when we don't already have proven data in React state,
     // and we haven't already confirmed empty state.
-    if (hasSynced && !hasLocalData && isConfirmedEmpty === null) {
+    if (!hasLocalData && isConfirmedEmpty === null) {
       let active = true;
       checkEmpty()
         .then((isEmpty) => {
-          if (active) {
-            setIsConfirmedEmpty(isEmpty);
+          if (!active) return;
+          if (isEmpty === false) {
+            // Local disk confirmed has data! Holds skeleton until live queries emit rows,
+            // never waits for network hasSynced.
+            setIsConfirmedEmpty(false);
+          } else if (isEmpty === true) {
+            // Local disk is currently 0.
+            // If hasSynced is true, initial network sync finished, so 0 on disk means genuinely empty!
+            // If hasSynced is false, network download is still in flight, so leave isConfirmedEmpty as null
+            // (holding skeleton) until hasSynced transitions to true.
+            if (hasSynced) {
+              setIsConfirmedEmpty(true);
+            }
           }
         })
         .catch((err) => {
           console.error('[useDataReady] Error executing checkEmpty:', err);
-          // Strict error safety: on error, do NOT set isConfirmedEmpty (fails toward skeleton)
+          // Strict error safety: on error, leave isConfirmedEmpty as null (hold skeleton, retry on sync change)
         });
       return () => {
         active = false;
@@ -64,3 +75,72 @@ export function useDataReady(
     isConfirmedEmpty,
   };
 }
+
+/**
+ * Shared deterministic readiness gate for single-entity views (e.g. `/invoices/[id]`, `/clients/[id]`).
+ * Conforms to ADR 036.
+ *
+ * @param hasEntity Boolean indicating if the entity is already loaded in React state (e.g. `invoice !== null && invoice !== undefined`)
+ * @param checkExists Async callback performing a deterministic one-shot direct read against local SQLite (e.g. `InvoiceRepo.exists(id)`)
+ * @returns { isReady: boolean; isLoading: boolean; isNotFound: boolean }
+ */
+export function useEntityReady(
+  hasEntity: boolean,
+  checkExists: () => Promise<boolean>
+): { isReady: boolean; isLoading: boolean; isNotFound: boolean } {
+  const { user } = useAuth();
+  const { hasSynced } = useSyncStatus();
+  const [isConfirmedNotFound, setIsConfirmedNotFound] = useState<boolean | null>(null);
+
+  // Reset check if authenticated user changes
+  useEffect(() => {
+    setIsConfirmedNotFound(null);
+  }, [user?.id]);
+
+  useEffect(() => {
+    // Only check SQLite when we don't already have the entity in state,
+    // and we haven't already confirmed not found.
+    if (!hasEntity && isConfirmedNotFound === null) {
+      let active = true;
+      checkExists()
+        .then((exists) => {
+          if (!active) return;
+          if (exists === true) {
+            // Entity confirmed exists in local SQLite! Holds skeleton until live query emits.
+            // Never waits for network hasSynced.
+            setIsConfirmedNotFound(false);
+          } else if (exists === false) {
+            // Entity is not in local SQLite.
+            // If hasSynced is true, initial sync finished, so missing from disk means genuine 404!
+            // If hasSynced is false, initial sync in flight, hold skeleton until hasSynced is true.
+            if (hasSynced) {
+              setIsConfirmedNotFound(true);
+            }
+          }
+        })
+        .catch((err) => {
+          console.error('[useEntityReady] Error executing checkExists:', err);
+          // Strict error safety: on error, do NOT confirm not found (fails toward skeleton)
+        });
+      return () => {
+        active = false;
+      };
+    }
+  }, [hasSynced, hasEntity, isConfirmedNotFound, checkExists]);
+
+  // Is ready if the entity exists in React state, OR if we deterministically confirmed it does not exist
+  const isReady = hasEntity || isConfirmedNotFound === true;
+
+  // Latch: once ready, never re-arm loading skeleton during live query updates
+  const hasLoadedRef = useRef(false);
+  if (isReady) {
+    hasLoadedRef.current = true;
+  }
+
+  return {
+    isReady,
+    isLoading: !hasLoadedRef.current,
+    isNotFound: isConfirmedNotFound === true && !hasEntity,
+  };
+}
+

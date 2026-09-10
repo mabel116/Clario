@@ -110,18 +110,15 @@ export const DashboardRepo = {
    * Runs in ~1ms directly against local SQLite without creating a watch stream.
    */
   async isAccountEmpty(): Promise<boolean> {
-    if (!db) return false;
-    try {
-      const [clientRes, invoiceRes] = await Promise.all([
-        db.getAll<{ count: number }>(`SELECT COUNT(*) as count FROM clients WHERE deleted_at IS NULL`),
-        db.getAll<{ count: number }>(`SELECT COUNT(*) as count FROM invoices WHERE deleted_at IS NULL`)
-      ]);
-      const clientCount = (clientRes as any)[0]?.count ?? 0;
-      const invoiceCount = (invoiceRes as any)[0]?.count ?? 0;
-      return clientCount === 0 && invoiceCount === 0;
-    } catch (err) {
-      console.error('Failed to check account empty state:', err);
-      return false;
+    if (!db) {
+      throw new Error('Database connection not available');
     }
+    const [clientRes, invoiceRes] = await Promise.all([
+      db.getAll<{ count: number }>(`SELECT COUNT(*) as count FROM clients WHERE deleted_at IS NULL`),
+      db.getAll<{ count: number }>(`SELECT COUNT(*) as count FROM invoices WHERE deleted_at IS NULL`)
+    ]);
+    const clientCount = (clientRes as any)[0]?.count ?? 0;
+    const invoiceCount = (invoiceRes as any)[0]?.count ?? 0;
+    return clientCount === 0 && invoiceCount === 0;
   }
 };

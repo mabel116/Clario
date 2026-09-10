@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ProtectedRoute } from '../../../components/ProtectedRoute';
 import { AppShell } from '../../../components/AppShell';
 import { useInvoice, useCanEditFinancials, usePaymentsForInvoice, useClient, useProfile } from '../../../lib/data/hooks';
+import { useEntityReady } from '../../../lib/data/readiness';
 import { InvoiceRepo } from '../../../lib/data/invoice';
 import { PaymentRepo } from '../../../lib/data/payment';
 import { RecordPaymentModal } from '../../../components/RecordPaymentModal';
@@ -33,7 +34,11 @@ function InvoiceDetails({ invoiceId }: { invoiceId: string }) {
   const router = useRouter();
 
   // Queries
-  const { data: invoice, isLoading: isInvoiceLoading } = useInvoice(invoiceId);
+  const { data: invoice } = useInvoice(invoiceId);
+  const checkInvoiceExists = useCallback(() => InvoiceRepo.exists(invoiceId), [invoiceId]);
+  const hasInvoice = invoice !== null && invoice !== undefined;
+  const { isLoading, isNotFound } = useEntityReady(hasInvoice, checkInvoiceExists);
+
   const { data: canEditFinancials } = useCanEditFinancials(invoiceId);
   const { data: payments } = usePaymentsForInvoice(invoiceId);
   const { data: client } = useClient(invoice?.client_id || '');
@@ -144,7 +149,7 @@ function InvoiceDetails({ invoiceId }: { invoiceId: string }) {
     }
   };
 
-  if (isInvoiceLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
         <div className="animate-pulse text-slate-400">Loading invoice details...</div>
@@ -152,7 +157,7 @@ function InvoiceDetails({ invoiceId }: { invoiceId: string }) {
     );
   }
 
-  if (!invoice) {
+  if (isNotFound || !invoice) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px] text-center space-y-4">
         <div className="text-red-400 font-semibold">Invoice record not found.</div>

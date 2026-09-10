@@ -152,6 +152,7 @@ function SignInForm() {
           <div className="flex items-center justify-between text-xs">
             <Link
               href="/reset-password"
+              prefetch={false}
               className="font-medium text-slate-400 hover:text-indigo-400 transition"
             >
               Forgot your password?
@@ -198,9 +199,10 @@ function SignInForm() {
         </div>
 
         <div className="text-center text-sm mt-6">
-          <span className="text-slate-400">Don't have an account? </span>
+          <span className="text-slate-400">Don&apos;t have an account? </span>
           <Link
             href="/sign-up"
+            prefetch={false}
             className="font-semibold text-indigo-400 hover:text-indigo-300 transition"
           >
             Create account

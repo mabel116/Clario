@@ -70,6 +70,7 @@ function SignUpForm() {
           <div className="pt-2">
             <Link
               href="/sign-in"
+              prefetch={false}
               className="inline-flex items-center gap-1.5 font-semibold text-indigo-400 hover:text-indigo-300 transition text-sm"
             >
               Go to sign in <ArrowRight className="h-4 w-4" />
@@ -192,6 +193,7 @@ function SignUpForm() {
           <span className="text-slate-400">Already have an account? </span>
           <Link
             href="/sign-in"
+            prefetch={false}
             className="font-semibold text-indigo-400 hover:text-indigo-300 transition"
           >
             Sign in
