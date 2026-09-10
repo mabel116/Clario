@@ -565,5 +565,63 @@ Audit and harden the Clients List (`/clients`) and Dashboard (`/`) against cold-
 ### 4. Next Steps
 - Begin offline-hardening audit for the `/invoices` (Invoices list) and `/invoices/[id]` (Invoice Detail) screens.
 
+---
+
+## Prompt 14: Invoices Offline-Hardening Audit, WASM Worker Contention & Next.js RSC Prefetch Resolution
+- **Status**: Complete & Verified (86 / 86 Vitest tests passing, 0 TypeScript errors, Manual & Chaos QA Passed)
+
+### 1. Scope & Objective
+Extend the ADR 036 readiness architecture to the invoices domain (`/invoices` master list and `/invoices/[id]` detail view) to eliminate false-empty flashes and false 404 screens during initial sync, resolve intermittent WASM worker deadlocks during rapid client-side routing, and eliminate Next.js router crashes under heavy navigation churn.
+
+### 2. Architectural Implementations & Root Causes Resolved
+
+#### A. Fixed "Error-to-False" Repository Return Semantics (`src/lib/data/`)
+- **The Root Cause**: Previously, `isEmpty()` and `exists()` methods in `InvoiceRepo`, `ClientRepo`, and `DashboardRepo` swallowed missing database instances (`!db`) or query errors and returned `false`. In the ADR 036 asymmetric readiness gate, `isConfirmedEmpty === false` tells the UI that records exist on disk and holds the loading skeleton waiting for live queries to deliver rows. If the account was actually empty and the error was transient (e.g. WASM worker spinning up), the state machine was trapped into waiting forever $\rightarrow$ infinite loading skeleton.
+- **The Resolution**:
+  - Updated `InvoiceRepo.isEmpty()`, `InvoiceRepo.exists()`, `ClientRepo.isEmpty()`, and `DashboardRepo.isAccountEmpty()` to throw an explicit `Error('Database connection not available')` or propagate SQLite query errors instead of returning `false`.
+  - In `useDataReady` and `useEntityReady`, any query rejections are caught cleanly and leave state as `null`, safely failing toward the loading skeleton and retrying without corrupting the confirmed empty/non-empty flags.
+
+#### B. Decoupled Local Disk from Network Sync (`src/lib/data/readiness.ts`)
+- **The Root Cause**: The initial implementation checked `if (hasSynced && !hasLocalData && ...)`. This created a "Pre-Sync Lockout" where the hooks refused to read local SQLite until `hasSynced` flipped to `true`. On offline cold boots (or slow network connections with pre-existing local disk data), the UI was unnecessarily blocked behind a network gate.
+- **The Resolution**:
+  - Refactored `useDataReady` and `useEntityReady` to execute their one-shot SQLite direct reads (`InvoiceRepo.isEmpty`, `InvoiceRepo.exists`) immediately on mount.
+  - **Local Disk First**: If local SQLite reports records present (`isEmpty === false` or `exists === true`), the hooks unblock to live queries immediately without waiting for network `hasSynced`.
+  - **Cold Boot Gate**: Only if local SQLite reports 0 rows (`isEmpty === true` or `exists === false`) do the hooks gate behind `hasSynced` to distinguish between an in-flight server download and a genuine empty state or true 404.
+
+#### C. Resolved WASM Polling Contention via `useSyncExternalStore` (`src/lib/sync/hooks.ts`)
+- **The Root Cause**: `useSyncStatus()` previously maintained a separate `setInterval(..., 1000)` polling loop and database event subscription per mounted component. When navigating across complex views with multiple hook consumers, dozen(s) of parallel `db.getUploadQueueStats()` queries saturated the single-threaded SQLite WASM worker queue, causing query lockups and latency spikes.
+- **The Resolution**:
+  - Refactored `useSyncStatus` to use React's `useSyncExternalStore`.
+  - Unified all subscribers into a single module-level singleton listener and throttled 2-second polling interval, with an `isUpdating` mutex lock preventing concurrent stats queries against the WASM worker.
+
+#### D. Elimination of Next.js RSC Prefetch Exhaustion (`prefetch={false}`)
+- **The Root Cause**: Converting UI navigation cards and buttons to semantic Next.js `<Link>` components introduced aggressive React Server Component (RSC) background prefetching. During rapid tab switching or when rendering large lists of invoice cards, Next.js spammed the local server with background fetch requests (`net::ERR_NETWORK_CHANGED`, `Failed to fetch RSC payload... Falling back to browser navigation`), exhausting the browser's HTTP connection pool alongside the WASM worker and crashing the Next.js router.
+- **The Resolution**:
+  - Explicitly configured `prefetch={false}` across all `<Link>` components throughout the application:
+    - [AppShell.tsx](file:///c:/Users/i7/Documents/Clario/src/components/AppShell.tsx): Mobile drawer and desktop sidebar navigation items (`/`, `/invoices`, `/clients`, `/settings`).
+    - [Dashboard (src/app/page.tsx)](file:///c:/Users/i7/Documents/Clario/src/app/page.tsx): Onboarding step cards, Outstanding Balances currency cards, Recent Activity invoice links, and Needs Attention overdue cards.
+    - [Auth Screens](file:///c:/Users/i7/Documents/Clario/src/app/): Sign-in, Sign-up, and Reset Password links.
+
+#### E. Single-Entity Cold Boot & Genuine 404 Gate (`useEntityReady`)
+- Implemented `useEntityReady` in [src/lib/data/readiness.ts](file:///c:/Users/i7/Documents/Clario/src/lib/data/readiness.ts) and integrated it into `/invoices/[id]/page.tsx`.
+- Prevents false "Invoice Not Found" flashes on cold boot URLs while sync is downloading.
+- Confirms genuine 404s cleanly once sync resolves without hanging on an infinite skeleton.
+
+### 3. Verification Outcomes
+- **Automated Verification**:
+  - `npm run typecheck` (`tsc --noEmit`): Compiles with 0 errors.
+  - `npm test`: All **86 / 86 Vitest tests** across 9 test files passed:
+    - `tests/invoices_readiness.test.ts`: Covers master list negative control (sync in-flight), positive control (0 rows after sync), asymmetric timing flaw, detail view 404 suppression, and genuine 404 unblocking.
+    - `tests/wasm_stress.test.ts`: Verifies repository error throwing semantics, decoupled disk unblocking, singleton polling throttling (100 concurrent components execute 1 throttled call), 50-iteration rapid mount/unmount churn with 0 lockups, and transient SQLite error recovery.
+- **Manual & Chaos QA Verification**:
+  - **Test 1 (Master List Cold Boot)**: Verified zero false-empty flashes; loading skeleton holds cleanly until records sync.
+  - **Test 2 (Invoice Detail Cold Boot)**: Verified zero false 404 screens; entity readiness gate holds until sync resolution.
+  - **Test 3 (Genuine 404 Handling)**: Verified clean rendering of missing record state without hanging or infinite skeletons.
+  - **Chaos / Stress Test**: Verified rapid-fire tab switching and hard refreshes execute without RSC network dropouts or database deadlocks.
+
+### 4. Next Steps
+- Continue the offline-hardening audit across remaining routes (`/clients/[id]/invoices/new`, `/invoices/[id]/edit`, Record Payment modal, and `/settings`).
+
+
 
 
