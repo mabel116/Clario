@@ -82,22 +82,39 @@ export function useDataReady(
  *
  * @param hasEntity Boolean indicating if the entity is already loaded in React state (e.g. `invoice !== null && invoice !== undefined`)
  * @param checkExists Async callback performing a deterministic one-shot direct read against local SQLite (e.g. `InvoiceRepo.exists(id)`)
+ * @param entityId Optional entity identifier to track identity transitions and reset latch state
  * @returns { isReady: boolean; isLoading: boolean; isNotFound: boolean }
  */
 export function useEntityReady(
   hasEntity: boolean,
-  checkExists: () => Promise<boolean>
+  checkExists: () => Promise<boolean>,
+  entityId?: string | null
 ): { isReady: boolean; isLoading: boolean; isNotFound: boolean } {
   const { user } = useAuth();
   const { hasSynced } = useSyncStatus();
   const [isConfirmedNotFound, setIsConfirmedNotFound] = useState<boolean | null>(null);
+  const hasLoadedRef = useRef(false);
 
-  // Reset check if authenticated user changes
+  // Reset check and re-arm latch if authenticated user changes
   useEffect(() => {
     setIsConfirmedNotFound(null);
+    hasLoadedRef.current = false;
   }, [user?.id]);
 
+  // Reset check and re-arm latch when entity identifier changes
   useEffect(() => {
+    setIsConfirmedNotFound(null);
+    hasLoadedRef.current = false;
+  }, [entityId]);
+
+  const isNoEntity = entityId !== undefined && (entityId === null || entityId === '');
+
+  useEffect(() => {
+    // If an entity identifier is specified and is empty/null, do not probe SQLite or latch not-found
+    if (isNoEntity) {
+      return;
+    }
+
     // Only check SQLite when we don't already have the entity in state,
     // and we haven't already confirmed not found.
     if (!hasEntity && isConfirmedNotFound === null) {
@@ -126,21 +143,20 @@ export function useEntityReady(
         active = false;
       };
     }
-  }, [hasSynced, hasEntity, isConfirmedNotFound, checkExists]);
+  }, [hasSynced, hasEntity, isConfirmedNotFound, checkExists, isNoEntity]);
 
   // Is ready if the entity exists in React state, OR if we deterministically confirmed it does not exist
-  const isReady = hasEntity || isConfirmedNotFound === true;
+  const isReady = !isNoEntity && (hasEntity || isConfirmedNotFound === true);
 
-  // Latch: once ready, never re-arm loading skeleton during live query updates
-  const hasLoadedRef = useRef(false);
+  // Latch: once ready, never re-arm loading skeleton during live query updates for the same entity
   if (isReady) {
     hasLoadedRef.current = true;
   }
 
   return {
     isReady,
-    isLoading: !hasLoadedRef.current,
-    isNotFound: isConfirmedNotFound === true && !hasEntity,
+    isLoading: isNoEntity ? false : !hasLoadedRef.current,
+    isNotFound: !isNoEntity && isConfirmedNotFound === true && !hasEntity,
   };
 }
 

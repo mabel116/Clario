@@ -229,3 +229,12 @@
   3. Auth navigation links in `src/app/sign-in/page.tsx`, `src/app/sign-up/page.tsx`, and `src/app/reset-password/page.tsx`.
 - **Consequences**: Completely eliminates background RSC fetch spam, preserves the browser's HTTP connection pool for PowerSync replication and auth, prevents Next.js router panics during rapid client-side navigation, and guarantees smooth offline routing transitions.
 
+## ADR 041: Entity Lifecycle Awareness and Atomic Readiness in Master-Detail Views
+- **Context**: In master-detail layouts (such as `/clients`), selecting entities involves transitioning from null to an entity ID, or switching directly between entity IDs. `useEntityReady` previously lacked entity identity tracking, causing an existence check against null on initial mount to latch a confirmed not-found state that poisoned subsequent selections (flashing a 3-second false 404). Furthermore, `useLiveQuery` preserved previous query state across query instance transitions; transitioning from an idle query (`client_id = ''`) leaked an empty array into the active query while SQLite was executing, causing the balance derivation to calculate zero debt and flash a premature "Settled — No Outstanding Balance" card.
+- **Decision**:
+  1. Extended `useEntityReady` with an optional entity identifier parameter, resetting confirmed not-found states and re-arming the loading latch on identifier changes.
+  2. Implemented synchronous state reset in `useLiveQuery` during render whenever query instances change, preventing stale data from leaking across entity boundaries.
+  3. Coordinated atomic drawer readiness in `src/app/clients/page.tsx` (`isDrawerLoading`), requiring both parent client details and child invoices to resolve before dropping the skeleton.
+  4. Guarded child hooks (`useClient`, `useInvoicesForClient`, `usePaymentsForClient`) to return idle states on empty/null entity IDs rather than dispatching dummy SQLite queries.
+- **Consequences**: Provably eliminates both the false 404 flash and the premature "Settled" flash during entity selection across mobile and desktop viewports, while maintaining local disk-first performance.
+

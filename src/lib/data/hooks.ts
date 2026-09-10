@@ -12,11 +12,23 @@ import { getDashboardSnapshot, saveDashboardSnapshot, clearDashboardSnapshot, Da
 import { getAuthSession } from '../auth/client';
 
 // Generic LiveQuery React subscriber hook
-function useLiveQuery<T>(liveQuery: LiveQuery<T>, name?: string): { data: T | undefined; isLoading: boolean } {
-  const [data, setData] = useState<T | undefined>(() => liveQuery.getValue());
-  const [isLoading, setIsLoading] = useState<boolean>(() => liveQuery.getValue() === undefined);
+function useLiveQuery<T>(liveQuery: LiveQuery<T> | null | undefined, name?: string): { data: T | undefined; isLoading: boolean } {
+  const [data, setData] = useState<T | undefined>(() => (liveQuery ? liveQuery.getValue() : undefined));
+  const [isLoading, setIsLoading] = useState<boolean>(() => (liveQuery ? liveQuery.getValue() === undefined : false));
+  const [prevQuery, setPrevQuery] = useState(liveQuery);
+
+  // Synchronize state immediately on liveQuery instance changes (storing info from previous renders)
+  if (prevQuery !== liveQuery) {
+    setPrevQuery(liveQuery);
+    const initialVal = liveQuery ? liveQuery.getValue() : undefined;
+    setData(initialVal);
+    setIsLoading(liveQuery ? initialVal === undefined : false);
+  }
 
   useEffect(() => {
+    if (!liveQuery) {
+      return;
+    }
     let active = true;
     const label = name ? `[HOOK: ${name}]` : '[HOOK]';
     console.log(`🔌 ${label} Subscribing`);
@@ -41,38 +53,38 @@ export function useClients(): { data: ClientSummary[] | undefined; isLoading: bo
   return useLiveQuery(query, 'useClients');
 }
 
-export function useClient(id: string): { data: ClientDetail | null | undefined; isLoading: boolean } {
-  const query = useMemo(() => ClientRepo.get(id), [id]);
+export function useClient(id?: string | null): { data: ClientDetail | null | undefined; isLoading: boolean } {
+  const query = useMemo(() => (id ? ClientRepo.get(id) : null), [id]);
   return useLiveQuery(query);
 }
 
-export function useClientLinks(clientId: string): { data: ClientLinkRow[] | undefined; isLoading: boolean } {
-  const query = useMemo(() => ClientLinkRepo.listForClient(clientId), [clientId]);
+export function useClientLinks(clientId?: string | null): { data: ClientLinkRow[] | undefined; isLoading: boolean } {
+  const query = useMemo(() => (clientId ? ClientLinkRepo.listForClient(clientId) : null), [clientId]);
   return useLiveQuery(query);
 }
 
-export function useInvoice(id: string): { data: InvoiceDetail | null | undefined; isLoading: boolean } {
-  const query = useMemo(() => InvoiceRepo.get(id), [id]);
+export function useInvoice(id?: string | null): { data: InvoiceDetail | null | undefined; isLoading: boolean } {
+  const query = useMemo(() => (id ? InvoiceRepo.get(id) : null), [id]);
   return useLiveQuery(query);
 }
 
-export function useCanEditFinancials(invoiceId: string): { data: boolean | undefined; isLoading: boolean } {
-  const query = useMemo(() => InvoiceRepo.canEditFinancials(invoiceId), [invoiceId]);
+export function useCanEditFinancials(invoiceId?: string | null): { data: boolean | undefined; isLoading: boolean } {
+  const query = useMemo(() => (invoiceId ? InvoiceRepo.canEditFinancials(invoiceId) : null), [invoiceId]);
   return useLiveQuery(query);
 }
 
-export function useInvoicesForClient(clientId: string): { data: InvoiceSummary[] | undefined; isLoading: boolean } {
-  const query = useMemo(() => InvoiceRepo.listForClient(clientId), [clientId]);
+export function useInvoicesForClient(clientId?: string | null): { data: InvoiceSummary[] | undefined; isLoading: boolean } {
+  const query = useMemo(() => (clientId ? InvoiceRepo.listForClient(clientId) : null), [clientId]);
   return useLiveQuery(query);
 }
 
-export function usePaymentsForInvoice(invoiceId: string): { data: PaymentEventRow[] | undefined; isLoading: boolean } {
-  const query = useMemo(() => PaymentRepo.listForInvoice(invoiceId), [invoiceId]);
+export function usePaymentsForInvoice(invoiceId?: string | null): { data: PaymentEventRow[] | undefined; isLoading: boolean } {
+  const query = useMemo(() => (invoiceId ? PaymentRepo.listForInvoice(invoiceId) : null), [invoiceId]);
   return useLiveQuery(query);
 }
 
-export function usePaymentsForClient(clientId: string): { data: PaymentEventRow[] | undefined; isLoading: boolean } {
-  const query = useMemo(() => PaymentRepo.listForClient(clientId), [clientId]);
+export function usePaymentsForClient(clientId?: string | null): { data: PaymentEventRow[] | undefined; isLoading: boolean } {
+  const query = useMemo(() => (clientId ? PaymentRepo.listForClient(clientId) : null), [clientId]);
   return useLiveQuery(query);
 }
 

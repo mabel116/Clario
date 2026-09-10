@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ProtectedRoute } from '../../../../../components/ProtectedRoute';
 import { AppShell } from '../../../../../components/AppShell';
 import { useClient, useProfile } from '../../../../../lib/data/hooks';
+import { useEntityReady } from '../../../../../lib/data/readiness';
+import { ClientRepo } from '../../../../../lib/data/client';
 import { InvoiceRepo } from '../../../../../lib/data/invoice';
 import { formatMoney, parseMoneyInput, multiplyMinor } from '../../../../../lib/money';
 import { ArrowUp, ArrowDown, Trash2, Plus, ArrowLeft } from 'lucide-react';
@@ -26,7 +28,10 @@ function NewInvoiceForm({ clientId }: { clientId: string }) {
   const router = useRouter();
 
   // Queries
-  const { data: client, isLoading: isClientLoading } = useClient(clientId);
+  const { data: client } = useClient(clientId);
+  const checkClientExists = useCallback(() => ClientRepo.exists(clientId), [clientId]);
+  const hasClient = client !== null && client !== undefined;
+  const { isLoading: isClientLoading, isNotFound: isClientNotFound } = useEntityReady(hasClient, checkClientExists, clientId);
   const { data: profile } = useProfile();
 
   // Form states
@@ -213,7 +218,7 @@ function NewInvoiceForm({ clientId }: { clientId: string }) {
     );
   }
 
-  if (!client) {
+  if (isClientNotFound || !client) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px] text-center space-y-4">
         <div className="text-red-400 font-semibold">Client profile not found.</div>

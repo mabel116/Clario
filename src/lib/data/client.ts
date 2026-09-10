@@ -239,5 +239,21 @@ export const ClientRepo = {
     );
     const count = (result as any)[0]?.count ?? 0;
     return count === 0;
+  },
+
+  /**
+   * Deterministic one-shot check of SQLite database state to verify if an active client exists by id.
+   * Runs directly against local SQLite without creating a watch stream.
+   */
+  async exists(id: string): Promise<boolean> {
+    if (!db) {
+      throw new Error('Database connection not available');
+    }
+    if (!id) return false;
+    const result = await db.getAll<{ id: string }>(
+      `SELECT id FROM clients WHERE id = ? AND deleted_at IS NULL LIMIT 1`,
+      [id]
+    );
+    return result.length > 0;
   }
 };

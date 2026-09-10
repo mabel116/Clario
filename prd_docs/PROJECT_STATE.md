@@ -622,6 +622,18 @@ Extend the ADR 036 readiness architecture to the invoices domain (`/invoices` ma
 ### 4. Next Steps
 - Continue the offline-hardening audit across remaining routes (`/clients/[id]/invoices/new`, `/invoices/[id]/edit`, Record Payment modal, and `/settings`).
 
+## Prompt 12 Milestone: Client Detail (`/clients`, `/clients/[id]`) Offline Hardening & Readiness
+- **Status**: Complete & Verified (100 / 100 Vitest tests passing, 0 TypeScript errors, Manual QA Passed across mobile and desktop).
+- **Architectural Implementations & Bugs Resolved**:
+  1. Added deterministic existence probe `ClientRepo.exists(id)` throwing on missing db per ADR 037.
+  2. Implemented Next.js Server Component canonical redirect at `src/app/clients/[id]/page.tsx` routing to `/clients?id=...`.
+  3. Resolved 3-second false 404 flash by making `useEntityReady` identity-aware and enforcing strict 3-tier drawer evaluation precedence.
+  4. Resolved premature "Settled — No Outstanding Balance" flash by adding synchronous query state reset to `useLiveQuery` and establishing atomic readiness across parent and child queries.
+- **Verification Outcomes**:
+  - `npm.cmd run typecheck`: 0 errors.
+  - `npm.cmd test`: 100/100 tests passing across 10 files (including 14 tests in `tests/client_detail_readiness.test.ts`).
+  - Manual QA: Test 1 (Canonical redirect & deep-link), Test 2 (Genuine 404 handling), Test 3 (New invoice route existence gate), and Test 4 (Mobile drawer escape & flash elimination verified across mobile and desktop).
+
 
 
 

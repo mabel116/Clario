@@ -37,7 +37,7 @@ function InvoiceDetails({ invoiceId }: { invoiceId: string }) {
   const { data: invoice } = useInvoice(invoiceId);
   const checkInvoiceExists = useCallback(() => InvoiceRepo.exists(invoiceId), [invoiceId]);
   const hasInvoice = invoice !== null && invoice !== undefined;
-  const { isLoading, isNotFound } = useEntityReady(hasInvoice, checkInvoiceExists);
+  const { isLoading, isNotFound } = useEntityReady(hasInvoice, checkInvoiceExists, invoiceId);
 
   const { data: canEditFinancials } = useCanEditFinancials(invoiceId);
   const { data: payments } = usePaymentsForInvoice(invoiceId);

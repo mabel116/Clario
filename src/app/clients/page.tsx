@@ -1,11 +1,11 @@
 'use client';
  
-import React, { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useMemo, useCallback, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '../../components/ProtectedRoute';
 import { AppShell } from '../../components/AppShell';
 import { useClients, useClient, useClientLinks, useProfile, useInvoicesForClient, usePaymentsForClient } from '../../lib/data/hooks';
-import { useDataReady } from '../../lib/data/readiness';
+import { useDataReady, useEntityReady } from '../../lib/data/readiness';
 import { RecordPaymentModal } from '../../components/RecordPaymentModal';
 import { ClientRepo } from '../../lib/data/client';
 import { ClientLinkRepo } from '../../lib/data/client-link';
@@ -14,7 +14,7 @@ import { ClientSummary, ClientDetail } from '../../lib/data/types';
 import { ClientLinkRow } from '../../lib/sync/schema';
 import { 
   Users, Mail, Building, Phone, Plus, Search, Edit2, Trash2, 
-  ExternalLink, X, Landmark, FileText, ChevronRight, MessageSquare 
+  ExternalLink, X, Landmark, FileText, ChevronRight, MessageSquare, Loader2 
 } from 'lucide-react';
 
 const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'NGN', 'KES', 'GHS', 'ZAR', 'CAD', 'AUD', 'INR', 'JPY', 'KRW'];
@@ -37,7 +37,14 @@ export default function ClientsPage() {
   return (
     <ProtectedRoute>
       <AppShell>
-        <ClientsDashboard />
+        <Suspense fallback={
+          <div className="py-20 flex flex-col items-center justify-center text-slate-500 gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+            <p className="text-sm font-semibold">Initializing clients view...</p>
+          </div>
+        }>
+          <ClientsDashboard />
+        </Suspense>
       </AppShell>
     </ProtectedRoute>
   );
@@ -45,16 +52,36 @@ export default function ClientsPage() {
 
 function ClientsDashboard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClientId = searchParams?.get('id') || searchParams?.get('clientId') || null;
+
   const { data: clients } = useClients();
   const { data: profile } = useProfile();
 
-  // Unified readiness gate (ADR 036)
+  // Unified readiness gate for master list (ADR 036)
   const hasClientsData = clients !== undefined && clients.length > 0;
   const { isLoading, isConfirmedEmpty } = useDataReady(hasClientsData, ClientRepo.isEmpty);
 
   // Search and selection states
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(queryClientId);
+
+  // Synchronize selection state if URL search params change externally
+  useEffect(() => {
+    if (queryClientId !== selectedClientId) {
+      setSelectedClientId(queryClientId);
+    }
+  }, [queryClientId]);
+
+  // Synchronize selection state with URL query parameters
+  const handleSelectClient = useCallback((id: string | null) => {
+    setSelectedClientId(id);
+    if (id) {
+      router.replace(`/clients?id=${encodeURIComponent(id)}`, { scroll: false });
+    } else {
+      router.replace('/clients', { scroll: false });
+    }
+  }, [router]);
 
   // Modals visibility states
   const [showAddClient, setShowAddClient] = useState(false);
@@ -63,10 +90,30 @@ function ClientsDashboard() {
   const [showEditLink, setShowEditLink] = useState<ClientLinkRow | null>(null); // holds link object to edit
 
   // Live queries for selected client details
-  const { data: selectedClientDetail } = useClient(selectedClientId || '');
-  const { data: selectedClientLinks } = useClientLinks(selectedClientId || '');
-  const { data: selectedClientInvoices } = useInvoicesForClient(selectedClientId || '');
-  const { data: selectedClientPayments } = usePaymentsForClient(selectedClientId || '');
+  const { data: selectedClientDetail } = useClient(selectedClientId);
+  const { data: selectedClientLinks } = useClientLinks(selectedClientId);
+  const { data: selectedClientInvoices, isLoading: isInvoicesLoading } = useInvoicesForClient(selectedClientId);
+  const { data: selectedClientPayments, isLoading: isPaymentsLoading } = usePaymentsForClient(selectedClientId);
+
+  // Readiness gate for selected client detail (ADR 036, 037, 038)
+  const checkClientExists = useCallback(
+    () => (selectedClientId ? ClientRepo.exists(selectedClientId) : Promise.resolve(false)),
+    [selectedClientId]
+  );
+  const hasSelectedClient = selectedClientDetail !== null && selectedClientDetail !== undefined;
+  const { isLoading: isDetailLoading, isNotFound: isDetailNotFound } = useEntityReady(
+    hasSelectedClient,
+    checkClientExists,
+    selectedClientId
+  );
+
+  // Atomic drawer readiness: hold skeleton until both client detail and invoices have resolved (ADR 036)
+  const isDrawerLoading = !isDetailNotFound && (
+    isDetailLoading ||
+    isInvoicesLoading ||
+    selectedClientInvoices === undefined ||
+    !selectedClientDetail
+  );
 
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [quickRecordInvoiceId, setQuickRecordInvoiceId] = useState<string | null>(null);
@@ -231,7 +278,7 @@ function ClientsDashboard() {
         default_currency: fields.default_currency || profile?.default_currency || 'USD'
       });
       setShowAddClient(false);
-      setSelectedClientId(id); // auto-select new client
+      handleSelectClient(id); // auto-select new client
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create client.';
       alert(message);
@@ -262,7 +309,7 @@ function ClientsDashboard() {
     try {
       await ClientRepo.softDelete(id);
       if (selectedClientId === id) {
-        setSelectedClientId(null);
+        handleSelectClient(null);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to delete client.';
@@ -368,7 +415,7 @@ function ClientsDashboard() {
             {filteredClients.map((client) => (
               <div
                 key={client.id}
-                onClick={() => setSelectedClientId(client.id)}
+                onClick={() => handleSelectClient(client.id)}
                 className={`rounded-2xl border p-5 transition flex items-center justify-between group cursor-pointer ${
                   selectedClientId === client.id 
                     ? 'border-indigo-500/80 bg-indigo-950/10 shadow-lg shadow-indigo-500/5' 
@@ -427,12 +474,12 @@ function ClientsDashboard() {
       </div>
 
       {/* Client Details Section (Right Detail Panel / Mobile Slide-over) */}
-      {selectedClientId && selectedClientDetail && (
+      {selectedClientId && (
         <div className="w-full md:w-[26rem] lg:w-[32rem] shrink-0 border border-slate-900 bg-slate-950/30 rounded-3xl flex flex-col overflow-hidden backdrop-blur-2xl absolute md:relative inset-0 md:inset-auto z-10 animate-slide-in">
           {/* Details Header */}
           <div className="p-6 border-b border-slate-900/60 flex items-center justify-between">
             <button
-              onClick={() => setSelectedClientId(null)}
+              onClick={() => handleSelectClient(null)}
               className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-white transition md:hidden"
             >
               <X className="h-4 w-4" /> Back to Clients
@@ -440,22 +487,26 @@ function ClientsDashboard() {
             <span className="hidden md:inline text-xs font-semibold text-indigo-400">Client Profile Details</span>
 
             <div className="flex items-center gap-3">
+              {selectedClientDetail && (
+                <>
+                  <button
+                    onClick={() => setShowEditClient(selectedClientDetail)}
+                    className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition"
+                    title="Edit Client"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteClient(selectedClientDetail.id)}
+                    className="p-2 rounded-lg bg-red-950/20 border border-red-900/40 text-red-400 hover:text-red-300 hover:border-red-800 transition"
+                    title="Delete Client"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </>
+              )}
               <button
-                onClick={() => setShowEditClient(selectedClientDetail)}
-                className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition"
-                title="Edit Client"
-              >
-                <Edit2 className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => handleDeleteClient(selectedClientDetail.id)}
-                className="p-2 rounded-lg bg-red-950/20 border border-red-900/40 text-red-400 hover:text-red-300 hover:border-red-800 transition"
-                title="Delete Client"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setSelectedClientId(null)}
+                onClick={() => handleSelectClient(null)}
                 className="hidden md:block p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition"
               >
                 <X className="h-4 w-4" />
@@ -463,7 +514,44 @@ function ClientsDashboard() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent text-left">
+          {isDrawerLoading ? (
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 animate-pulse text-left">
+              {/* Header skeleton */}
+              <div className="space-y-2">
+                <div className="h-7 bg-slate-800/60 rounded-lg w-3/4" />
+                <div className="h-4 bg-slate-900 rounded w-1/2" />
+              </div>
+              {/* Financial summary card skeleton */}
+              <div className="rounded-2xl border border-slate-900 bg-slate-950/40 p-5 space-y-3">
+                <div className="h-3 bg-slate-800/50 rounded w-1/3" />
+                <div className="h-8 bg-slate-800/80 rounded w-1/2" />
+                <div className="h-3 bg-slate-900 rounded w-2/3" />
+              </div>
+              {/* Invoices list skeleton */}
+              <div className="space-y-3">
+                <div className="h-4 bg-slate-900 rounded w-1/4" />
+                <div className="h-16 bg-slate-900/40 rounded-xl border border-slate-900/50" />
+                <div className="h-16 bg-slate-900/40 rounded-xl border border-slate-900/50" />
+              </div>
+            </div>
+          ) : isDetailNotFound ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-950/40 border border-red-900/50 flex items-center justify-center text-red-400 mb-1">
+                <Users className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Client Record Not Found</h3>
+              <p className="text-xs text-slate-400 max-w-xs">
+                This client could not be found locally. It may have been deleted or the identifier is invalid.
+              </p>
+              <button
+                onClick={() => handleSelectClient(null)}
+                className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-indigo-400 hover:text-indigo-300 hover:border-slate-700 transition"
+              >
+                Back to Clients List
+              </button>
+            </div>
+          ) : selectedClientDetail ? (
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent text-left">
             {/* 1. Header & Outstanding balances (Prominent) */}
             <div className="space-y-4">
               <div>
@@ -476,6 +564,14 @@ function ClientsDashboard() {
               {/* Outstanding per currency summary */}
               <div className="space-y-3">
                 {(() => {
+                  if (isInvoicesLoading || !selectedClientInvoices) {
+                    return (
+                      <div className="rounded-2xl border border-slate-900 bg-slate-950/40 p-5 space-y-3 animate-pulse">
+                        <div className="h-3 bg-slate-800/50 rounded w-1/3" />
+                        <div className="h-8 bg-slate-800/80 rounded w-1/2" />
+                      </div>
+                    );
+                  }
                   const activeBalances = financialSummary.filter(s => s.outstandingMinor > 0);
                   if (activeBalances.length > 0) {
                     return activeBalances.map((sum) => {
@@ -553,7 +649,12 @@ function ClientsDashboard() {
                 })}
               </div>
 
-              {filteredAndSortedInvoices.length > 0 ? (
+              {isInvoicesLoading || !selectedClientInvoices ? (
+                <div className="space-y-3 animate-pulse">
+                  <div className="h-16 bg-slate-900/40 rounded-xl border border-slate-900/50" />
+                  <div className="h-16 bg-slate-900/40 rounded-xl border border-slate-900/50" />
+                </div>
+              ) : filteredAndSortedInvoices.length > 0 ? (
                 <div className="space-y-2.5">
                   {filteredAndSortedInvoices.map((inv) => {
                     const statusColors: Record<string, string> = {
@@ -578,15 +679,15 @@ function ClientsDashboard() {
                       <div
                         key={inv.id}
                         onClick={() => router.push(`/invoices/${inv.id}`)}
-                        className="rounded-xl border border-slate-900/60 bg-slate-950/20 p-3.5 flex items-center justify-between group hover:border-slate-800 transition cursor-pointer"
+                        className="p-4 rounded-2xl border border-slate-900 bg-slate-950/30 hover:border-slate-800 transition cursor-pointer flex items-center justify-between gap-4 group text-left"
                       >
-                        <div className="min-w-0 pr-3 space-y-1">
+                        <div className="space-y-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm text-white group-hover:text-indigo-400 transition truncate">
+                            <span className="text-xs font-bold text-white group-hover:text-indigo-400 transition truncate">
                               {inv.invoice_number}
                             </span>
-                            <span 
-                              className={`inline-flex rounded px-1.5 py-0.5 text-[9px] font-bold border ${statusColors[inv.displayStatus]}`}
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${statusColors[inv.displayStatus]}`}
                               aria-label={`Status: ${badgeText[inv.displayStatus]}`}
                             >
                               {badgeText[inv.displayStatus]}
@@ -813,8 +914,9 @@ function ClientsDashboard() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        ) : null}
+      </div>
+    )}
 
       {/* Add Client Dialog Modal */}
       {showAddClient && (
