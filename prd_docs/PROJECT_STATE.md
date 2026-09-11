@@ -646,6 +646,14 @@ Extend the ADR 036 readiness architecture to the invoices domain (`/invoices` ma
   - `npm.cmd test`: 106/106 tests passing across 10 files (including 6 new tests in `tests/invoices_readiness.test.ts`).
   - Manual QA: Test 1 (Paid invoice cold boot & lock state verification), Test 2 (Genuine 404 handling), and Test 3 (Typing preservation before auto-suggest resolution) all passed.
 
-
-
-
+## Prompt 12 Milestone: Record Payment Modal (`RecordPaymentModal`) Offline Hardening & Readiness
+- **Status**: Complete & Verified (120 / 120 Vitest tests passing, 0 TypeScript errors, Manual QA Passed).
+- **Architectural Implementations & Bugs Resolved**:
+  1. Replaced mount effect with synchronous active invoice derivation (`deriveEffectiveInvoiceId`), removing Frame-1 layout pop-in.
+  2. Replaced text loader with a full-form structured skeleton matching modal dimensions, eliminating height jerk on open.
+  3. Standardized "Pay full balance" calculation to use canonical currency exponent metadata and `.toFixed(exponent)` precision.
+  4. Added defensive modal view states (`invoice_not_found` and `no_active_invoices`) with actionable close controls.
+- **Verification Outcomes**:
+  - `npm.cmd run typecheck`: 0 errors.
+  - `npm.cmd test`: 120/120 tests passing across 11 files (including 14 unit tests in `tests/record_payment_modal.test.ts`).
+  - Manual QA: Test 1 (Full-height skeleton and zero-layout-jump mount), Test 2 ("Full" shortcut precision), and Test 3 (Automated verification of empty active invoice state) all passed.

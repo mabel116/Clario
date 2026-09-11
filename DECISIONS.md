@@ -247,3 +247,11 @@
   4. Guarded invoice number suggestion on `/clients/[id]/invoices/new` with a functional updater `(prev => prev || num)` to preserve user-typed values.
 - **Consequences**: Provably eliminates cold-boot false 404 flashes, prevents layout jerks and lock-state flickering on paid invoices, and prevents async user input overwrite races.
 
+## ADR 043: Geometry-Matched Form Skeletons, Synchronous Derivation, and Exponent Formatting in Payment Modals
+- **Context**: In `RecordPaymentModal.tsx`, opening without an explicit invoice ID previously relied on a mount `useEffect` to select the first active invoice, delaying field mounting by an effect tick and causing a Frame-1 pop-in. While SQLite queries executed asynchronously (~15ms), the modal rendered an 80px text placeholder (`Loading invoice context...`), causing an abrupt vertical layout expansion to ~450px once form fields mounted. Additionally, the "Pay full balance" shortcut relied on `.toString()` and hardcoded exponents, risking floating-point precision drift, and non-existent invoice IDs yielded a blank modal container.
+- **Decision**:
+  1. Extracted `deriveEffectiveInvoiceId` to resolve the active invoice synchronously during render, eliminating Frame-1 mount delays.
+  2. Implemented `resolvePaymentModalState` enforcing strict readiness precedence: `loading` -> `invoice_not_found` -> `no_active_invoices` -> `ready`.
+  3. Replaced the text loader with a geometry-matched `animate-pulse` form skeleton mirroring the selector, financial summary, and input fields to eliminate vertical layout jumps.
+  4. Implemented `formatFullBalance` using `CURRENCIES[currency]?.exponent` and `.toFixed(exponent)` to guarantee decimal precision.
+- **Consequences**: Provably eliminates vertical layout shifts and pop-ins on modal mount, prevents floating-point balance drift, and ensures clear fallback states for missing records or clients with no active invoices.
