@@ -657,3 +657,17 @@ Extend the ADR 036 readiness architecture to the invoices domain (`/invoices` ma
   - `npm.cmd run typecheck`: 0 errors.
   - `npm.cmd test`: 120/120 tests passing across 11 files (including 14 unit tests in `tests/record_payment_modal.test.ts`).
   - Manual QA: Test 1 (Full-height skeleton and zero-layout-jump mount), Test 2 ("Full" shortcut precision), and Test 3 (Automated verification of empty active invoice state) all passed.
+
+## Prompt 12 Milestone: Settings Screen (`/settings`) & Offline Sign-Out Security Hardening
+- **Status**: Complete & Verified (133 / 133 Vitest tests passing, 0 TypeScript errors, Manual QA Passed).
+- **Architectural Implementations & Bugs Resolved**:
+  1. Resolved critical offline sign-out leak in `PowerSyncProvider` by removing the `!isInitialized` gate and enforcing unconditional database and snapshot clearing.
+  2. Added `ProfileRepo.exists()` probe and integrated `useEntityReady` to prevent cold-boot empty states.
+  3. Eliminated async user typing clobbering using `isDirtyRef` protection.
+  4. Replaced loading spinner with a geometry-matched `animate-pulse` form skeleton.
+  5. Sourced currencies canonically from `CURRENCIES` in `src/lib/money`.
+  6. Added Account & Session section with unsynced mutations warning modal when `pendingUploads > 0`.
+- **Verification Outcomes**:
+  - `npm.cmd run typecheck`: 0 errors.
+  - `npm.cmd test`: 133/133 tests passing across 12 files (including 13 unit tests in `tests/settings_readiness.test.ts`).
+  - Manual QA: Test 1 (Form skeleton & layout stability), Test 2 (Input preservation while editing), Test 3 (Unsynced changes warning dialog), and Test 4 (Clean sign-out & database purge) all passed.

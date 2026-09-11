@@ -255,3 +255,14 @@
   3. Replaced the text loader with a geometry-matched `animate-pulse` form skeleton mirroring the selector, financial summary, and input fields to eliminate vertical layout jumps.
   4. Implemented `formatFullBalance` using `CURRENCIES[currency]?.exponent` and `.toFixed(exponent)` to guarantee decimal precision.
 - **Consequences**: Provably eliminates vertical layout shifts and pop-ins on modal mount, prevents floating-point balance drift, and ensures clear fallback states for missing records or clients with no active invoices.
+
+## ADR 044: Offline Profile Readiness, Unconditional Database Purge on Sign-Out, and Unsynced Mutation Guards
+- **Context**: In `src/app/settings/page.tsx`, `useProfile` lacked an entity readiness gate, mounting empty inputs on cold boot and allowing background sync ticks to clobber typed values. Loading states rendered an ~80px spinner that caused an abrupt ~450px layout shift. Crucially, in `src/lib/sync/provider.tsx`, the `SIGNED_OUT` auth event listener exited early if `!isInitialized`. When the application booted offline, `isInitialized` remained false, causing `db.disconnectAndClear()` and `clearDashboardSnapshot()` to be skipped entirely. This left local SQLite and IndexedDB unpurged on disk, creating a severe multi-tenant data leak on shared devices. Furthermore, signing out with `pendingUploads > 0` destroyed un-synced offline edits with zero warning.
+- **Decision**:
+  1. Removed `if (!isInitialized) return;` from the `SIGNED_OUT` handler in `src/lib/sync/provider.tsx` and tracked `lastConnectedUserId` from initial session resolution, guaranteeing that `db.disconnectAndClear()` and `clearDashboardSnapshot` execute unconditionally on sign-out regardless of network state.
+  2. Added deterministic probe `ProfileRepo.exists(userId)` and integrated `useEntityReady` on `/settings`.
+  3. Added `isDirtyRef` to protect active form input from being overwritten by asynchronous background sync emissions.
+  4. Replaced the spinner with a geometry-matched `animate-pulse` form skeleton mirroring the profile fields to eliminate layout shifts.
+  5. Implemented an Account & Session section on `/settings` with a sign-out trigger and a custom warning dialog intercepting sign-outs when `pendingUploads > 0`.
+  6. Mapped currency selections directly from canonical `CURRENCIES` metadata and stabilized inline save feedback geometry.
+- **Consequences**: Provably eliminates offline multi-tenant storage leakage on shared devices, prevents layout jerks and async input clobbering, and protects un-synced offline ledger mutations from accidental deletion during sign-out.

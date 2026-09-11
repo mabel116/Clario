@@ -1,8 +1,17 @@
 import { db } from '../sync/db';
 import { createLiveQuery, LiveQuery, isTest } from './types';
 import { ProfileRow } from '../sync/schema';
+import { CURRENCIES } from '../money';
 
 export const ProfileRepo = {
+  async exists(_userId?: string): Promise<boolean> {
+    if ((typeof window === 'undefined' && !isTest) || !db) {
+      throw new Error('Database connection not available');
+    }
+    const result = await db.getAll('SELECT id FROM profiles LIMIT 1');
+    return (result as any).length > 0;
+  },
+
   get(): LiveQuery<ProfileRow | null> {
     return createLiveQuery<any, ProfileRow | null>(
       `SELECT id, business_name, business_address, default_currency, created_at, updated_at
@@ -38,11 +47,15 @@ export const ProfileRepo = {
     }
 
     if (patch.default_currency !== undefined) {
-      if (!patch.default_currency || !patch.default_currency.trim()) {
+      const code = patch.default_currency?.trim().toUpperCase();
+      if (!code) {
         throw new Error('Default currency cannot be empty');
       }
+      if (!CURRENCIES[code]) {
+        throw new Error(`Unsupported currency: ${patch.default_currency}`);
+      }
       fields.push('default_currency = ?');
-      params.push(patch.default_currency.toUpperCase());
+      params.push(code);
     }
 
     if (fields.length === 0) return;

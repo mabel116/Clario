@@ -85,6 +85,7 @@ export const PowerSyncProvider = ({ children }: { children: React.ReactNode }) =
       try {
         const session = await getAuthSession();
         if (session?.user?.id) {
+          lastConnectedUserId = session.user.id;
           await connectDb(session.user.id);
         }
       } catch (err: unknown) {
@@ -97,6 +98,7 @@ export const PowerSyncProvider = ({ children }: { children: React.ReactNode }) =
     // Reactively connect only on new sign-in / account switch, disconnect and wipe database on sign-out
     const subscription = onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user?.id) {
+        lastConnectedUserId = session.user.id;
         if (session.user.id !== lastConnectedUserId || !db?.connected) {
           try {
             await connectDb(session.user.id);
@@ -105,20 +107,21 @@ export const PowerSyncProvider = ({ children }: { children: React.ReactNode }) =
           }
         }
       } else if (event === 'SIGNED_OUT') {
-        if (!isInitialized) return;
-
         try {
           const prevUserId = lastConnectedUserId;
-          await db.disconnectAndClear();
+          if (db && typeof db.disconnectAndClear === 'function') {
+            await db.disconnectAndClear();
+          }
           if (prevUserId) {
             await clearDashboardSnapshot(prevUserId);
           }
+        } catch (err: unknown) {
+          console.error('Failed to clear PowerSync database on signout:', err);
+        } finally {
           isInitialized = false;
           globalConnectPromise = null;
           globalInitPromise = null;
           lastConnectedUserId = null;
-        } catch (err: unknown) {
-          console.error('Failed to clear PowerSync database on signout:', err);
         }
       }
     });
