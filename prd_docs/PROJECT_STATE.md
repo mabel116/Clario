@@ -671,3 +671,16 @@ Extend the ADR 036 readiness architecture to the invoices domain (`/invoices` ma
   - `npm.cmd run typecheck`: 0 errors.
   - `npm.cmd test`: 133/133 tests passing across 12 files (including 13 unit tests in `tests/settings_readiness.test.ts`).
   - Manual QA: Test 1 (Form skeleton & layout stability), Test 2 (Input preservation while editing), Test 3 (Unsynced changes warning dialog), and Test 4 (Clean sign-out & database purge) all passed.
+
+## Prompt 12 Milestone: Context-Aware Navigation, Dynamic Breadcrumbs & Client Drawer Retention
+- **Status**: Complete & Verified (159 / 159 Vitest tests passing, 0 TypeScript errors, Manual QA Passed).
+- **Architectural Implementations & Bugs Resolved**:
+  1. Replaced hardcoded "Back to Clients" with dynamic contextual back-links adapting to dashboard, client drawer, or invoice list origins.
+  2. Added client drawer retention preserving `?id=[clientId]` across invoice transitions.
+  3. Implemented specific currency breadcrumb labels (e.g. `← Back to USD Outstanding Invoices`).
+  4. Implemented context-aware sidebar highlighting (`resolveActiveNav`), keeping "Dashboard" active during currency drill-downs.
+  5. Enforced `prefetch={false}` across all newly introduced `<Link>` components to protect WASM worker queue limits.
+- **Verification Outcomes**:
+  - `npm.cmd run typecheck`: 0 errors.
+  - `npm.cmd test`: 159/159 tests passing across 13 files (including 26 unit tests in `tests/navigation_context.test.ts`).
+  - Manual QA: Test 1 (Dashboard currency drill-down, sidebar persistence & specific label), Test 2 (Direct invoices list back-link omission), and Test 3 (Client drawer state retention) all passed.

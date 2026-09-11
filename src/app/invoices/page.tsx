@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Suspense, useMemo } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '../../components/ProtectedRoute';
 import { AppShell } from '../../components/AppShell';
@@ -8,13 +9,19 @@ import { useInvoices } from '../../lib/data/hooks';
 import { InvoiceRepo } from '../../lib/data/invoice';
 import { useDataReady } from '../../lib/data/readiness';
 import { formatMoney } from '../../lib/money';
+import { resolveInvoicesListNavigation } from '../../lib/navigation';
 import { FileText, ArrowLeft, Loader2 } from 'lucide-react';
 
 function InvoicesListContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const targetCurrency = searchParams.get('currency');
-  const targetStatus = searchParams.get('status');
+  const targetCurrency = searchParams?.get('currency') || null;
+  const targetStatus = searchParams?.get('status') || null;
+  const { hasFilterParams, currentPathWithQuery } = resolveInvoicesListNavigation(
+    searchParams?.toString() || '',
+    targetCurrency,
+    targetStatus
+  );
 
   const { data: invoices } = useInvoices();
   const hasInvoicesData = invoices !== undefined && invoices.length > 0;
@@ -37,13 +44,16 @@ function InvoicesListContent() {
 
   return (
     <div className="space-y-6 font-sans text-left">
-      {/* Back to Dashboard */}
-      <button
-        onClick={() => router.push('/')}
-        className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white transition"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to Dashboard
-      </button>
+      {/* Back to Dashboard (Rendered only when navigating via drill-down query params) */}
+      {hasFilterParams && (
+        <Link
+          href="/"
+          prefetch={false}
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+        </Link>
+      )}
 
       {/* Header */}
       <div>
@@ -79,6 +89,7 @@ function InvoicesListContent() {
       ) : filteredInvoices.length > 0 ? (
         <div className="space-y-3">
           {filteredInvoices.map((inv) => {
+            const invoiceHref = `/invoices/${inv.id}?from=${encodeURIComponent(currentPathWithQuery)}`;
             const statusColors: Record<string, string> = {
               draft: 'bg-slate-900 border-slate-800 text-slate-400',
               sent: 'bg-indigo-950/40 border-indigo-900/40 text-indigo-400',
@@ -98,10 +109,11 @@ function InvoicesListContent() {
             };
 
             return (
-              <div
+              <Link
                 key={inv.id}
-                onClick={() => router.push(`/invoices/${inv.id}`)}
-                className="rounded-2xl border border-slate-900/60 bg-slate-950/20 p-4 flex items-center justify-between group hover:border-slate-800 transition cursor-pointer"
+                href={invoiceHref}
+                prefetch={false}
+                className="rounded-2xl border border-slate-900/60 bg-slate-950/20 p-4 flex items-center justify-between group hover:border-slate-800 transition cursor-pointer block text-left"
               >
                 <div className="min-w-0 pr-3 space-y-1">
                   <div className="flex items-center gap-2">
@@ -132,7 +144,7 @@ function InvoicesListContent() {
                     </div>
                   )}
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>

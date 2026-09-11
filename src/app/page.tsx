@@ -387,7 +387,7 @@ function DashboardView() {
                             </span>
                             {p.invoice_number && (
                               <Link 
-                                href={`/invoices/${p.invoice_id}`}
+                                href={`/invoices/${p.invoice_id}?from=${encodeURIComponent('/')}`}
                                 prefetch={false}
                                 className="text-xs text-indigo-400 hover:underline cursor-pointer font-medium"
                               >
@@ -434,7 +434,7 @@ function DashboardView() {
                   {attentionInvoices.map((inv) => {
                     const days = getDaysOverdue(inv.due_date);
                     return (
-                      <Link key={inv.id} href={`/invoices/${inv.id}`} prefetch={false} className="rounded-2xl border border-slate-900 bg-slate-950/40 p-4 flex flex-col gap-2 hover:border-slate-800 transition cursor-pointer group block">
+                      <Link key={inv.id} href={`/invoices/${inv.id}?from=${encodeURIComponent('/')}`} prefetch={false} className="rounded-2xl border border-slate-900 bg-slate-950/40 p-4 flex flex-col gap-2 hover:border-slate-800 transition cursor-pointer group block">
                         <div className="flex items-center justify-between">
                           <span className="font-extrabold text-sm text-white group-hover:text-indigo-400 transition">{inv.invoice_number}</span>
                           <span className="text-xs font-bold text-red-400">{days}d overdue</span>

@@ -266,3 +266,13 @@
   5. Implemented an Account & Session section on `/settings` with a sign-out trigger and a custom warning dialog intercepting sign-outs when `pendingUploads > 0`.
   6. Mapped currency selections directly from canonical `CURRENCIES` metadata and stabilized inline save feedback geometry.
 - **Consequences**: Provably eliminates offline multi-tenant storage leakage on shared devices, prevents layout jerks and async input clobbering, and protects un-synced offline ledger mutations from accidental deletion during sign-out.
+
+## ADR 045: Context-Aware Navigation, Dynamic Breadcrumbs, and Client Drawer URL State Retention
+- **Context**: Navigation between the dashboard, invoices list, client profile drawer, and invoice details previously exhibited disjointed state transitions. Invoice details hardcoded a "Back to Clients" link even when navigated from the dashboard or invoice list. Selecting an invoice from inside the client drawer dropped the `?id=` query parameter on return, stranding users back at the client list with the drawer closed. Furthermore, drilling into a specific currency balance from the dashboard flipped the active sidebar highlight to "Invoices", breaking the user's mental model of dashboard drill-downs.
+- **Decision**:
+  1. Extracted pure navigation derivation helpers in `src/lib/navigation.ts` (`resolveInvoiceBackLink`, `resolveActiveNav`, `buildClientDrawerInvoiceHref`).
+  2. Preserved client drawer state by passing `?from=/clients?id=[clientId]` to invoice links, restoring the drawer selection when returning.
+  3. Implemented dynamic breadcrumb labels parsing query parameters (e.g. `← Back to USD Outstanding Invoices`, `← Back to [Client Name]`, `← Back to Invoices`, `← Back to Dashboard`).
+  4. Implemented context-aware sidebar tracking in `AppShell.tsx` (`resolveActiveNav`), preserving "Dashboard" selection during currency drill-downs.
+  5. Gated search param readers in Suspense boundaries and enforced `prefetch={false}` (ADR 040) across all links to prevent SQLite WASM thread contention.
+- **Consequences**: Provably eliminates disorienting navigation jumps, preserves client drawer selection during deep links, provides explicit breadcrumb clarity, and protects WASM worker performance.

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import React, { useState, useCallback, useMemo, Suspense } from 'react';
+import Link from 'next/link';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '../../../components/ProtectedRoute';
 import { AppShell } from '../../../components/AppShell';
 import { useInvoice, useCanEditFinancials, usePaymentsForInvoice, useClient, useProfile } from '../../../lib/data/hooks';
@@ -12,10 +13,11 @@ import { RecordPaymentModal } from '../../../components/RecordPaymentModal';
 import { formatMoney } from '../../../lib/money';
 import { 
   ArrowLeft, Edit3, Send, Ban, Trash2, Calendar, FileText, 
-  User, Lock, AlertTriangle, Download, Undo2, Plus
+  User, Lock, AlertTriangle, Download, Undo2, Plus, Loader2
 } from 'lucide-react';
 
 import { PaymentEventRow } from '../../../lib/sync/schema';
+import { resolveInvoiceBackLink } from '../../../lib/navigation';
 
 export default function InvoiceDetailsPage() {
   const params = useParams();
@@ -24,7 +26,14 @@ export default function InvoiceDetailsPage() {
   return (
     <ProtectedRoute>
       <AppShell>
-        <InvoiceDetails invoiceId={invoiceId} />
+        <Suspense fallback={
+          <div className="py-20 flex flex-col items-center justify-center text-slate-500 gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+            <p className="text-sm font-semibold">Loading invoice details...</p>
+          </div>
+        }>
+          <InvoiceDetails invoiceId={invoiceId} />
+        </Suspense>
       </AppShell>
     </ProtectedRoute>
   );
@@ -32,6 +41,8 @@ export default function InvoiceDetailsPage() {
 
 function InvoiceDetails({ invoiceId }: { invoiceId: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromParam = searchParams?.get('from') || null;
 
   // Queries
   const { data: invoice } = useInvoice(invoiceId);
@@ -43,6 +54,12 @@ function InvoiceDetails({ invoiceId }: { invoiceId: string }) {
   const { data: payments } = usePaymentsForInvoice(invoiceId);
   const { data: client } = useClient(invoice?.client_id || '');
   const { data: profile } = useProfile();
+
+  // Contextual back-link destination and label
+  const { backLinkHref, backLinkLabel } = useMemo(
+    () => resolveInvoiceBackLink(fromParam, client?.name),
+    [fromParam, client?.name]
+  );
 
   // PDF Generation State
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
@@ -161,9 +178,9 @@ function InvoiceDetails({ invoiceId }: { invoiceId: string }) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px] text-center space-y-4">
         <div className="text-red-400 font-semibold">Invoice record not found.</div>
-        <button onClick={() => router.push('/clients')} className="text-sm text-indigo-400 hover:underline">
-          Back to Clients
-        </button>
+        <Link href={backLinkHref} prefetch={false} className="text-sm text-indigo-400 hover:underline">
+          {backLinkLabel}
+        </Link>
       </div>
     );
   }
@@ -193,12 +210,13 @@ function InvoiceDetails({ invoiceId }: { invoiceId: string }) {
     <div className="space-y-6 font-sans">
       {/* Header breadcrumb & quick actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <button
-          onClick={() => router.push('/clients')}
+        <Link
+          href={backLinkHref}
+          prefetch={false}
           className="inline-flex items-center gap-1 text-slate-400 hover:text-white transition text-sm"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Clients
-        </button>
+          <ArrowLeft className="h-4 w-4" /> {backLinkLabel.replace(/^←\s*/, '')}
+        </Link>
 
         <div className="flex flex-wrap items-center gap-2">
           {!isVoid && (

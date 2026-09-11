@@ -1,6 +1,7 @@
 'use client';
  
 import React, { useState, useMemo, useCallback, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '../../components/ProtectedRoute';
 import { AppShell } from '../../components/AppShell';
@@ -10,6 +11,7 @@ import { RecordPaymentModal } from '../../components/RecordPaymentModal';
 import { ClientRepo } from '../../lib/data/client';
 import { ClientLinkRepo } from '../../lib/data/client-link';
 import { formatMoney } from '../../lib/money';
+import { buildClientDrawerInvoiceHref } from '../../lib/navigation';
 import { ClientSummary, ClientDetail } from '../../lib/data/types';
 import { ClientLinkRow } from '../../lib/sync/schema';
 import { 
@@ -675,17 +677,24 @@ function ClientsDashboard() {
                       void: 'Void'
                     };
 
+                    const invoiceTargetUrl = buildClientDrawerInvoiceHref(inv.id, selectedClientId || '');
+
                     return (
                       <div
                         key={inv.id}
-                        onClick={() => router.push(`/invoices/${inv.id}`)}
+                        onClick={() => router.push(invoiceTargetUrl)}
                         className="p-4 rounded-2xl border border-slate-900 bg-slate-950/30 hover:border-slate-800 transition cursor-pointer flex items-center justify-between gap-4 group text-left"
                       >
                         <div className="space-y-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-white group-hover:text-indigo-400 transition truncate">
+                            <Link
+                              href={invoiceTargetUrl}
+                              prefetch={false}
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-xs font-bold text-white group-hover:text-indigo-400 transition truncate"
+                            >
                               {inv.invoice_number}
-                            </span>
+                            </Link>
                             <span
                               className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${statusColors[inv.displayStatus]}`}
                               aria-label={`Status: ${badgeText[inv.displayStatus]}`}
@@ -778,14 +787,16 @@ function ClientsDashboard() {
                               </span>
                             )}
                             {invRef && (
-                              <button
-                                onClick={() => router.push(`/invoices/${pmt.invoice_id}`)}
+                              <Link
+                                href={buildClientDrawerInvoiceHref(pmt.invoice_id, selectedClientId || '')}
+                                prefetch={false}
+                                onClick={(e) => e.stopPropagation()}
                                 className="inline-flex items-center gap-0.5 text-[10px] text-indigo-400 font-mono border-b border-indigo-400/20 hover:border-indigo-400 hover:text-indigo-300 transition"
                                 title="View invoice details"
                               >
                                 {invRef.invoice_number}
                                 <ExternalLink className="h-2.5 w-2.5 opacity-60" />
-                              </button>
+                              </Link>
                             )}
                           </div>
                           <div className="text-[10px] text-slate-500">

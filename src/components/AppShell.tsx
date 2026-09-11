@@ -1,22 +1,109 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '../lib/auth/provider';
+import { resolveActiveNav, NavItem } from '../lib/navigation';
 import { LayoutDashboard, FileText, Users, Settings, LogOut, Menu, X, User } from 'lucide-react';
 
+const navItems: Array<{
+  name: string;
+  href: string;
+  id: NavItem;
+  icon: React.ComponentType<{ className?: string }>;
+}> = [
+  { name: 'Dashboard', href: '/', id: 'dashboard', icon: LayoutDashboard },
+  { name: 'Invoices', href: '/invoices', id: 'invoices', icon: FileText },
+  { name: 'Clients', href: '/clients', id: 'clients', icon: Users },
+  { name: 'Settings', href: '/settings', id: 'settings', icon: Settings },
+];
+
+function NavigationLinks({
+  isMobile,
+  onItemClick
+}: {
+  isMobile?: boolean;
+  onItemClick?: () => void;
+}) {
+  const pathname = usePathname() || '/';
+  const searchParams = useSearchParams();
+  const activeNav = resolveActiveNav(pathname, searchParams?.toString() || '');
+
+  return (
+    <nav className={isMobile ? 'space-y-4' : 'space-y-1.5'}>
+      {navItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = item.id === activeNav;
+        return (
+          <Link
+            key={item.name}
+            href={item.href}
+            prefetch={false}
+            onClick={onItemClick}
+            className={
+              isMobile
+                ? `flex items-center gap-3.5 px-4 py-3.5 rounded-xl font-medium transition text-base ${
+                    isActive
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
+                  }`
+                : `flex items-center gap-3.5 px-4 py-3 rounded-lg text-sm font-semibold transition ${
+                    isActive
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
+                  }`
+            }
+          >
+            <Icon className={isMobile ? 'h-5 w-5' : 'h-4.5 w-4.5'} />
+            {item.name}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+function NavigationLinksFallback({ isMobile }: { isMobile?: boolean }) {
+  const pathname = usePathname() || '/';
+  const activeNav = resolveActiveNav(pathname, '');
+
+  return (
+    <nav className={isMobile ? 'space-y-4' : 'space-y-1.5'}>
+      {navItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = item.id === activeNav;
+        return (
+          <Link
+            key={item.name}
+            href={item.href}
+            prefetch={false}
+            className={
+              isMobile
+                ? `flex items-center gap-3.5 px-4 py-3.5 rounded-xl font-medium transition text-base ${
+                    isActive
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
+                  }`
+                : `flex items-center gap-3.5 px-4 py-3 rounded-lg text-sm font-semibold transition ${
+                    isActive
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
+                  }`
+            }
+          >
+            <Icon className={isMobile ? 'h-5 w-5' : 'h-4.5 w-4.5'} />
+            {item.name}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   const { user, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const navItems = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'Invoices', href: '/invoices', icon: FileText },
-    { name: 'Clients', href: '/clients', icon: Users },
-    { name: 'Settings', href: '/settings', icon: Settings },
-  ];
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row">
@@ -39,28 +126,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Mobile Drawer Navigation Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden fixed inset-0 top-[61px] z-30 bg-slate-950/95 backdrop-blur-xl animate-fade-in flex flex-col justify-between p-6">
-          <nav className="space-y-4">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(`${item.href}/`));
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  prefetch={false}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3.5 px-4 py-3.5 rounded-xl font-medium transition text-base ${
-                    isActive
-                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
-                  }`}
-                >
-                  <Icon className="h-5 w-5" />
-                  {item.name}
-                </Link>
-              );
-            })}
-          </nav>
+          <Suspense fallback={<NavigationLinksFallback isMobile />}>
+            <NavigationLinks isMobile onItemClick={() => setMobileMenuOpen(false)} />
+          </Suspense>
 
           <div className="border-t border-slate-900 pt-6 space-y-4">
             <div className="flex items-center gap-3 px-2">
@@ -96,27 +164,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Navigation Links */}
-          <nav className="space-y-1.5">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(`${item.href}/`));
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  prefetch={false}
-                  className={`flex items-center gap-3.5 px-4 py-3 rounded-lg text-sm font-semibold transition ${
-                    isActive
-                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
-                  }`}
-                >
-                  <Icon className="h-4.5 w-4.5" />
-                  {item.name}
-                </Link>
-              );
-            })}
-          </nav>
+          <Suspense fallback={<NavigationLinksFallback />}>
+            <NavigationLinks />
+          </Suspense>
         </div>
 
         {/* Footer Settings/Profile */}
