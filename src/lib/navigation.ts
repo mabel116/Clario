@@ -7,7 +7,7 @@ export interface InvoiceBackLink {
   backLinkLabel: string;
 }
 
-export type NavItem = 'dashboard' | 'invoices' | 'clients' | 'settings';
+export type NavItem = 'dashboard' | 'invoices' | 'clients' | 'payments' | 'settings';
 
 /**
  * Resolves the destination URL and display label for the back button on `/invoices/[id]`.
@@ -27,6 +27,12 @@ export function resolveInvoiceBackLink(
       return {
         backLinkHref: fromParam,
         backLinkLabel: '← Back to Clients'
+      };
+    }
+    if (fromParam.startsWith('/payments')) {
+      return {
+        backLinkHref: fromParam,
+        backLinkLabel: '← Back to Payments'
       };
     }
     if (fromParam.startsWith('/invoices')) {
@@ -104,6 +110,7 @@ export function resolveActiveNav(pathname: string, searchParamsString: string): 
   if (pathname === '/') return 'dashboard';
   if (pathname.startsWith('/settings')) return 'settings';
   if (pathname.startsWith('/clients')) return 'clients';
+  if (pathname.startsWith('/payments')) return 'payments';
 
   const cleanQuery = searchParamsString.startsWith('?') ? searchParamsString.slice(1) : searchParamsString;
   const sp = new URLSearchParams(cleanQuery);
@@ -117,6 +124,9 @@ export function resolveActiveNav(pathname: string, searchParamsString: string): 
 
   if (pathname.startsWith('/invoices/')) {
     const from = sp.get('from') || '';
+    if (from.startsWith('/payments')) {
+      return 'payments';
+    }
     if (from.startsWith('/clients')) {
       return 'clients';
     }

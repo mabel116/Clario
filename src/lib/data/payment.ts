@@ -1,9 +1,37 @@
 import { db } from '../sync/db';
 import { getAuthUserId } from '../auth/client';
-import { createLiveQuery, LiveQuery, NewPayment, CurrencyMismatchError, isTest } from './types';
+import { createLiveQuery, LiveQuery, NewPayment, CurrencyMismatchError, isTest, PaymentWithContext } from './types';
 import { PaymentEventRow } from '../sync/schema';
 
 export const PaymentRepo = {
+  async isEmpty(): Promise<boolean> {
+    if ((typeof window === 'undefined' && !isTest) || !db) {
+      throw new Error('Database connection not available');
+    }
+    const result = await db.getAll('SELECT id FROM payment_events LIMIT 1');
+    return (result as any).length === 0;
+  },
+
+  listAll(): LiveQuery<PaymentWithContext[]> {
+    return createLiveQuery<any, PaymentWithContext[]>(
+      `SELECT 
+         p.id, p.user_id, p.invoice_id, p.client_id, p.amount_minor, p.currency, p.method, p.note, p.occurred_at, p.reverses_id, p.created_at,
+         i.invoice_number,
+         c.name as client_name
+       FROM payment_events p
+       LEFT JOIN invoices i ON i.id = p.invoice_id
+       LEFT JOIN clients c ON c.id = p.client_id
+       ORDER BY p.occurred_at DESC, p.created_at DESC`,
+      [],
+      (rows) => {
+        return rows.map((r: any) => ({
+          ...r,
+          invoice_number: r.invoice_number || 'INV-UNKNOWN',
+          client_name: r.client_name || 'Unknown Client'
+        }));
+      }
+    );
+  },
   listForInvoice(invoiceId: string): LiveQuery<PaymentEventRow[]> {
     return createLiveQuery<any, PaymentEventRow[]>(
       `SELECT id, user_id, invoice_id, client_id, amount_minor, currency, method, note, occurred_at, reverses_id, created_at

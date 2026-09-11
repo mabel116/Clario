@@ -684,3 +684,16 @@ Extend the ADR 036 readiness architecture to the invoices domain (`/invoices` ma
   - `npm.cmd run typecheck`: 0 errors.
   - `npm.cmd test`: 159/159 tests passing across 13 files (including 26 unit tests in `tests/navigation_context.test.ts`).
   - Manual QA: Test 1 (Dashboard currency drill-down, sidebar persistence & specific label), Test 2 (Direct invoices list back-link omission), and Test 3 (Client drawer state retention) all passed.
+
+## Prompt 12 Milestone: Dedicated Payments Screen (`/payments`) & Navigation Integration
+- **Status**: Complete & Verified (163 / 163 Vitest tests passing, 0 TypeScript errors, Manual QA Passed).
+- **Architectural Implementations & Bugs Resolved**:
+  1. Added `PaymentRepo.isEmpty()` and `PaymentRepo.listAll()` to stream unified ledger rows joined with invoice numbers and client names.
+  2. Built responsive `/payments` ledger view with client-side filter tabs (All, Received, Reversals) and geometry-matched skeleton.
+  3. Added `payments` item to desktop sidebar and mobile drawer navigation in `AppShell.tsx`.
+  4. Integrated contextual navigation helpers: `/invoices/[id]` dynamically renders `← Back to Payments` and retains active sidebar selection when opened from `/payments`.
+  5. Enforced `prefetch={false}` across all newly created `<Link>` components to protect SQLite WASM worker queue.
+- **Verification Outcomes**:
+  - `npm.cmd run typecheck`: 0 errors.
+  - `npm.cmd test`: 163/163 tests passing across 13 files (including 29 unit tests in `tests/navigation_context.test.ts` and 14 tests in `tests/repositories.test.ts`).
+  - Manual QA: Test 1 (Sidebar navigation & active highlighting), Test 2 (Filter tabs & ledger display), Test 3 (Deep-link & contextual breadcrumb loop), and Test 4 (Loading skeleton & cold boot stability) all passed.

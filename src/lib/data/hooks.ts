@@ -88,6 +88,11 @@ export function usePaymentsForClient(clientId?: string | null): { data: PaymentE
   return useLiveQuery(query);
 }
 
+export function useAllPayments(): { data: PaymentWithContext[] | undefined; isLoading: boolean } {
+  const query = useMemo(() => PaymentRepo.listAll(), []);
+  return useLiveQuery(query, 'useAllPayments');
+}
+
 export function useProfile(): { data: ProfileRow | null | undefined; isLoading: boolean } {
   const query = useMemo(() => ProfileRepo.get(), []);
   return useLiveQuery(query, 'useProfile');

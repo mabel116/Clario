@@ -276,3 +276,13 @@
   4. Implemented context-aware sidebar tracking in `AppShell.tsx` (`resolveActiveNav`), preserving "Dashboard" selection during currency drill-downs.
   5. Gated search param readers in Suspense boundaries and enforced `prefetch={false}` (ADR 040) across all links to prevent SQLite WASM thread contention.
 - **Consequences**: Provably eliminates disorienting navigation jumps, preserves client drawer selection during deep links, provides explicit breadcrumb clarity, and protects WASM worker performance.
+
+## ADR 046: Dedicated Payments Screen, Unified Ledger Queries, and Contextual Navigation Integration
+- **Context**: Accessing payment history previously required navigating into individual client drawers or specific invoice detail pages. There was no top-level, cross-client ledger view to inspect chronological receipts, monitor recent transactions, or audit reversals across the entire account. Furthermore, navigating from payments into an invoice required deep-link context preservation so the back-button and active sidebar item would return the user to the payments ledger rather than defaulting to invoices or clients.
+- **Decision**:
+  1. Added `PaymentRepo.isEmpty()` deterministic probe and `PaymentRepo.listAll()` live query joining `invoices` and `clients` metadata to stream all ledger events newest-first.
+  2. Integrated `useDataReady` on `/payments` with a 4-card `animate-pulse` form skeleton matching the payment cards to guarantee zero vertical layout shift on cold boot (ADR 036 & ADR 041).
+  3. Expanded `NavItem` in `src/lib/navigation.ts` and `AppShell.tsx` to include `payments` with the `CreditCard` icon.
+  4. Updated `resolveActiveNav` and `resolveInvoiceBackLink` to recognize `/payments` origins, ensuring clicking an invoice link (`?from=/payments`) maintains "Payments" sidebar selection and displays `← Back to Payments`.
+  5. Implemented client-side filter pills (All, Received, Reversals) with color-distinct badges and directional amount indicators (`+` emerald, `-` rose).
+- **Consequences**: Delivers an instant, real-time ledger view across all clients and invoices with full offline readiness, preserves spatial navigation continuity, and clearly differentiates reversal events.

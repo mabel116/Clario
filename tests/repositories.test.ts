@@ -655,5 +655,62 @@ describe('Data-Access Repositories Layer Invariants', () => {
     expect(row.rows[0].deleted_at).not.toBeNull();
   });
 
+  it('PaymentRepo: isEmpty and listAll verify ledger view integrity', async () => {
+    // 1. Initial state: isEmpty should be true since payment_events is empty
+    const initiallyEmpty = await PaymentRepo.isEmpty();
+    expect(initiallyEmpty).toBe(true);
+
+    // 2. Create client, invoice, and record payment
+    const clientId = await ClientRepo.create({ name: 'Ledger Test Client' });
+    const invoiceId = await InvoiceRepo.create({ client_id: clientId, currency: 'USD' });
+    await InvoiceRepo.setLineItems(invoiceId, [{ description: 'Dev Work', quantity: 1, unit_price_minor: 15000 }]);
+
+    const pmtId = await PaymentRepo.record({
+      invoice_id: invoiceId,
+      client_id: clientId,
+      amount_minor: 10000,
+      currency: 'USD',
+      method: 'bank_transfer',
+      note: 'Deposit payment'
+    });
+
+    // 3. isEmpty should now return false
+    const afterPaymentEmpty = await PaymentRepo.isEmpty();
+    expect(afterPaymentEmpty).toBe(false);
+
+    // 4. listAll should return payment with context
+    let payments: any[] = [];
+    subscribeAndTrack(PaymentRepo.listAll(), (data) => {
+      payments = data;
+    });
+    await sleep(20);
+
+    expect(payments.length).toBe(1);
+    expect(payments[0].id).toBe(pmtId);
+    expect(payments[0].client_name).toBe('Ledger Test Client');
+    expect(payments[0].invoice_number).toBeDefined();
+    expect(payments[0].amount_minor).toBe(10000);
+    expect(payments[0].currency).toBe('USD');
+    expect(payments[0].method).toBe('bank_transfer');
+    expect(payments[0].note).toBe('Deposit payment');
+
+    // 5. Reverse payment and verify listAll returns reversal event
+    const revId = await PaymentRepo.reverse(pmtId, 'Reversing test deposit');
+
+    let updatedPayments: any[] = [];
+    subscribeAndTrack(PaymentRepo.listAll(), (data) => {
+      updatedPayments = data;
+    });
+    await sleep(20);
+
+    expect(updatedPayments.length).toBe(2);
+    const revEvent = updatedPayments.find(p => p.id === revId);
+    expect(revEvent).toBeDefined();
+    expect(revEvent.amount_minor).toBe(-10000);
+    expect(revEvent.reverses_id).toBe(pmtId);
+    expect(revEvent.client_name).toBe('Ledger Test Client');
+    expect(revEvent.invoice_number).toBeDefined();
+  });
+
 });
 

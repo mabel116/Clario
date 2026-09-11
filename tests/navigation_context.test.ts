@@ -72,6 +72,14 @@ describe('Contextual Breadcrumb Navigation & Drawer Retention', () => {
       });
     });
 
+    it('returns to payments when from starts with /payments', () => {
+      const result = resolveInvoiceBackLink('/payments', 'Client Name');
+      expect(result).toEqual({
+        backLinkHref: '/payments',
+        backLinkLabel: '← Back to Payments'
+      });
+    });
+
     it('falls back to /invoices when from is null, undefined, or cold boot direct link', () => {
       expect(resolveInvoiceBackLink(null)).toEqual({
         backLinkHref: '/invoices',
@@ -154,6 +162,11 @@ describe('Contextual Breadcrumb Navigation & Drawer Retention', () => {
       expect(resolveActiveNav('/clients/new', '')).toBe('clients');
     });
 
+    it('returns payments for /payments and subroutes', () => {
+      expect(resolveActiveNav('/payments', '')).toBe('payments');
+      expect(resolveActiveNav('/payments/history', '')).toBe('payments');
+    });
+
     it('returns invoices for /invoices when no filter query params are present', () => {
       expect(resolveActiveNav('/invoices', '')).toBe('invoices');
     });
@@ -188,6 +201,11 @@ describe('Contextual Breadcrumb Navigation & Drawer Retention', () => {
     it('returns invoices when viewing invoice detail originating from general invoices list', () => {
       const sp = 'from=%2Finvoices';
       expect(resolveActiveNav('/invoices/inv-123', sp)).toBe('invoices');
+    });
+
+    it('returns payments when viewing invoice detail originating from payments', () => {
+      const sp = 'from=%2Fpayments';
+      expect(resolveActiveNav('/invoices/inv-123', sp)).toBe('payments');
     });
 
     it('returns invoices when viewing invoice detail directly without from parameter (cold boot)', () => {

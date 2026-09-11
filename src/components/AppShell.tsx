@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '../lib/auth/provider';
 import { resolveActiveNav, NavItem } from '../lib/navigation';
-import { LayoutDashboard, FileText, Users, Settings, LogOut, Menu, X, User } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, CreditCard, Settings, LogOut, Menu, X, User } from 'lucide-react';
 
 const navItems: Array<{
   name: string;
@@ -16,6 +16,7 @@ const navItems: Array<{
   { name: 'Dashboard', href: '/', id: 'dashboard', icon: LayoutDashboard },
   { name: 'Invoices', href: '/invoices', id: 'invoices', icon: FileText },
   { name: 'Clients', href: '/clients', id: 'clients', icon: Users },
+  { name: 'Payments', href: '/payments', id: 'payments', icon: CreditCard },
   { name: 'Settings', href: '/settings', id: 'settings', icon: Settings },
 ];
 
