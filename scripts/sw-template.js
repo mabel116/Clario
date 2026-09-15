@@ -46,18 +46,25 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Proactive safety bypass: Never intercept/cache sync APIs, Supabase Auth/DB calls, Next.js HMR, RSC requests, or local auth endpoints
+  // Proactive safety bypass: Never intercept/cache sync APIs, Supabase Auth/DB calls (/auth/v1/, /rest/v1/), PowerSync WebSocket/streaming connections, Next.js HMR, RSC requests, or non-GET requests
   if (
+    request.method !== 'GET' ||
+    url.protocol === 'ws:' ||
+    url.protocol === 'wss:' ||
+    request.headers.get('Upgrade') === 'websocket' ||
+    url.pathname.includes('/auth/v1/') ||
+    url.pathname.includes('/rest/v1/') ||
     url.hostname.includes('supabase.co') || 
     url.hostname.includes('powersync.com') ||
     url.hostname.includes('powersync.journeyapps.com') ||
+    url.pathname.includes('/sync/stream') ||
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/auth/') ||
     url.pathname.includes('webpack-hmr') ||
     url.searchParams.has('_rsc') ||
     request.headers.get('RSC') === '1'
   ) {
-    return; // Pass-through directly
+    return; // Pass-through directly without intercepting
   }
 
   // Handle navigate/HTML pages
@@ -72,14 +79,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first strategy for static assets (Next.js scripts, styling, images, JSON files, WASM binaries)
+  // Cache-first strategy for static assets (Next.js scripts, styling, images, fonts, JSON files, WASM binaries)
   if (
     url.pathname.startsWith('/_next/') ||
     url.pathname.startsWith('/@powersync/') ||
     url.pathname.endsWith('.png') ||
+    url.pathname.endsWith('.jpg') ||
+    url.pathname.endsWith('.jpeg') ||
     url.pathname.endsWith('.svg') ||
+    url.pathname.endsWith('.ico') ||
     url.pathname.endsWith('.json') ||
-    url.pathname.endsWith('.wasm')
+    url.pathname.endsWith('.wasm') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.woff') ||
+    url.pathname.endsWith('.woff2') ||
+    url.pathname.endsWith('.ttf')
   ) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {

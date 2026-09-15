@@ -697,3 +697,16 @@ Extend the ADR 036 readiness architecture to the invoices domain (`/invoices` ma
   - `npm.cmd run typecheck`: 0 errors.
   - `npm.cmd test`: 163/163 tests passing across 13 files (including 29 unit tests in `tests/navigation_context.test.ts` and 14 tests in `tests/repositories.test.ts`).
   - Manual QA: Test 1 (Sidebar navigation & active highlighting), Test 2 (Filter tabs & ledger display), Test 3 (Deep-link & contextual breadcrumb loop), and Test 4 (Loading skeleton & cold boot stability) all passed.
+
+## Prompt 12 Milestone: Phase A — PWA Manifest, Service Worker Hardening & Diagnostic Route Purge
+- **Status**: Complete & Verified (163 / 163 Vitest tests passing, 0 TypeScript errors, Next.js 15 production build compiled 12/12 static pages).
+- **Architectural Implementations & Bugs Resolved**:
+  1. Configured W3C Web App Manifest (`manifest.json`) and Next.js 15 viewport metadata.
+  2. Implemented non-interference fetch bypass in `sw-template.js` protecting Supabase and PowerSync sync streams from CacheStorage corruption.
+  3. Precached 81 build-time assets including WASM workers and typography.
+  4. Confirmed complete elimination of `/dev/sync` diagnostic route.
+- **Verification Outcomes**:
+  - `npm.cmd run typecheck`: 0 errors.
+  - `npm.cmd test`: 163/163 tests passing across 13 files.
+  - `npm.cmd run build`: Compiled 12 static routes successfully, generating `public/sw.js` with 81 precached assets.
+

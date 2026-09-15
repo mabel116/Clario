@@ -286,3 +286,13 @@
   4. Updated `resolveActiveNav` and `resolveInvoiceBackLink` to recognize `/payments` origins, ensuring clicking an invoice link (`?from=/payments`) maintains "Payments" sidebar selection and displays `← Back to Payments`.
   5. Implemented client-side filter pills (All, Received, Reversals) with color-distinct badges and directional amount indicators (`+` emerald, `-` rose).
 - **Consequences**: Delivers an instant, real-time ledger view across all clients and invoices with full offline readiness, preserves spatial navigation continuity, and clearly differentiates reversal events.
+
+## ADR 047: PWA Web App Manifest, Non-Interference Service Worker Caching, and Diagnostic Route Purge
+- **Context**: In preparing Clario for standalone PWA installation and production launch (Prompt 12 Tasks 1 & 2), `public/manifest.json` required canonical metadata matching `#020617` theme colors. Crucially, the service worker caching strategy (ADR 033) required strict non-interference boundaries to ensure `CacheStorage` never intercepts or corrupts Supabase Auth/REST APIs, PowerSync WebSocket/streaming replication, or Next.js RSC requests, while precaching all static fonts, styles, scripts, and WASM binaries for instant offline boot. Furthermore, the temporary diagnostic route `/dev/sync` had to be confirmed completely purged.
+- **Decision**:
+  1. Configured W3C Web App Manifest (`public/manifest.json`) with canonical app name ("Clario"), standalone display, and `#020617` background/theme colors.
+  2. Updated `src/app/layout.tsx` to export standard Next.js 15 `viewport` configuration and manifest links.
+  3. Hardened `scripts/sw-template.js` and `public/sw.js` with comprehensive network bypass rules (WebSocket, `/auth/v1/`, `/rest/v1/`, `supabase.co`, `powersync.com`, `/sync/stream`, RSC headers) while precaching static fonts, styles, and WASM binaries.
+  4. Confirmed complete elimination of `src/app/dev/sync`, verifying that `/dev/sync` returns a Next.js 404 and is absent from the production route tree.
+- **Consequences**: Guarantees standalone PWA installability, instant off-grid app shell boot without caching live sync transactions, and clean production routing.
+
