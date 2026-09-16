@@ -138,3 +138,27 @@ export function resolveActiveNav(pathname: string, searchParamsString: string): 
 
   return 'dashboard';
 }
+
+/**
+ * Resolves an entity ID from Next.js route params or falls back to window.location.pathname
+ * when the page was loaded offline via a static shell (e.g. /clients/_shell_/invoices/new).
+ */
+export function resolveRouteParam(
+  rawParam: string | string[] | undefined,
+  segment: 'clients' | 'invoices',
+  customPathname?: string
+): string {
+  const paramVal = Array.isArray(rawParam) ? rawParam[0] : rawParam;
+  if (paramVal && paramVal !== '_shell_') {
+    return paramVal;
+  }
+  const pathname = customPathname ?? (typeof window !== 'undefined' ? window.location.pathname : '');
+  if (pathname) {
+    const parts = pathname.split('/').filter(Boolean);
+    const idx = parts.indexOf(segment);
+    if (idx !== -1 && parts[idx + 1] && parts[idx + 1] !== '_shell_') {
+      return parts[idx + 1];
+    }
+  }
+  return paramVal || '';
+}

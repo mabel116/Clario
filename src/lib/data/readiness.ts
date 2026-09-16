@@ -107,7 +107,7 @@ export function useEntityReady(
     hasLoadedRef.current = false;
   }, [entityId]);
 
-  const isNoEntity = entityId !== undefined && (entityId === null || entityId === '');
+  const isNoEntity = entityId !== undefined && (entityId === null || entityId === '' || entityId === '_shell_');
 
   useEffect(() => {
     // If an entity identifier is specified and is empty/null, do not probe SQLite or latch not-found

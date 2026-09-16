@@ -64,12 +64,14 @@ export function useClientLinks(clientId?: string | null): { data: ClientLinkRow[
 }
 
 export function useInvoice(id?: string | null): { data: InvoiceDetail | null | undefined; isLoading: boolean } {
-  const query = useMemo(() => (id ? InvoiceRepo.get(id) : null), [id]);
+  const cleanId = (id || '').trim().split('?')[0].split('#')[0];
+  const query = useMemo(() => (cleanId && cleanId !== '_shell_' ? InvoiceRepo.get(cleanId) : null), [cleanId]);
   return useLiveQuery(query);
 }
 
 export function useCanEditFinancials(invoiceId?: string | null): { data: boolean | undefined; isLoading: boolean } {
-  const query = useMemo(() => (invoiceId ? InvoiceRepo.canEditFinancials(invoiceId) : null), [invoiceId]);
+  const cleanId = (invoiceId || '').trim().split('?')[0].split('#')[0];
+  const query = useMemo(() => (cleanId && cleanId !== '_shell_' ? InvoiceRepo.canEditFinancials(cleanId) : null), [cleanId]);
   return useLiveQuery(query);
 }
 

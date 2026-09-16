@@ -1,11 +1,38 @@
-const CACHE_NAME = 'clario-cache-vF_OPWNa-e1MCDakEJYHgC';
-const PRECACHE_URLS = [
+const CACHE_NAME = 'clario-cache-vzNFJoYMMLzAEctmWQLco1';
+const CORE_ROUTES = [
   '/',
+  '/clients',
+  '/invoices',
+  '/payments',
+  '/settings',
+  '/clients/_shell_/invoices/new',
+  '/invoices/_shell_',
+  '/invoices/_shell_/edit'
+];
+
+const PRECACHE_URLS = [
+  ...CORE_ROUTES,
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
   '/icon-maskable.png',
-    '/_next/static/chunks/1028-2291304ead5d2dd1.js',
+    '/@powersync/AccessHandlePoolVFS-BPUHfZME.js',
+  '/@powersync/FacadeVFS-d1ZDvud7.js',
+  '/@powersync/IDBBatchAtomicVFS-DbkDb777.js',
+  '/@powersync/MemoryVFS-DVJL5F8j.js',
+  '/@powersync/OPFSCoopSyncVFS-BgTiWPfa.js',
+  '/@powersync/OPFSWriteAheadVFS-Rt5CGCZP.js',
+  '/@powersync/assets/mc-wa-sqlite-DoDpgFfE.wasm',
+  '/@powersync/assets/mc-wa-sqlite-async-DYagSq56.wasm',
+  '/@powersync/assets/wa-sqlite-CagagB9I.wasm',
+  '/@powersync/assets/wa-sqlite-async-DCIP8kAx.wasm',
+  '/@powersync/mc-wa-sqlite-DDFgWP93.js',
+  '/@powersync/mc-wa-sqlite-async-lGclTjKJ.js',
+  '/@powersync/wa-sqlite-B0tZMM0j.js',
+  '/@powersync/wa-sqlite-async-CM6BmfRh.js',
+  '/@powersync/websockets-Q8W_lerF.js',
+  '/@powersync/worker.js',
+  '/_next/static/chunks/1028-2291304ead5d2dd1.js',
   '/_next/static/chunks/11390db7.740869c229a72a13.js',
   '/_next/static/chunks/1517-e8afac63fb92352c.js',
   '/_next/static/chunks/1536.44223d65adf4c204.js',
@@ -25,7 +52,7 @@ const PRECACHE_URLS = [
   '/_next/static/chunks/4bd1b696-4fa9b7ebe6eda6ad.js',
   '/_next/static/chunks/5034.310ac68ae380e6dc.js',
   '/_next/static/chunks/5091-f3c7d11d88a4a8b0.js',
-  '/_next/static/chunks/5140-c4fc40b3d154afde.js',
+  '/_next/static/chunks/5140-f8392d6db998ea8c.js',
   '/_next/static/chunks/5203.7c54c202406d4620.js',
   '/_next/static/chunks/5408-3f064fe394dc441f.js',
   '/_next/static/chunks/5556.e6b11c4afeae00ab.js',
@@ -36,22 +63,26 @@ const PRECACHE_URLS = [
   '/_next/static/chunks/9168.6075fb01d98990fc.js',
   '/_next/static/chunks/9244.2eaea94d3886c28e.js',
   '/_next/static/chunks/9843-f63de8ba3edbd466.js',
+  '/_next/static/chunks/app/_not-found/page-faaf4096b438fbf2.js',
   '/_next/static/chunks/app/auth/callback/route-d8f15e6b7864f163.js',
-  '/_next/static/chunks/app/clients/page-3b5ef22c5e75b403.js',
-  '/_next/static/chunks/app/clients/[id]/invoices/new/page-d79d1c46c55c534e.js',
+  '/_next/static/chunks/app/clients/%5Bid%5D/invoices/new/page-db2a32d53bdb5237.js',
+  '/_next/static/chunks/app/clients/%5Bid%5D/page-6efb34da7dfb0ecc.js',
+  '/_next/static/chunks/app/clients/[id]/invoices/new/page-db2a32d53bdb5237.js',
   '/_next/static/chunks/app/clients/[id]/page-6efb34da7dfb0ecc.js',
+  '/_next/static/chunks/app/clients/page-c029609f4535979a.js',
   '/_next/static/chunks/app/error-dbc12b66d5a35c85.js',
-  '/_next/static/chunks/app/invoices/page-553c4889a7e451bf.js',
-  '/_next/static/chunks/app/invoices/[id]/edit/page-e59fec75f3b785ba.js',
-  '/_next/static/chunks/app/invoices/[id]/page-4047fd4173527d0c.js',
-  '/_next/static/chunks/app/layout-5377c825d3b74848.js',
+  '/_next/static/chunks/app/invoices/%5Bid%5D/edit/page-42844e8077ace3ce.js',
+  '/_next/static/chunks/app/invoices/%5Bid%5D/page-078e12317ceb10e3.js',
+  '/_next/static/chunks/app/invoices/[id]/edit/page-42844e8077ace3ce.js',
+  '/_next/static/chunks/app/invoices/[id]/page-078e12317ceb10e3.js',
+  '/_next/static/chunks/app/invoices/page-e627cef8bd16e037.js',
+  '/_next/static/chunks/app/layout-b89ce6cf0eac4c2e.js',
   '/_next/static/chunks/app/page-e7480ab0321bcf99.js',
   '/_next/static/chunks/app/payments/page-82f68852d82b1a12.js',
   '/_next/static/chunks/app/reset-password/page-6c17e56568cb0217.js',
   '/_next/static/chunks/app/settings/page-a526aed5aa04807a.js',
   '/_next/static/chunks/app/sign-in/page-5de0ff73eca2cd67.js',
   '/_next/static/chunks/app/sign-up/page-895e0a8821e07af7.js',
-  '/_next/static/chunks/app/_not-found/page-faaf4096b438fbf2.js',
   '/_next/static/chunks/b2d98e07.ba6f3248961eca08.js',
   '/_next/static/chunks/d78ee677.e563f3a1ee2dc6a9.js',
   '/_next/static/chunks/f1df3ce6.560959a551f90d4b.js',
@@ -64,36 +95,83 @@ const PRECACHE_URLS = [
   '/_next/static/chunks/polyfills-42372ed130431b0a.js',
   '/_next/static/chunks/webpack-699c53f25baeca98.js',
   '/_next/static/css/bcf5ffe9f82457bc.css',
-  '/_next/static/F_OPWNa-e1MCDakEJYHgC/_buildManifest.js',
-  '/_next/static/F_OPWNa-e1MCDakEJYHgC/_ssgManifest.js',
   '/_next/static/media/mc-wa-sqlite-async.e27ab1ed.wasm',
   '/_next/static/media/mc-wa-sqlite.194e2ec3.wasm',
   '/_next/static/media/wa-sqlite-async.b5c71aa6.wasm',
   '/_next/static/media/wa-sqlite.1c79f40b.wasm',
-  '/@powersync/AccessHandlePoolVFS-BPUHfZME.js',
-  '/@powersync/assets/mc-wa-sqlite-async-DYagSq56.wasm',
-  '/@powersync/assets/mc-wa-sqlite-DoDpgFfE.wasm',
-  '/@powersync/assets/wa-sqlite-async-DCIP8kAx.wasm',
-  '/@powersync/assets/wa-sqlite-CagagB9I.wasm',
-  '/@powersync/FacadeVFS-d1ZDvud7.js',
-  '/@powersync/IDBBatchAtomicVFS-DbkDb777.js',
-  '/@powersync/mc-wa-sqlite-async-lGclTjKJ.js',
-  '/@powersync/mc-wa-sqlite-DDFgWP93.js',
-  '/@powersync/MemoryVFS-DVJL5F8j.js',
-  '/@powersync/OPFSCoopSyncVFS-BgTiWPfa.js',
-  '/@powersync/OPFSWriteAheadVFS-Rt5CGCZP.js',
-  '/@powersync/wa-sqlite-async-CM6BmfRh.js',
-  '/@powersync/wa-sqlite-B0tZMM0j.js',
-  '/@powersync/websockets-Q8W_lerF.js',
-  '/@powersync/worker.js'
+  '/_next/static/zNFJoYMMLzAEctmWQLco1/_buildManifest.js',
+  '/_next/static/zNFJoYMMLzAEctmWQLco1/_ssgManifest.js',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable.png',
+  '/manifest.json'
 ];
 
-// Install Event: cache precached assets
+// Helper to ensure only valid HTTP/HTTPS URLs are passed to CacheStorage
+function isCacheable(req) {
+  if (!req) return false;
+  const reqUrl = typeof req === 'string' ? req : req.url;
+  if (!reqUrl) return false;
+  return reqUrl.startsWith('http://') || reqUrl.startsWith('https://') || (reqUrl.startsWith('/') && !reqUrl.startsWith('//'));
+}
+
+// Install Event: cache precached assets and core document routes
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Pre-caching static assets...');
-      return cache.addAll(PRECACHE_URLS);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      console.log('[SW] Pre-caching static assets and core document routes...');
+
+      // Find any prior clario caches to copy from if offline or network fetch fails
+      const allCacheKeys = await caches.keys();
+      const prevCacheNames = allCacheKeys.filter(k => k !== CACHE_NAME && k.startsWith('clario-cache-v'));
+      const prevCaches = await Promise.all(prevCacheNames.map(k => caches.open(k)));
+
+      await Promise.all(
+        PRECACHE_URLS.map(async (url) => {
+          try {
+            await cache.add(url);
+          } catch (err) {
+            // If network fetch fails (e.g. offline during install), attempt to copy from previous cache
+            let recovered = false;
+            for (const prevCache of prevCaches) {
+              const matched = await prevCache.match(url);
+              if (matched) {
+                if (isCacheable(url)) {
+                  await cache.put(url, matched).catch(() => {});
+                }
+                recovered = true;
+                break;
+              }
+            }
+            if (!recovered) {
+              console.warn(`[SW] Warning: failed to precache ${url}:`, err.message);
+            }
+          }
+        })
+      );
+
+      // Best-effort pre-caching of RSC payloads for core routes to enable seamless offline client-side transitions
+      for (const route of CORE_ROUTES) {
+        try {
+          const rscReq = new Request(`${route}?_rsc`, { headers: { 'RSC': '1' } });
+          const rscRes = await fetch(rscReq);
+          if (rscRes && rscRes.status === 200) {
+            if (isCacheable(rscReq)) await cache.put(rscReq, rscRes.clone()).catch(() => {});
+            if (isCacheable(`${route}?_rsc`)) await cache.put(`${route}?_rsc`, rscRes).catch(() => {});
+          }
+        } catch (e) {
+          // Attempt fallback from previous cache for RSC payload
+          for (const prevCache of prevCaches) {
+            const matched = await prevCache.match(`${route}?_rsc`);
+            if (matched) {
+              if (isCacheable(`${route}?_rsc`)) {
+                await cache.put(`${route}?_rsc`, matched).catch(() => {});
+              }
+              break;
+            }
+          }
+        }
+      }
     }).then(() => self.skipWaiting())
   );
 });
@@ -126,7 +204,12 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Proactive safety bypass: Never intercept/cache sync APIs, Supabase Auth/DB calls (/auth/v1/, /rest/v1/), PowerSync WebSocket/streaming connections, Next.js HMR, RSC requests, or non-GET requests
+  // 1. Protocol Guard: Immediately bypass any non-HTTP/HTTPS request (e.g. chrome-extension://, moz-extension://)
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return; // Pass-through directly without intercepting
+  }
+
+  // 2. Proactive safety bypass: Never intercept/cache sync APIs, Supabase Auth/DB calls (/auth/v1/, /rest/v1/), PowerSync WebSocket/streaming connections, Next.js HMR, or non-GET requests
   if (
     request.method !== 'GET' ||
     url.protocol === 'ws:' ||
@@ -140,21 +223,170 @@ self.addEventListener('fetch', (event) => {
     url.pathname.includes('/sync/stream') ||
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/auth/') ||
-    url.pathname.includes('webpack-hmr') ||
-    url.searchParams.has('_rsc') ||
-    request.headers.get('RSC') === '1'
+    url.pathname.includes('webpack-hmr')
   ) {
     return; // Pass-through directly without intercepting
+  }
+
+  // Handle Next.js RSC (React Server Component) client-side navigation requests
+  if (url.searchParams.has('_rsc') || request.headers.get('RSC') === '1') {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              if (isCacheable(request)) {
+                cache.put(request, responseToCache).catch(() => {});
+              }
+              if (isCacheable(`${url.pathname}?_rsc`)) {
+                cache.put(`${url.pathname}?_rsc`, responseToCache).catch(() => {});
+              }
+            });
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          console.log('[SW] RSC fetch offline, attempting cache resolution for:', url.pathname);
+          // 1. Try exact request match in cache
+          const exactMatch = await caches.match(request);
+          if (exactMatch) return exactMatch;
+
+          // 2. Try match ignoring query parameters
+          const ignoreSearchMatch = await caches.match(request, { ignoreSearch: true });
+          if (ignoreSearchMatch) return ignoreSearchMatch;
+
+          // 3. Try query-agnostic RSC payload match
+          const rscMatch = await caches.match(`${url.pathname}?_rsc`);
+          if (rscMatch) return rscMatch;
+
+          // 4. Resolve dynamic route patterns to precached RSC shells
+          if (/^\/clients\/[^/]+\/invoices\/new/.test(url.pathname)) {
+            const shellRsc = await caches.match('/clients/_shell_/invoices/new?_rsc');
+            if (shellRsc) return shellRsc;
+            const shellDoc = await caches.match('/clients/_shell_/invoices/new');
+            if (shellDoc) return shellDoc;
+          }
+          if (/^\/invoices\/[^/]+\/edit/.test(url.pathname)) {
+            const shellRsc = await caches.match('/invoices/_shell_/edit?_rsc');
+            if (shellRsc) return shellRsc;
+            const shellDoc = await caches.match('/invoices/_shell_/edit');
+            if (shellDoc) return shellDoc;
+          }
+          if (/^\/invoices\/[^/]+/.test(url.pathname)) {
+            const shellRsc = await caches.match('/invoices/_shell_?_rsc');
+            if (shellRsc) return shellRsc;
+            const shellDoc = await caches.match('/invoices/_shell_');
+            if (shellDoc) return shellDoc;
+          }
+          if (/^\/clients\//.test(url.pathname)) {
+            const shellRsc = await caches.match('/clients?_rsc');
+            if (shellRsc) return shellRsc;
+            const shellDoc = await caches.match('/clients');
+            if (shellDoc) return shellDoc;
+          }
+          if (/^\/invoices\//.test(url.pathname)) {
+            const shellRsc = await caches.match('/invoices?_rsc');
+            if (shellRsc) return shellRsc;
+            const shellDoc = await caches.match('/invoices');
+            if (shellDoc) return shellDoc;
+          }
+          if (/^\/payments/.test(url.pathname)) {
+            const shellRsc = await caches.match('/payments?_rsc');
+            if (shellRsc) return shellRsc;
+          }
+          if (/^\/settings/.test(url.pathname)) {
+            const shellRsc = await caches.match('/settings?_rsc');
+            if (shellRsc) return shellRsc;
+          }
+
+          // 5. Benign 200 OK fallback: Never return 503 or error status codes that trigger Next.js hard page reloads
+          console.log('[SW] Serving benign empty RSC 200 OK fallback for:', url.pathname);
+          return new Response('', {
+            status: 200,
+            statusText: 'OK',
+            headers: {
+              'Content-Type': 'text/x-component',
+              'x-clario-offline': '1'
+            }
+          });
+        })
+    );
+    return;
   }
 
   // Handle navigate/HTML pages
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch((err) => {
-        console.log('[SW] Navigation failed, serving root layout shell fallback:', err);
-        // Fallback to the cached index/root shell for deep route restoration offline
-        return caches.match('/');
-      })
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              if (isCacheable(request)) {
+                cache.put(request, responseToCache).catch(() => {});
+              }
+            });
+          }
+          return networkResponse;
+        })
+        .catch(async (err) => {
+          console.log('[SW] Navigation failed, serving cached route shell fallback:', err);
+          // 1. Try exact route match (e.g. /clients)
+          const exactMatch = await caches.match(request);
+          if (exactMatch) return exactMatch;
+
+          // 2. Try match ignoring query parameters
+          const ignoreSearchMatch = await caches.match(request, { ignoreSearch: true });
+          if (ignoreSearchMatch) return ignoreSearchMatch;
+
+          // 3. Try pathname without query string
+          const pathnameMatch = await caches.match(url.pathname);
+          if (pathnameMatch) return pathnameMatch;
+
+          // 4. Resolve dynamic route patterns to specific route shells
+          if (/^\/clients\/[^/]+\/invoices\/new/.test(url.pathname)) {
+            const newInvoiceShell = await caches.match('/clients/_shell_/invoices/new');
+            if (newInvoiceShell) return newInvoiceShell;
+          }
+          if (/^\/invoices\/[^/]+\/edit/.test(url.pathname)) {
+            const editInvoiceShell = await caches.match('/invoices/_shell_/edit');
+            if (editInvoiceShell) return editInvoiceShell;
+          }
+          if (/^\/invoices\/[^/]+/.test(url.pathname)) {
+            const invoiceDetailShell = await caches.match('/invoices/_shell_');
+            if (invoiceDetailShell) return invoiceDetailShell;
+          }
+          if (/^\/clients\//.test(url.pathname)) {
+            const clientsShell = await caches.match('/clients');
+            if (clientsShell) return clientsShell;
+          }
+          if (/^\/invoices\//.test(url.pathname)) {
+            const invoicesShell = await caches.match('/invoices');
+            if (invoicesShell) return invoicesShell;
+          }
+
+          // 5. Fallback to root shell ONLY for root or non-subroute paths
+          // Strict safety rule: Never return '/' (Financial Dashboard) for /clients/* or /invoices/*
+          if (!url.pathname.startsWith('/clients') && !url.pathname.startsWith('/invoices')) {
+            const rootMatch = await caches.match('/');
+            if (rootMatch) return rootMatch;
+          }
+
+          // 6. As last resort fallback, return generic /clients or / shell rather than dead 503
+          if (url.pathname.startsWith('/clients')) {
+            const clientsFallback = await caches.match('/clients');
+            if (clientsFallback) return clientsFallback;
+          }
+          if (url.pathname.startsWith('/invoices')) {
+            const invoicesFallback = await caches.match('/invoices');
+            if (invoicesFallback) return invoicesFallback;
+          }
+          const rootFallback = await caches.match('/');
+          if (rootFallback) return rootFallback;
+
+          return new Response('Offline', { status: 200, headers: { 'Content-Type': 'text/html' } });
+        })
     );
     return;
   }
@@ -177,16 +409,28 @@ self.addEventListener('fetch', (event) => {
     url.pathname.endsWith('.ttf')
   ) {
     event.respondWith(
-      caches.match(request).then((cachedResponse) => {
+      caches.match(request).then(async (cachedResponse) => {
         if (cachedResponse) {
           return cachedResponse;
+        }
+        // Fallback for percent-encoded or unencoded bracket paths (e.g. [id] vs %5Bid%5D)
+        if (url.pathname.includes('%5B') || url.pathname.includes('%5D')) {
+          const decoded = decodeURIComponent(url.pathname);
+          const decodedMatch = await caches.match(decoded);
+          if (decodedMatch) return decodedMatch;
+        } else if (url.pathname.includes('[') || url.pathname.includes(']')) {
+          const encoded = url.pathname.replace(/\[/g, '%5B').replace(/\]/g, '%5D');
+          const encodedMatch = await caches.match(encoded);
+          if (encodedMatch) return encodedMatch;
         }
         return fetch(request).then((networkResponse) => {
           // Cache successful same-origin or allowed requests
           if (networkResponse && networkResponse.status === 200) {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache);
+              if (isCacheable(request)) {
+                cache.put(request, responseToCache).catch(() => {});
+              }
             });
           }
           return networkResponse;

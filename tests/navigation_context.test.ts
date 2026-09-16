@@ -3,7 +3,8 @@ import {
   resolveInvoiceBackLink,
   resolveInvoicesListNavigation,
   buildClientDrawerInvoiceHref,
-  resolveActiveNav
+  resolveActiveNav,
+  resolveRouteParam
 } from '../src/lib/navigation';
 
 describe('Contextual Breadcrumb Navigation & Drawer Retention', () => {
@@ -210,6 +211,68 @@ describe('Contextual Breadcrumb Navigation & Drawer Retention', () => {
 
     it('returns invoices when viewing invoice detail directly without from parameter (cold boot)', () => {
       expect(resolveActiveNav('/invoices/inv-123', '')).toBe('invoices');
+    });
+  });
+
+  describe('resolveRouteParam (Offline Dynamic Route Shell Fallback)', () => {
+    it('returns route param directly when it is a valid UUID', () => {
+      const result = resolveRouteParam('client-uuid-123', 'clients');
+      expect(result).toBe('client-uuid-123');
+    });
+
+    it('returns first element when route param is an array', () => {
+      const result = resolveRouteParam(['client-uuid-456'], 'clients');
+      expect(result).toBe('client-uuid-456');
+    });
+
+    it('falls back to window pathname when param is _shell_ for /clients/[id]/invoices/new', () => {
+      const result = resolveRouteParam(
+        '_shell_',
+        'clients',
+        '/clients/8b49f979-43c2-4a0b-9304-45371c61eb60/invoices/new'
+      );
+      expect(result).toBe('8b49f979-43c2-4a0b-9304-45371c61eb60');
+    });
+
+    it('falls back to window pathname when param is undefined for /clients/[id]/invoices/new', () => {
+      const result = resolveRouteParam(
+        undefined,
+        'clients',
+        '/clients/8b49f979-43c2-4a0b-9304-45371c61eb60/invoices/new'
+      );
+      expect(result).toBe('8b49f979-43c2-4a0b-9304-45371c61eb60');
+    });
+
+    it('falls back to window pathname when param is _shell_ for /invoices/[id]', () => {
+      const result = resolveRouteParam(
+        '_shell_',
+        'invoices',
+        '/invoices/4c264a4b-97e3-46cf-a7df-dfc23630f146'
+      );
+      expect(result).toBe('4c264a4b-97e3-46cf-a7df-dfc23630f146');
+    });
+
+    it('falls back to window pathname when param is _shell_ for /invoices/[id]/edit', () => {
+      const result = resolveRouteParam(
+        '_shell_',
+        'invoices',
+        '/invoices/4c264a4b-97e3-46cf-a7df-dfc23630f146/edit'
+      );
+      expect(result).toBe('4c264a4b-97e3-46cf-a7df-dfc23630f146');
+    });
+
+    it('ignores _shell_ in pathname if pathname is the pre-rendered shell itself', () => {
+      const result = resolveRouteParam(
+        '_shell_',
+        'clients',
+        '/clients/_shell_/invoices/new'
+      );
+      expect(result).toBe('_shell_');
+    });
+
+    it('returns empty string when param is empty and pathname does not contain the target segment', () => {
+      const result = resolveRouteParam(undefined, 'clients', '/settings');
+      expect(result).toBe('');
     });
   });
 });

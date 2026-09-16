@@ -41,13 +41,17 @@ export function PWARegistration() {
       };
 
       // Handle reload when the active service worker changes (controller change)
+      // Guarded: Never reload while offline to prevent refresh loops during offline PWA sessions
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!refreshing) {
-          refreshing = true;
-          console.log('[PWA] Controller changed. Reloading page to load the new cache shell...');
-          window.location.reload();
+        if (refreshing) return;
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          console.log('[PWA] Controller changed while offline. Preserving current view without reload.');
+          return;
         }
+        refreshing = true;
+        console.log('[PWA] Controller changed while online. Reloading page to load the new cache shell...');
+        window.location.reload();
       });
 
       // Register SW after window load event is complete

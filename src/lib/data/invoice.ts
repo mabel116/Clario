@@ -28,6 +28,7 @@ async function assertNotLocked(invoiceId: string): Promise<void> {
 
 export const InvoiceRepo = {
   listForClient(clientId: string): LiveQuery<InvoiceSummary[]> {
+    const cleanClientId = (clientId || '').trim().split('?')[0].split('#')[0];
     return createLiveQuery<any, InvoiceSummary[]>(
       `SELECT 
          i.id as invoice_id, i.client_id, i.invoice_number, i.status, i.currency, i.total_minor, i.issue_date, i.due_date,
@@ -37,7 +38,7 @@ export const InvoiceRepo = {
        LEFT JOIN clients c ON c.id = i.client_id
        LEFT JOIN payment_events p ON p.invoice_id = i.id
        WHERE i.client_id = ? AND i.deleted_at IS NULL`,
-      [clientId],
+      [cleanClientId],
       (rows) => {
         // Group by invoice_id to assemble payments
         const invoiceMap = new Map<string, {
@@ -107,6 +108,15 @@ export const InvoiceRepo = {
   },
 
   get(id: string): LiveQuery<InvoiceDetail | null> {
+    const cleanId = (id || '').trim().split('?')[0].split('#')[0];
+    if (!cleanId || cleanId === '_shell_') {
+      return createLiveQuery<any, InvoiceDetail | null>(
+        `SELECT 1 WHERE 1 = 0`,
+        [],
+        () => null
+      );
+    }
+
     return createLiveQuery<any, InvoiceDetail | null>(
       `SELECT 
          i.id as invoice_id, i.user_id, i.client_id, i.invoice_number, i.status, i.currency, i.total_minor, i.issue_date, i.due_date, i.notes, i.internal_note, i.created_at, i.updated_at,
@@ -118,7 +128,7 @@ export const InvoiceRepo = {
        LEFT JOIN invoice_line_items li ON li.invoice_id = i.id AND li.deleted_at IS NULL
        LEFT JOIN payment_events p ON p.invoice_id = i.id
        WHERE i.id = ? AND i.deleted_at IS NULL`,
-      [id],
+      [cleanId],
       (rows) => {
         if (rows.length === 0) return null;
 
@@ -185,6 +195,10 @@ export const InvoiceRepo = {
         };
       }
     );
+  },
+
+  watchById(id: string): LiveQuery<InvoiceDetail | null> {
+    return this.get(id);
   },
 
   async suggestNextNumber(): Promise<string> {
@@ -462,9 +476,10 @@ export const InvoiceRepo = {
   },
 
   canEditFinancials(invoiceId: string): LiveQuery<boolean> {
+    const cleanId = (invoiceId || '').trim().split('?')[0].split('#')[0];
     return createLiveQuery<any, boolean>(
       `SELECT COUNT(*) as count FROM payment_events WHERE invoice_id = ?`,
-      [invoiceId],
+      [cleanId],
       (rows) => {
         const count = rows[0]?.count ?? 0;
         return count === 0;
@@ -495,10 +510,11 @@ export const InvoiceRepo = {
     if (!db) {
       throw new Error('Database connection not available');
     }
-    if (!id) return false;
+    const cleanId = (id || '').trim().split('?')[0].split('#')[0];
+    if (!cleanId || cleanId === '_shell_') return false;
     const result = await db.getAll<{ id: string }>(
       `SELECT id FROM invoices WHERE id = ? AND deleted_at IS NULL LIMIT 1`,
-      [id]
+      [cleanId]
     );
     return result.length > 0;
   }
