@@ -27,10 +27,10 @@ export function InvoiceDetailsSkeleton() {
         <div className="w-full sm:w-auto">
           <div className="h-5 w-36 bg-slate-800/60 rounded" />
         </div>
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
-          <div className="h-[34px] w-full sm:w-[72px] bg-slate-800/60 rounded-lg" />
-          <div className="h-[34px] w-full sm:w-[104px] bg-slate-800/60 rounded-lg" />
-          <div className="col-span-2 sm:col-span-1 h-[34px] w-full sm:w-[120px] bg-slate-800/60 rounded-lg" />
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="h-[34px] w-[72px] bg-slate-800/60 rounded-lg" />
+          <div className="h-[34px] w-[104px] bg-slate-800/60 rounded-lg" />
+          <div className="h-[34px] w-[120px] bg-slate-800/60 rounded-lg" />
         </div>
       </div>
 
@@ -317,7 +317,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
           <ArrowLeft className="h-4 w-4" /> {backLinkLabel.replace(/^←\s*/, '')}
         </Link>
 
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {!isVoid && (
             <button
               onClick={() => {
@@ -326,7 +326,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                   : `/invoices/${invoiceId}/edit`;
                 router.push(editUrl);
               }}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/40 hover:bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition w-full sm:w-auto"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/40 hover:bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition"
             >
               <Edit3 className="h-3.5 w-3.5" /> Edit
             </button>
@@ -336,13 +336,13 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
             <>
               <button
                 onClick={handleOpenMarkSent}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-3.5 py-2 text-xs font-semibold text-white transition shadow-lg shadow-indigo-600/20 w-full sm:w-auto"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-3.5 py-2 text-xs font-semibold text-white transition shadow-lg shadow-indigo-600/20"
               >
                 <Send className="h-3.5 w-3.5" /> Mark as Sent
               </button>
               <button
                 onClick={handleDelete}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-950/20 border border-red-900/40 hover:border-red-800 text-red-400 px-3.5 py-2 text-xs font-semibold transition w-full sm:w-auto"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-red-950/20 border border-red-900/40 hover:border-red-800 text-red-400 px-3.5 py-2 text-xs font-semibold transition"
               >
                 <Trash2 className="h-3.5 w-3.5" /> Delete
               </button>
@@ -352,7 +352,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
           {isSent && !isVoid && invoice.displayStatus !== 'paid' && (
             <button
               onClick={handleVoid}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 hover:text-white text-slate-400 px-3.5 py-2 text-xs font-semibold transition w-full sm:w-auto"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 hover:text-white text-slate-400 px-3.5 py-2 text-xs font-semibold transition"
             >
               <Ban className="h-3.5 w-3.5" /> Void Invoice
             </button>
@@ -362,7 +362,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
             <button
               onClick={handleDownloadPDF}
               disabled={isGeneratingPDF}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/40 hover:bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition disabled:opacity-50 col-span-2 sm:col-span-1 w-full sm:w-auto"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/40 hover:bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition disabled:opacity-50"
             >
               <Download className={`h-3.5 w-3.5 ${isGeneratingPDF ? 'animate-pulse' : ''}`} />
               {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
@@ -370,21 +370,6 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
           )}
         </div>
       </div>
-
-      {/* Editing Lock Banner */}
-      {isFinancialsLocked && (
-        <div className="w-full">
-          <div className="rounded-2xl border border-yellow-900/30 bg-yellow-950/10 p-4 flex gap-3 items-start backdrop-blur-xl">
-            <Lock className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <h4 className="text-xs font-bold text-yellow-500 uppercase tracking-wider">Financial Editing Locked</h4>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Payments have been recorded against this invoice. In order to preserve ledger integrity, numbers, dates, and line item prices are locked. Correction entries should be made via payment reversals or voiding and reissuing.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Main Details Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -519,6 +504,21 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
               </div>
             </div>
           </div>
+
+          {/* Editing Lock Banner */}
+          {isFinancialsLocked && (
+            <div className="w-full">
+              <div className="rounded-2xl border border-yellow-900/30 bg-yellow-950/10 p-4 flex gap-3 items-start backdrop-blur-xl">
+                <Lock className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <h4 className="text-xs font-bold text-yellow-500 uppercase tracking-wider">Financial Editing Locked</h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Payments have been recorded against this invoice. In order to preserve ledger integrity, numbers, dates, and line item prices are locked. Correction entries should be made via payment reversals or voiding and reissuing.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Payments ledger section (Prompt 8) */}
           <div className="rounded-3xl border border-slate-900 bg-slate-950/20 p-6 space-y-4 backdrop-blur-xl">
