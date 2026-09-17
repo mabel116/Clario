@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, usePathname } from 'next/navigation';
 import { ProtectedRoute } from '../../../../components/ProtectedRoute';
 import { AppShell } from '../../../../components/AppShell';
 import { useInvoice, useCanEditFinancials } from '../../../../lib/data/hooks';
@@ -13,7 +13,8 @@ import { ArrowUp, ArrowDown, Trash2, Plus, ArrowLeft, Lock } from 'lucide-react'
 
 export function EditInvoiceClient() {
   const params = useParams();
-  const invoiceId = resolveRouteParam(params?.id as string | undefined, 'invoices');
+  const pathname = usePathname();
+  const invoiceId = resolveRouteParam(params?.id as string | undefined, 'invoices', pathname);
 
   return (
     <ProtectedRoute>
@@ -27,7 +28,8 @@ export function EditInvoiceClient() {
 function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
   const router = useRouter();
   const params = useParams();
-  const invoiceId = propInvoiceId || resolveRouteParam(params?.id as string | undefined, 'invoices');
+  const pathname = usePathname();
+  const invoiceId = propInvoiceId || resolveRouteParam(params?.id as string | undefined, 'invoices', pathname);
 
   // Queries
   const { data: invoice, isLoading: isInvoiceLoading } = useInvoice(invoiceId);

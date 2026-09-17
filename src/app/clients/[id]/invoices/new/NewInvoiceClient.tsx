@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, usePathname } from 'next/navigation';
 import { ProtectedRoute } from '../../../../../components/ProtectedRoute';
 import { AppShell } from '../../../../../components/AppShell';
 import { useClient, useProfile } from '../../../../../lib/data/hooks';
@@ -14,7 +14,8 @@ import { ArrowUp, ArrowDown, Trash2, Plus, ArrowLeft } from 'lucide-react';
 
 export function NewInvoiceClient() {
   const params = useParams();
-  const clientId = resolveRouteParam(params?.id as string | undefined, 'clients');
+  const pathname = usePathname();
+  const clientId = resolveRouteParam(params?.id as string | undefined, 'clients', pathname);
 
   return (
     <ProtectedRoute>
@@ -28,7 +29,8 @@ export function NewInvoiceClient() {
 function NewInvoiceForm({ clientId: propClientId }: { clientId: string }) {
   const router = useRouter();
   const params = useParams();
-  const clientId = propClientId || resolveRouteParam(params?.id as string | undefined, 'clients');
+  const pathname = usePathname();
+  const clientId = propClientId || resolveRouteParam(params?.id as string | undefined, 'clients', pathname);
 
   // Queries
   const { data: client, isLoading: isClientQueryLoading } = useClient(clientId);

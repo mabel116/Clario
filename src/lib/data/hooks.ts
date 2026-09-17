@@ -10,6 +10,7 @@ import { ClientLinkRow, PaymentEventRow, ProfileRow } from '../sync/schema';
 import { ClientSummary, ClientDetail, InvoiceSummary, InvoiceDetail, PaymentWithContext, CurrencyTotal, CurrencyOutstanding } from './types';
 import { getDashboardSnapshot, saveDashboardSnapshot, clearDashboardSnapshot, DashboardSnapshot } from './snapshot';
 import { getAuthSession } from '../auth/client';
+import { db } from '../sync/db';
 
 // Generic LiveQuery React subscriber hook
 function useLiveQuery<T>(liveQuery: LiveQuery<T> | null | undefined, name?: string): { data: T | undefined; isLoading: boolean } {
@@ -167,10 +168,13 @@ export function useDashboard(periodDays = 30, defaultCurrency = 'USD'): {
             liveData.recentPayments.length > 0;
 
           if (hasData) {
-            saveDashboardSnapshot({
+            const effectiveTime = db?.currentStatus?.lastSyncedAt
+              ? db.currentStatus.lastSyncedAt.getTime()
+              : Date.now();
+            const snapshotData: DashboardSnapshot = {
               userId,
               periodDays,
-              timestamp: Date.now(),
+              timestamp: effectiveTime,
               defaultCurrency: liveData.defaultCurrency,
               outstanding: liveData.outstanding,
               earnings: liveData.earnings,
@@ -184,9 +188,12 @@ export function useDashboard(periodDays = 30, defaultCurrency = 'USD'): {
                   ...liveData.recentPayments.map((p) => p.currency.toUpperCase())
                 ])
               )
-            });
+            };
+            saveDashboardSnapshot(snapshotData);
+            setCachedSnapshot(snapshotData);
           } else {
             clearDashboardSnapshot(userId);
+            setCachedSnapshot(null);
           }
         }
       });
@@ -204,11 +211,15 @@ export function useDashboard(periodDays = 30, defaultCurrency = 'USD'): {
     defaultCurrency: cachedSnapshot.defaultCurrency || defaultCurrency.toUpperCase()
   } : undefined);
 
+  const effectiveCachedAt = db?.currentStatus?.lastSyncedAt
+    ? db.currentStatus.lastSyncedAt.getTime()
+    : cachedSnapshot?.timestamp;
+
   return {
     data,
     isLoading,
     isCached,
-    cachedAt: cachedSnapshot?.timestamp
+    cachedAt: effectiveCachedAt
   };
 }
 

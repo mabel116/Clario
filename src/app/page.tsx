@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { AppShell } from '../components/AppShell';
 import { useDashboard, useClients, useProfile } from '../lib/data/hooks';
 import { DashboardRepo } from '../lib/data/dashboard';
 import { useDataReady } from '../lib/data/readiness';
+import { useSyncStatus } from '../lib/sync/hooks';
 import { formatMoney } from '../lib/money';
 import { 
   LayoutDashboard, Receipt, Landmark, 
@@ -170,6 +171,36 @@ function DashboardView() {
     return `${Math.floor(hours / 24)}d ago`;
   };
 
+  const { lastSyncedAt } = useSyncStatus();
+  const effectiveTimestamp = lastSyncedAt ? lastSyncedAt.getTime() : cachedAt;
+  const [cachedAgoText, setCachedAgoText] = useState(() => formatCachedAgo(effectiveTimestamp));
+
+  useEffect(() => {
+    const updateTime = () => {
+      setCachedAgoText(formatCachedAgo(effectiveTimestamp));
+    };
+    updateTime();
+
+    const interval = setInterval(updateTime, 10000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        updateTime();
+      }
+    };
+    const onFocus = () => {
+      updateTime();
+    };
+
+    window.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [effectiveTimestamp]);
+
   return (
     <div className="space-y-8 animate-fade-in text-left">
       
@@ -185,7 +216,7 @@ function DashboardView() {
             {isCached && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 transition-opacity duration-300 animate-fade-in">
                 <Clock className="w-3 h-3 text-amber-400 shrink-0" />
-                Showing snapshot from {formatCachedAgo(cachedAt)}
+                Showing snapshot from {cachedAgoText}
               </span>
             )}
           </div>

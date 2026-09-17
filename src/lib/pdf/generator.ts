@@ -5,6 +5,7 @@ interface GeneratePDFParams {
   invoice: InvoiceDetail;
   profile: ProfileRow;
   client: ClientDetail;
+  mode?: 'download' | 'share';
 }
 
 /**
@@ -20,9 +21,9 @@ export function sanitizeFilename(name: string): string {
 
 /**
  * Dynamically lazy-loads @react-pdf/renderer and generates an invoice PDF.
- * Triggers a device share sheet on supported mobile environments, falling back to download.
+ * Downloads the document directly to the filesystem, or triggers device share when mode === 'share'.
  */
-export async function generateInvoicePDF({ invoice, profile, client }: GeneratePDFParams): Promise<void> {
+export async function generateInvoicePDF({ invoice, profile, client, mode = 'download' }: GeneratePDFParams): Promise<void> {
   // 1. Dynamic imports to avoid bundling libraries in the main chunk
   const { pdf } = await import('@react-pdf/renderer');
   const { InvoicePDFDocument } = await import('../../components/InvoicePDFDocument');
@@ -41,12 +42,12 @@ export async function generateInvoicePDF({ invoice, profile, client }: GenerateP
       throw new Error('Generated PDF blob is empty');
     }
 
-    // 4. Mobile share check
+    // 4. Mobile share check (reserved strictly for explicit share mode)
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
       typeof navigator !== 'undefined' ? navigator.userAgent : ''
     );
 
-    if (isMobile && typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
+    if (mode === 'share' && isMobile && typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
       const file = new File([blob], filename, { type: 'application/pdf' });
       if (navigator.canShare({ files: [file] })) {
         await navigator.share({
@@ -58,7 +59,7 @@ export async function generateInvoicePDF({ invoice, profile, client }: GenerateP
       }
     }
 
-    // 5. Desktop/Standard anchor download fallback
+    // 5. Direct programmatic anchor download
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;

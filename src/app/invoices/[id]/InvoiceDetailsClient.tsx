@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams, usePathname } from 'next/navigation';
 import { ProtectedRoute } from '../../../components/ProtectedRoute';
 import { AppShell } from '../../../components/AppShell';
 import { useInvoice, useCanEditFinancials, usePaymentsForInvoice, useClient, useProfile } from '../../../lib/data/hooks';
@@ -21,7 +21,8 @@ import { resolveInvoiceBackLink, resolveRouteParam } from '../../../lib/navigati
 
 export function InvoiceDetailsClient() {
   const params = useParams();
-  const invoiceId = resolveRouteParam(params?.id as string | undefined, 'invoices');
+  const pathname = usePathname();
+  const invoiceId = resolveRouteParam(params?.id as string | undefined, 'invoices', pathname);
 
   return (
     <ProtectedRoute>
@@ -42,7 +43,8 @@ export function InvoiceDetailsClient() {
 function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
   const router = useRouter();
   const params = useParams();
-  const invoiceId = propInvoiceId || resolveRouteParam(params?.id as string | undefined, 'invoices');
+  const pathname = usePathname();
+  const invoiceId = propInvoiceId || resolveRouteParam(params?.id as string | undefined, 'invoices', pathname);
   const searchParams = useSearchParams();
   const fromParam = searchParams?.get('from') || null;
 
@@ -72,7 +74,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
     try {
       setIsGeneratingPDF(true);
       const { generateInvoicePDF } = await import('../../../lib/pdf/generator');
-      await generateInvoicePDF({ invoice, profile, client });
+      await generateInvoicePDF({ invoice, profile, client, mode: 'download' });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to generate PDF document.';
       alert(message);

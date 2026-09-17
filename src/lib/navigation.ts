@@ -140,25 +140,25 @@ export function resolveActiveNav(pathname: string, searchParamsString: string): 
 }
 
 /**
- * Resolves an entity ID from Next.js route params or falls back to window.location.pathname
+ * Resolves an entity ID from Next.js route params or falls back to currentPathname / window.location.pathname
  * when the page was loaded offline via a static shell (e.g. /clients/_shell_/invoices/new).
  */
 export function resolveRouteParam(
   rawParam: string | string[] | undefined,
   segment: 'clients' | 'invoices',
-  customPathname?: string
+  currentPathname?: string
 ): string {
   const paramVal = Array.isArray(rawParam) ? rawParam[0] : rawParam;
   if (paramVal && paramVal !== '_shell_') {
-    return paramVal;
+    return paramVal.split('?')[0].split('#')[0];
   }
-  const pathname = customPathname ?? (typeof window !== 'undefined' ? window.location.pathname : '');
+  const pathname = currentPathname ?? (typeof window !== 'undefined' ? window.location.pathname : '');
   if (pathname) {
     const parts = pathname.split('/').filter(Boolean);
     const idx = parts.indexOf(segment);
     if (idx !== -1 && parts[idx + 1] && parts[idx + 1] !== '_shell_') {
-      return parts[idx + 1];
+      return parts[idx + 1].split('?')[0].split('#')[0];
     }
   }
-  return paramVal || '';
+  return paramVal ? paramVal.split('?')[0].split('#')[0] : '';
 }
