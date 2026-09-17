@@ -188,6 +188,7 @@ export const InvoiceRepo = {
         return {
           ...invoiceRow,
           lineItems,
+          payments,
           displayStatus: derived.displayStatus,
           amountPaidMinor: derived.amountPaid,
           balanceDueMinor: derived.balanceDue,

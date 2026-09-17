@@ -19,6 +19,92 @@ import {
 import { PaymentEventRow } from '../../../lib/sync/schema';
 import { resolveInvoiceBackLink, resolveRouteParam } from '../../../lib/navigation';
 
+export function InvoiceDetailsSkeleton() {
+  return (
+    <div className="space-y-6 font-sans animate-pulse">
+      {/* Header breadcrumb & quick actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="h-5 w-32 bg-slate-800/60 rounded" />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="h-8 w-16 bg-slate-800/60 rounded-lg" />
+          <div className="h-8 w-24 bg-slate-800/60 rounded-lg" />
+          <div className="h-8 w-28 bg-slate-800/60 rounded-lg" />
+        </div>
+      </div>
+
+      {/* Main Details Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column: Invoice Header Details & Line Items */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="rounded-3xl border border-slate-900 bg-slate-950/20 p-6 space-y-6 backdrop-blur-xl">
+            {/* Title & Metadata */}
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pb-6 border-b border-slate-900/60">
+              <div className="space-y-2">
+                <div className="h-3 w-24 bg-slate-800/60 rounded" />
+                <div className="h-8 w-40 bg-slate-800/60 rounded" />
+              </div>
+              <div className="h-6 w-16 bg-slate-800/60 rounded-lg" />
+            </div>
+
+            {/* Dates / Client */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <div className="h-3 w-16 bg-slate-800/60 rounded" />
+                <div className="h-5 w-36 bg-slate-800/60 rounded" />
+              </div>
+              <div className="space-y-3">
+                <div className="h-3 w-16 bg-slate-800/60 rounded" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="h-4 w-20 bg-slate-800/60 rounded" />
+                  <div className="h-4 w-20 bg-slate-800/60 rounded" />
+                </div>
+              </div>
+            </div>
+
+            {/* Line Items */}
+            <div className="space-y-4 pt-4">
+              <div className="h-3 w-20 bg-slate-800/60 rounded" />
+              <div className="space-y-2">
+                <div className="h-16 w-full bg-slate-900/40 rounded-xl" />
+                <div className="h-16 w-full bg-slate-900/40 rounded-xl" />
+              </div>
+            </div>
+
+            {/* Invoices Notes section */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-slate-900/60">
+              <div className="space-y-2">
+                <div className="h-3 w-24 bg-slate-800/60 rounded" />
+                <div className="h-10 w-full bg-slate-900/40 rounded" />
+              </div>
+              <div className="space-y-2 bg-slate-950/40 p-4 rounded-2xl border border-slate-900">
+                <div className="h-3 w-24 bg-slate-800/60 rounded" />
+                <div className="h-10 w-full bg-slate-900/40 rounded" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Ledger Summary & Payments Shell */}
+        <div className="space-y-6">
+          <div className="rounded-3xl border border-slate-900 bg-slate-950/20 p-6 space-y-4 shadow-xl">
+            <div className="h-4 w-36 bg-slate-800/60 rounded" />
+            <div className="space-y-3 pt-2">
+              <div className="h-7 w-full bg-slate-900/40 rounded" />
+              <div className="h-7 w-full bg-slate-900/40 rounded" />
+              <div className="h-9 w-full bg-slate-900/40 rounded" />
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-900 bg-slate-950/20 p-6 space-y-4 backdrop-blur-xl">
+            <div className="h-4 w-32 bg-slate-800/60 rounded" />
+            <div className="h-16 w-full bg-slate-900/40 rounded-xl" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function InvoiceDetailsClient() {
   const params = useParams();
   const pathname = usePathname();
@@ -27,12 +113,7 @@ export function InvoiceDetailsClient() {
   return (
     <ProtectedRoute>
       <AppShell>
-        <Suspense fallback={
-          <div className="py-20 flex flex-col items-center justify-center text-slate-500 gap-3">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-            <p className="text-sm font-semibold">Loading invoice details...</p>
-          </div>
-        }>
+        <Suspense fallback={<InvoiceDetailsSkeleton />}>
           <InvoiceDetails invoiceId={invoiceId} />
         </Suspense>
       </AppShell>
@@ -170,20 +251,25 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
     }
   };
 
+  // Synchronously derive financial editability with secondary fallback
+  const isFinancialsLocked = useMemo(() => {
+    if (invoice?.payments && invoice.payments.length > 0) return true;
+    if (invoice?.status === 'void') return true;
+    if (canEditFinancials === false) return true;
+    return false;
+  }, [invoice?.payments, invoice?.status, canEditFinancials]);
+
   const isDetailsLoading = !isNotFound && (
     !invoiceId ||
     invoiceId === '_shell_' ||
     isEntityLoading ||
     isInvoiceLoading ||
-    !invoice
+    !invoice ||
+    canEditFinancials === undefined
   );
 
   if (isDetailsLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[300px]">
-        <div className="animate-pulse text-slate-400">Loading invoice details...</div>
-      </div>
-    );
+    return <InvoiceDetailsSkeleton />;
   }
 
   if (isNotFound || !invoice) {
@@ -280,14 +366,16 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
       </div>
 
       {/* Editing Lock Banner */}
-      {canEditFinancials === false && (
-        <div className="rounded-2xl border border-yellow-900/30 bg-yellow-950/10 p-4 flex gap-3 items-start backdrop-blur-xl animate-fade-in">
-          <Lock className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <h4 className="text-xs font-bold text-yellow-500 uppercase tracking-wider">Financial Editing Locked</h4>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Payments have been recorded against this invoice. In order to preserve ledger integrity, numbers, dates, and line item prices are locked. Correction entries should be made via payment reversals or voiding and reissuing.
-            </p>
+      {isFinancialsLocked && (
+        <div className="transition-all duration-150">
+          <div className="rounded-2xl border border-yellow-900/30 bg-yellow-950/10 p-4 flex gap-3 items-start backdrop-blur-xl animate-fade-in">
+            <Lock className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h4 className="text-xs font-bold text-yellow-500 uppercase tracking-wider">Financial Editing Locked</h4>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Payments have been recorded against this invoice. In order to preserve ledger integrity, numbers, dates, and line item prices are locked. Correction entries should be made via payment reversals or voiding and reissuing.
+              </p>
+            </div>
           </div>
         </div>
       )}

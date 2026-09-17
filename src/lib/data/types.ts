@@ -43,6 +43,7 @@ export interface InvoiceDetail extends InvoiceRow {
   amountPaidMinor: number;
   balanceDueMinor: number;
   client_name?: string;
+  payments?: { amount_minor: number; currency: string; reverses_id?: string | null }[];
 }
 
 // Input models

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useRouter, useParams, usePathname } from 'next/navigation';
 import { ProtectedRoute } from '../../../../../components/ProtectedRoute';
 import { AppShell } from '../../../../../components/AppShell';
@@ -12,6 +12,49 @@ import { formatMoney, parseMoneyInput, multiplyMinor } from '../../../../../lib/
 import { resolveRouteParam } from '../../../../../lib/navigation';
 import { ArrowUp, ArrowDown, Trash2, Plus, ArrowLeft } from 'lucide-react';
 
+export function NewInvoiceSkeleton() {
+  return (
+    <div className="space-y-6 font-sans animate-pulse">
+      {/* Header breadcrumb */}
+      <div className="flex items-center justify-between">
+        <div className="h-5 w-32 bg-slate-800/60 rounded" />
+        <div className="text-right space-y-1">
+          <div className="h-3 w-20 bg-slate-800/60 rounded ml-auto" />
+          <div className="h-4 w-32 bg-slate-800/60 rounded ml-auto" />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="h-8 w-44 bg-slate-800/60 rounded" />
+        <div className="h-4 w-64 bg-slate-800/60 rounded" />
+      </div>
+
+      <div className="space-y-8 max-w-4xl">
+        {/* Header fields card */}
+        <div className="rounded-3xl border border-slate-900 bg-slate-950/20 p-6 space-y-4 backdrop-blur-xl">
+          <div className="h-4 w-28 bg-slate-800/60 rounded" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="h-10 w-full bg-slate-900/40 rounded-lg" />
+            <div className="h-10 w-full bg-slate-900/40 rounded-lg" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="h-10 w-full bg-slate-900/40 rounded-lg" />
+              <div className="h-10 w-full bg-slate-900/40 rounded-lg" />
+            </div>
+          </div>
+        </div>
+
+        {/* Line items card */}
+        <div className="rounded-3xl border border-slate-900 bg-slate-950/20 p-6 space-y-4 backdrop-blur-xl">
+          <div className="h-4 w-28 bg-slate-800/60 rounded" />
+          <div className="space-y-3">
+            <div className="h-14 w-full bg-slate-900/40 rounded-xl" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function NewInvoiceClient() {
   const params = useParams();
   const pathname = usePathname();
@@ -20,7 +63,9 @@ export function NewInvoiceClient() {
   return (
     <ProtectedRoute>
       <AppShell>
-        <NewInvoiceForm clientId={clientId} />
+        <Suspense fallback={<NewInvoiceSkeleton />}>
+          <NewInvoiceForm clientId={clientId} />
+        </Suspense>
       </AppShell>
     </ProtectedRoute>
   );
@@ -224,11 +269,7 @@ function NewInvoiceForm({ clientId: propClientId }: { clientId: string }) {
   );
 
   if (isFormLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[300px]">
-        <div className="animate-pulse text-slate-400">Loading client profile details...</div>
-      </div>
-    );
+    return <NewInvoiceSkeleton />;
   }
 
   if (isClientNotFound || !client) {

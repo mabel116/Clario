@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useRouter, useParams, usePathname } from 'next/navigation';
 import { ProtectedRoute } from '../../../../components/ProtectedRoute';
 import { AppShell } from '../../../../components/AppShell';
@@ -11,6 +11,50 @@ import { formatMoney, parseMoneyInput, multiplyMinor } from '../../../../lib/mon
 import { resolveRouteParam } from '../../../../lib/navigation';
 import { ArrowUp, ArrowDown, Trash2, Plus, ArrowLeft, Lock } from 'lucide-react';
 
+export function EditInvoiceSkeleton() {
+  return (
+    <div className="space-y-6 font-sans animate-pulse">
+      {/* Header breadcrumb */}
+      <div className="flex items-center justify-between">
+        <div className="h-5 w-32 bg-slate-800/60 rounded" />
+        <div className="text-right space-y-1">
+          <div className="h-3 w-20 bg-slate-800/60 rounded ml-auto" />
+          <div className="h-4 w-32 bg-slate-800/60 rounded ml-auto" />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="h-8 w-44 bg-slate-800/60 rounded" />
+        <div className="h-4 w-64 bg-slate-800/60 rounded" />
+      </div>
+
+      <div className="space-y-8 max-w-4xl">
+        {/* Header fields card */}
+        <div className="rounded-3xl border border-slate-900 bg-slate-950/20 p-6 space-y-4 backdrop-blur-xl">
+          <div className="h-4 w-28 bg-slate-800/60 rounded" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="h-10 w-full bg-slate-900/40 rounded-lg" />
+            <div className="h-10 w-full bg-slate-900/40 rounded-lg" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="h-10 w-full bg-slate-900/40 rounded-lg" />
+              <div className="h-10 w-full bg-slate-900/40 rounded-lg" />
+            </div>
+          </div>
+        </div>
+
+        {/* Line items card */}
+        <div className="rounded-3xl border border-slate-900 bg-slate-950/20 p-6 space-y-4 backdrop-blur-xl">
+          <div className="h-4 w-28 bg-slate-800/60 rounded" />
+          <div className="space-y-3">
+            <div className="h-14 w-full bg-slate-900/40 rounded-xl" />
+            <div className="h-14 w-full bg-slate-900/40 rounded-xl" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function EditInvoiceClient() {
   const params = useParams();
   const pathname = usePathname();
@@ -19,7 +63,9 @@ export function EditInvoiceClient() {
   return (
     <ProtectedRoute>
       <AppShell>
-        <EditInvoiceForm invoiceId={invoiceId} />
+        <Suspense fallback={<EditInvoiceSkeleton />}>
+          <EditInvoiceForm invoiceId={invoiceId} />
+        </Suspense>
       </AppShell>
     </ProtectedRoute>
   );
@@ -108,9 +154,17 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
     };
   }, [lineItems, currency]);
 
+  // Synchronously derive financial editability with secondary fallback
+  const isLocked = useMemo(() => {
+    if (invoice?.payments && invoice.payments.length > 0) return true;
+    if (invoice?.status === 'void') return true;
+    if (canEditFinancials === false) return true;
+    return false;
+  }, [invoice?.payments, invoice?.status, canEditFinancials]);
+
   // Line item handlers
   const handleAddLineItem = () => {
-    if (canEditFinancials === false) return; // Locked
+    if (isLocked) return; // Locked
     setLineItems([
       ...lineItems,
       { id: crypto.randomUUID(), description: '', quantity: 1, unitPrice: '' }
@@ -118,7 +172,7 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
   };
 
   const handleRemoveLineItem = (id: string) => {
-    if (canEditFinancials === false) return; // Locked
+    if (isLocked) return; // Locked
     if (lineItems.length === 1) {
       alert('An invoice must have at least one line item.');
       return;
@@ -127,7 +181,7 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
   };
 
   const handleUpdateLineItem = (id: string, field: 'description' | 'quantity' | 'unitPrice', value: any) => {
-    if (canEditFinancials === false) return; // Locked
+    if (isLocked) return; // Locked
     setLineItems(lineItems.map((item) => {
       if (item.id !== id) return item;
       return {
@@ -138,7 +192,7 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
   };
 
   const handleMoveLineItem = (index: number, direction: 'up' | 'down') => {
-    if (canEditFinancials === false) return; // Locked
+    if (isLocked) return; // Locked
     const nextIndex = direction === 'up' ? index - 1 : index + 1;
     if (nextIndex < 0 || nextIndex >= lineItems.length) return;
 
@@ -161,7 +215,7 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
     }
 
     // Validate line items if financials are editable
-    if (canEditFinancials !== false) {
+    if (!isLocked) {
       for (let i = 0; i < lineItems.length; i++) {
         const item = lineItems[i];
         if (!item.description.trim()) {
@@ -195,7 +249,7 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
         due_date: dueDate || null
       };
 
-      if (canEditFinancials !== false) {
+      if (!isLocked) {
         patchPayload.invoice_number = invoiceNumber;
         patchPayload.issue_date = issueDate || null;
         patchPayload.notes = notes || null;
@@ -204,7 +258,7 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
       await InvoiceRepo.update(invoiceId, patchPayload);
 
       // 2. Set line items (if financials are editable)
-      if (canEditFinancials !== false) {
+      if (!isLocked) {
         const itemsPayload = lineItems.map((item) => {
           const parsedPrice = parseMoneyInput(item.unitPrice, currency);
           return {
@@ -236,11 +290,7 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
   );
 
   if (isFormLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[300px]">
-        <div className="animate-pulse text-slate-400">Loading invoice details...</div>
-      </div>
-    );
+    return <EditInvoiceSkeleton />;
   }
 
   if (isNotFound || !invoice) {
@@ -253,8 +303,6 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
       </div>
     );
   }
-
-  const isLocked = canEditFinancials === false;
 
   return (
     <div className="space-y-6">
@@ -279,13 +327,15 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
 
       {/* Editing Lock Banner */}
       {isLocked && (
-        <div className="rounded-2xl border border-yellow-900/30 bg-yellow-950/10 p-4 flex gap-3 items-start backdrop-blur-xl animate-fade-in max-w-4xl">
-          <Lock className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <h4 className="text-xs font-bold text-yellow-500 uppercase tracking-wider">Financial Fields Locked</h4>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Payments have been recorded against this invoice. In order to preserve ledger integrity, numbers, dates, and line item prices are locked. Only due date and internal notes remain editable.
-            </p>
+        <div className="transition-all duration-150 max-w-4xl">
+          <div className="rounded-2xl border border-yellow-900/30 bg-yellow-950/10 p-4 flex gap-3 items-start backdrop-blur-xl animate-fade-in">
+            <Lock className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h4 className="text-xs font-bold text-yellow-500 uppercase tracking-wider">Financial Fields Locked</h4>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Payments have been recorded against this invoice. In order to preserve ledger integrity, numbers, dates, and line item prices are locked. Only due date and internal notes remain editable.
+              </p>
+            </div>
           </div>
         </div>
       )}
