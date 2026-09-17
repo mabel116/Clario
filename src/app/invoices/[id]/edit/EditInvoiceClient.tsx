@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
-import { useRouter, useParams, usePathname } from 'next/navigation';
+import { useRouter, useParams, usePathname, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '../../../../components/ProtectedRoute';
 import { AppShell } from '../../../../components/AppShell';
 import { useInvoice, useCanEditFinancials } from '../../../../lib/data/hooks';
@@ -13,7 +13,7 @@ import { ArrowUp, ArrowDown, Trash2, Plus, ArrowLeft, Lock } from 'lucide-react'
 
 export function EditInvoiceSkeleton() {
   return (
-    <div className="space-y-6 font-sans animate-pulse">
+    <div className="space-y-6 font-sans animate-pulse transition-opacity duration-150">
       {/* Header breadcrumb */}
       <div className="flex items-center justify-between">
         <div className="h-5 w-32 bg-slate-800/60 rounded" />
@@ -75,7 +75,13 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const fromParam = searchParams?.get('from') || null;
   const invoiceId = propInvoiceId || resolveRouteParam(params?.id as string | undefined, 'invoices', pathname);
+
+  const backUrl = fromParam
+    ? `/invoices/${invoiceId}?from=${encodeURIComponent(fromParam)}`
+    : `/invoices/${invoiceId}`;
 
   // Queries
   const { data: invoice, isLoading: isInvoiceLoading } = useInvoice(invoiceId);
@@ -272,7 +278,7 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
       }
 
       // 3. Redirect back to invoice details
-      router.push(`/invoices/${invoiceId}`);
+      router.push(backUrl);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to update invoice.';
       alert(message);
@@ -305,11 +311,11 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 transition-opacity duration-150">
       {/* Header breadcrumb */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => router.push(`/invoices/${invoiceId}`)}
+          onClick={() => router.push(backUrl)}
           className="inline-flex items-center gap-1 text-slate-400 hover:text-white transition text-sm"
         >
           <ArrowLeft className="h-4 w-4" /> Back to Invoice

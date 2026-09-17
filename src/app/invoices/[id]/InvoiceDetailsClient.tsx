@@ -19,18 +19,34 @@ import {
 import { PaymentEventRow } from '../../../lib/sync/schema';
 import { resolveInvoiceBackLink, resolveRouteParam } from '../../../lib/navigation';
 
-export function InvoiceDetailsSkeleton() {
+export function InvoiceDetailsSkeleton({ isLocked = false }: { isLocked?: boolean } = {}) {
   return (
-    <div className="space-y-6 font-sans animate-pulse">
+    <div className="space-y-6 font-sans animate-pulse transition-opacity duration-150">
       {/* Header breadcrumb & quick actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="h-5 w-32 bg-slate-800/60 rounded" />
+        <div className="w-full sm:w-auto">
+          <div className="h-5 w-36 bg-slate-800/60 rounded" />
+        </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="h-8 w-16 bg-slate-800/60 rounded-lg" />
-          <div className="h-8 w-24 bg-slate-800/60 rounded-lg" />
-          <div className="h-8 w-28 bg-slate-800/60 rounded-lg" />
+          <div className="h-[34px] w-[72px] bg-slate-800/60 rounded-lg" />
+          <div className="h-[34px] w-[104px] bg-slate-800/60 rounded-lg" />
+          <div className="h-[34px] w-[120px] bg-slate-800/60 rounded-lg" />
         </div>
       </div>
+
+      {/* Editing Lock Banner Placeholder */}
+      {isLocked && (
+        <div className="transition-all duration-150">
+          <div className="rounded-2xl border border-yellow-900/20 bg-yellow-950/10 p-4 flex gap-3 items-start backdrop-blur-xl">
+            <div className="h-5 w-5 bg-yellow-500/20 rounded shrink-0 mt-0.5" />
+            <div className="space-y-1.5 flex-1">
+              <div className="h-3 w-36 bg-yellow-500/20 rounded" />
+              <div className="h-3 w-full bg-slate-800/40 rounded" />
+              <div className="h-3 w-3/4 bg-slate-800/40 rounded" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Details Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -142,8 +158,8 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
 
   // Contextual back-link destination and label
   const { backLinkHref, backLinkLabel } = useMemo(
-    () => resolveInvoiceBackLink(fromParam, client?.name),
-    [fromParam, client?.name]
+    () => resolveInvoiceBackLink(fromParam, client?.name, invoice?.client_id),
+    [fromParam, client?.name, invoice?.client_id]
   );
 
   // PDF Generation State
@@ -264,12 +280,11 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
     invoiceId === '_shell_' ||
     isEntityLoading ||
     isInvoiceLoading ||
-    !invoice ||
-    canEditFinancials === undefined
+    !invoice
   );
 
   if (isDetailsLoading) {
-    return <InvoiceDetailsSkeleton />;
+    return <InvoiceDetailsSkeleton isLocked={isFinancialsLocked} />;
   }
 
   if (isNotFound || !invoice) {
@@ -305,7 +320,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
   const isSent = invoice.displayStatus !== 'draft' && invoice.displayStatus !== 'void';
 
   return (
-    <div className="space-y-6 font-sans">
+    <div className="space-y-6 font-sans transition-opacity duration-150">
       {/* Header breadcrumb & quick actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <Link
@@ -319,7 +334,12 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
         <div className="flex flex-wrap items-center gap-2">
           {!isVoid && (
             <button
-              onClick={() => router.push(`/invoices/${invoiceId}/edit`)}
+              onClick={() => {
+                const editUrl = fromParam
+                  ? `/invoices/${invoiceId}/edit?from=${encodeURIComponent(fromParam)}`
+                  : `/invoices/${invoiceId}/edit`;
+                router.push(editUrl);
+              }}
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/40 hover:bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition"
             >
               <Edit3 className="h-3.5 w-3.5" /> Edit

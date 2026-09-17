@@ -99,6 +99,24 @@ describe('Contextual Breadcrumb Navigation & Drawer Retention', () => {
         backLinkLabel: '← Back to Invoices'
       });
     });
+
+    it('handles percent-encoded from parameter safely', () => {
+      expect(resolveInvoiceBackLink(encodeURIComponent('/clients?id=client-abc-123'), 'Acme Studios')).toEqual({
+        backLinkHref: '/clients?id=client-abc-123',
+        backLinkLabel: '← Back to Acme Studios'
+      });
+    });
+
+    it('falls back to client drawer when fromParam is absent but clientId is provided', () => {
+      expect(resolveInvoiceBackLink(null, 'Acme Studios', 'client-xyz-789')).toEqual({
+        backLinkHref: '/clients?id=client-xyz-789',
+        backLinkLabel: '← Back to Acme Studios'
+      });
+      expect(resolveInvoiceBackLink(undefined, null, 'client-xyz-789')).toEqual({
+        backLinkHref: '/clients?id=client-xyz-789',
+        backLinkLabel: '← Back to Client'
+      });
+    });
   });
 
   describe('resolveInvoicesListNavigation', () => {

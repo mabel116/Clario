@@ -14,66 +14,85 @@ export type NavItem = 'dashboard' | 'invoices' | 'clients' | 'payments' | 'setti
  */
 export function resolveInvoiceBackLink(
   fromParam: string | null | undefined,
-  clientName?: string | null
+  clientName?: string | null,
+  clientId?: string | null
 ): InvoiceBackLink {
   if (fromParam) {
-    if (fromParam.startsWith('/clients?id=')) {
+    let cleanParam = fromParam;
+    try {
+      if (cleanParam.includes('%')) {
+        cleanParam = decodeURIComponent(cleanParam);
+      }
+    } catch {
+      // Ignore decoding errors and fallback to raw param
+    }
+
+    if (cleanParam.startsWith('/clients?id=')) {
       return {
-        backLinkHref: fromParam,
+        backLinkHref: cleanParam,
         backLinkLabel: clientName ? `← Back to ${clientName}` : '← Back to Client'
       };
     }
-    if (fromParam.startsWith('/clients')) {
+    if (cleanParam.startsWith('/clients')) {
       return {
-        backLinkHref: fromParam,
+        backLinkHref: cleanParam,
         backLinkLabel: '← Back to Clients'
       };
     }
-    if (fromParam.startsWith('/payments')) {
+    if (cleanParam.startsWith('/payments')) {
       return {
-        backLinkHref: fromParam,
+        backLinkHref: cleanParam,
         backLinkLabel: '← Back to Payments'
       };
     }
-    if (fromParam.startsWith('/invoices')) {
-      const qIndex = fromParam.indexOf('?');
+    if (cleanParam.startsWith('/invoices')) {
+      const qIndex = cleanParam.indexOf('?');
       if (qIndex !== -1) {
-        const query = fromParam.slice(qIndex + 1);
+        const query = cleanParam.slice(qIndex + 1);
         const sp = new URLSearchParams(query);
         const currency = sp.get('currency')?.trim().toUpperCase();
         const status = sp.get('status')?.trim().toLowerCase();
 
         if (status === 'outstanding' && currency) {
           return {
-            backLinkHref: fromParam,
+            backLinkHref: cleanParam,
             backLinkLabel: `← Back to ${currency} Outstanding Invoices`
           };
         }
         if (currency) {
           return {
-            backLinkHref: fromParam,
+            backLinkHref: cleanParam,
             backLinkLabel: `← Back to ${currency} Invoices`
           };
         }
         if (status === 'outstanding') {
           return {
-            backLinkHref: fromParam,
+            backLinkHref: cleanParam,
             backLinkLabel: '← Back to Outstanding Invoices'
           };
         }
       }
       return {
-        backLinkHref: fromParam,
+        backLinkHref: cleanParam,
         backLinkLabel: '← Back to Invoices'
       };
     }
-    if (fromParam === '/') {
+    if (cleanParam === '/') {
       return {
         backLinkHref: '/',
         backLinkLabel: '← Back to Dashboard'
       };
     }
   }
+
+  // Fallback: If fromParam is absent or unrecognized, check for associated clientId
+  if (clientId) {
+    return {
+      backLinkHref: `/clients?id=${clientId}`,
+      backLinkLabel: clientName ? `← Back to ${clientName}` : '← Back to Client'
+    };
+  }
+
   return {
     backLinkHref: '/invoices',
     backLinkLabel: '← Back to Invoices'
