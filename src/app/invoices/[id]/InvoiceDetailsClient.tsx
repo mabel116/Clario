@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams, useSearchParams, usePathname } from 'next/navigation';
 import { ProtectedRoute } from '../../../components/ProtectedRoute';
@@ -269,7 +269,23 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
     !invoice
   );
 
+  const [showSkeleton, setShowSkeleton] = useState(false);
+
+  useEffect(() => {
+    if (!isDetailsLoading) {
+      setShowSkeleton(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setShowSkeleton(true);
+    }, 75);
+    return () => clearTimeout(timer);
+  }, [isDetailsLoading]);
+
   if (isDetailsLoading) {
+    if (!showSkeleton) {
+      return <div className="min-h-[600px] opacity-0" aria-busy="true" />;
+    }
     return <InvoiceDetailsSkeleton />;
   }
 
@@ -370,6 +386,21 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
           )}
         </div>
       </div>
+
+      {/* Editing Lock Banner */}
+      {isFinancialsLocked && (
+        <div className="w-full">
+          <div className="rounded-2xl border border-yellow-900/30 bg-yellow-950/10 p-4 flex gap-3 items-start backdrop-blur-xl">
+            <Lock className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h4 className="text-xs font-bold text-yellow-500 uppercase tracking-wider">Financial Editing Locked</h4>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Payments have been recorded against this invoice. In order to preserve ledger integrity, numbers, dates, and line item prices are locked. Correction entries should be made via payment reversals or voiding and reissuing.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Details Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -504,21 +535,6 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
               </div>
             </div>
           </div>
-
-          {/* Editing Lock Banner */}
-          {isFinancialsLocked && (
-            <div className="w-full">
-              <div className="rounded-2xl border border-yellow-900/30 bg-yellow-950/10 p-4 flex gap-3 items-start backdrop-blur-xl">
-                <Lock className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-yellow-500 uppercase tracking-wider">Financial Editing Locked</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Payments have been recorded against this invoice. In order to preserve ledger integrity, numbers, dates, and line item prices are locked. Correction entries should be made via payment reversals or voiding and reissuing.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Payments ledger section (Prompt 8) */}
           <div className="rounded-3xl border border-slate-900 bg-slate-950/20 p-6 space-y-4 backdrop-blur-xl">

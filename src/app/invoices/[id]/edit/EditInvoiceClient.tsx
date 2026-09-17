@@ -295,7 +295,23 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
     canEditFinancials === undefined
   );
 
+  const [showSkeleton, setShowSkeleton] = useState(false);
+
+  useEffect(() => {
+    if (!isFormLoading) {
+      setShowSkeleton(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setShowSkeleton(true);
+    }, 75);
+    return () => clearTimeout(timer);
+  }, [isFormLoading]);
+
   if (isFormLoading) {
+    if (!showSkeleton) {
+      return <div className="min-h-[600px] opacity-0" aria-busy="true" />;
+    }
     return <EditInvoiceSkeleton />;
   }
 
