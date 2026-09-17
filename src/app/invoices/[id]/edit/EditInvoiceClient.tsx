@@ -333,8 +333,8 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
 
       {/* Editing Lock Banner */}
       {isLocked && (
-        <div className="transition-all duration-150 max-w-4xl">
-          <div className="rounded-2xl border border-yellow-900/30 bg-yellow-950/10 p-4 flex gap-3 items-start backdrop-blur-xl animate-fade-in">
+        <div className="overflow-hidden transition-all duration-200 animate-in fade-in slide-in-from-top-1 max-w-4xl">
+          <div className="rounded-2xl border border-yellow-900/30 bg-yellow-950/10 p-4 flex gap-3 items-start backdrop-blur-xl">
             <Lock className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
             <div className="space-y-1">
               <h4 className="text-xs font-bold text-yellow-500 uppercase tracking-wider">Financial Fields Locked</h4>
