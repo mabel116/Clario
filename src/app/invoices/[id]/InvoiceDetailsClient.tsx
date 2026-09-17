@@ -27,7 +27,7 @@ export function InvoiceDetailsSkeleton() {
         <div className="w-full sm:w-auto">
           <div className="h-5 w-36 bg-slate-800/60 rounded" />
         </div>
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto min-h-[76px] sm:min-h-[34px] content-start">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <div className="h-[34px] w-[72px] bg-slate-800/60 rounded-lg" />
           <div className="h-[34px] w-[104px] bg-slate-800/60 rounded-lg" />
           <div className="h-[34px] w-[120px] bg-slate-800/60 rounded-lg" />
@@ -333,7 +333,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
           <ArrowLeft className="h-4 w-4" /> {backLinkLabel.replace(/^←\s*/, '')}
         </Link>
 
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto min-h-[76px] sm:min-h-[34px] content-start">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {!isVoid && (
             <button
               onClick={() => {
