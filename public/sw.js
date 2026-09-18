@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clario-cache-vz8uOFCEYGx3-nmDABbL9X';
+const CACHE_NAME = 'clario-cache-vd1Gpr8_7NPQjHQcxuu3nX';
 const CORE_ROUTES = [
   '/',
   '/clients',
@@ -95,12 +95,12 @@ const PRECACHE_URLS = [
   '/_next/static/chunks/polyfills-42372ed130431b0a.js',
   '/_next/static/chunks/webpack-92abd9c985646d2e.js',
   '/_next/static/css/3ec1e1e4be6aa388.css',
+  '/_next/static/d1Gpr8_7NPQjHQcxuu3nX/_buildManifest.js',
+  '/_next/static/d1Gpr8_7NPQjHQcxuu3nX/_ssgManifest.js',
   '/_next/static/media/mc-wa-sqlite-async.e27ab1ed.wasm',
   '/_next/static/media/mc-wa-sqlite.194e2ec3.wasm',
   '/_next/static/media/wa-sqlite-async.b5c71aa6.wasm',
   '/_next/static/media/wa-sqlite.1c79f40b.wasm',
-  '/_next/static/z8uOFCEYGx3-nmDABbL9X/_buildManifest.js',
-  '/_next/static/z8uOFCEYGx3-nmDABbL9X/_ssgManifest.js',
   '/icon-192.png',
   '/icon-512.png',
   '/icon-maskable.png',

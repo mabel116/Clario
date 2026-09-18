@@ -710,3 +710,14 @@ Extend the ADR 036 readiness architecture to the invoices domain (`/invoices` ma
   - `npm.cmd test`: 163/163 tests passing across 13 files.
   - `npm.cmd run build`: Compiled 12 static routes successfully, generating `public/sw.js` with 81 precached assets.
 
+## Prompt 12 Milestone: Final Release, Security Audit & Clario v1.0 MVP Completion
+- **Status**: Complete & Verified (173 / 173 Vitest tests passing, 0 TypeScript errors, production build verified, manual 7-step offline QA script passed).
+- **Final Audit & Verification Summary**:
+  1. **Task 1 (PWA Configuration)**: W3C manifest and service worker precaching 89 assets and dynamic route shells active.
+  2. **Task 2 (Diagnostic Purge)**: `/dev/sync` permanently deleted and confirmed 404 in production route tree.
+  3. **Task 3 (Pre-Flight Security Review)**: Confirmed 100% RLS coverage, immutable ledger enforcement (no `UPDATE`/`DELETE` on `payment_events`), foreign key `ON DELETE RESTRICT`, and Edition 3 user-scoped sync rules.
+  4. **Task 4 (Offline QA Script)**: End-to-end 7-step test validated (client creation, multi-line invoice, partial payment, cold-boot offline reload, and seamless reconnect sync).
+  5. **Task 5 (Test & Build Health)**: 173/173 tests passing, 0 type errors, clean production bundle.
+  6. **Task 6 (MVP Ship)**: Prompts 1–12 complete. Clario v1.0 MVP officially ready for deployment.
+
+

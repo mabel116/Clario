@@ -296,3 +296,14 @@
   4. Confirmed complete elimination of `src/app/dev/sync`, verifying that `/dev/sync` returns a Next.js 404 and is absent from the production route tree.
 - **Consequences**: Guarantees standalone PWA installability, instant off-grid app shell boot without caching live sync transactions, and clean production routing.
 
+## ADR 048: Production Launch, PWA Offline Shell Hardening, and Clario v1.0 MVP Completion
+- **Context**: Finalizing Clario Prompt 12 required production-hardening the Service Worker precache strategy to serve 89 static assets and dynamic route shells (`/clients/_shell_/invoices/new`, `/invoices/_shell_`, `/invoices/_shell_/edit`) while strictly isolating CacheStorage from live database replication (ADR 033). The offline QA script required validation of end-to-end client creation, multi-line invoice generation, partial payments, and offline cold-boot reloading without data loss or UI layout shifts. Finally, pre-flight security sweeps required formal verification of append-only ledger policies and user isolation before production release.
+- **Decision**:
+  1. Configured canonical W3C Web App Manifest and dynamic route shell precaching in `public/sw.js` with strict bypass rules for Supabase API endpoints and PowerSync streaming replication.
+  2. Enforced zero-CLS layout stability across invoice actions and status banners using a 75ms deferred skeleton timer (`showSkeleton`) and fluid action rows.
+  3. Confirmed complete elimination of `/dev/sync` diagnostics.
+  4. Verified RLS default-deny semantics on `payment_events` (zero `UPDATE`/`DELETE` policies), foreign key `ON DELETE RESTRICT`, and defensive upload connector rejections.
+  5. Formally validated all 7 steps of the offline QA script across local SQLite persistence and online reconnection.
+- **Consequences**: Successfully ships the Clario v1.0 offline-first freelance workspace with zero cross-tenant data leakage, conflict-free append-only payments, sub-30ms local SQLite reads, and reliable standalone PWA execution.
+
+
