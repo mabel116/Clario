@@ -12,4 +12,7 @@ scripts/seed-perf-test.js
 scripts/test-query.js
 scripts/seed-dashboard-perf.js
 scripts/create-singlecurrency-user.js
-certificates/
+certificates/
+# Scratch diagnostic dumps
+current_*.txt
+log_*.txt
