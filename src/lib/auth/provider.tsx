@@ -16,11 +16,20 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(() => {
+    return getCachedLocalSession();
+  });
+  const [user, setUser] = useState<User | null>(() => {
+    const cached = getCachedLocalSession();
+    return cached?.user ?? null;
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    // If a valid cached session already exists in localStorage, do not start in a loading state
+    const cached = getCachedLocalSession();
+    return !cached;
+  });
   const [error, setError] = useState<Error | null>(null);
-  const currentSessionRef = useRef<Session | null>(null);
+  const currentSessionRef = useRef<Session | null>(session);
 
   useEffect(() => {
     // Check initial session from local cache (synchronous or async)

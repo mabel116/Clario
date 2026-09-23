@@ -54,6 +54,24 @@ function SignUpForm() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    setErrorMsg(null);
+
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      setErrorMsg('Google Sign-In requires an active network connection. Please check your network and try again.');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      await AuthActions.signInWithGoogle();
+    } catch (err: any) {
+      setErrorMsg(err.message);
+      setIsLoading(false);
+    }
+  };
+
 
   if (success) {
     return (
@@ -188,6 +206,29 @@ function SignUpForm() {
             </button>
           </div>
         </form>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-slate-800" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-slate-950 px-2 text-slate-500">OR</span>
+          </div>
+        </div>
+
+        <div>
+          <button
+            onClick={handleGoogleSignIn}
+            disabled={isLoading}
+            className="flex w-full justify-center items-center gap-2.5 rounded-lg border border-slate-800 bg-slate-900/50 py-3 px-4 text-sm font-semibold text-white hover:bg-slate-900 transition focus:outline-none disabled:opacity-50"
+          >
+            {/* Google Logo */}
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.093-5.136 4.093-3.414 0-6.19-2.775-6.19-6.19s2.776-6.19 6.19-6.19c1.472 0 2.82.52 3.882 1.378l3.078-3.078C18.826 2.213 15.711 1 12.24 1 6.033 1 1 6.033 1 12.24s5.033 11.24 11.24 11.24c6.48 0 10.74-4.55 10.74-10.92 0-.67-.06-1.32-.18-1.943h-10.56z" />
+            </svg>
+            Continue with Google
+          </button>
+        </div>
 
         <div className="text-center text-sm mt-6">
           <span className="text-slate-400">Already have an account? </span>
