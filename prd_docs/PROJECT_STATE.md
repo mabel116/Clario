@@ -720,4 +720,16 @@ Extend the ADR 036 readiness architecture to the invoices domain (`/invoices` ma
   5. **Task 5 (Test & Build Health)**: 173/173 tests passing, 0 type errors, clean production bundle.
   6. **Task 6 (MVP Ship)**: Prompts 1–12 complete. Clario v1.0 MVP officially ready for deployment.
 
+## Post-Release Mobile Hardening & Auth Stabilization (Prompt 12 Follow-Up)
+- **Status**: Complete & Verified (173 / 173 Vitest tests passing, 0 TypeScript errors, clean production compilation, verified on physical mobile hardware).
+- **Architectural Implementations & Bugs Resolved**:
+  1. *Next.js Security Upgrade:* Updated to Next.js `15.5.25` and `eslint-config-next@15` patching CVE-2025-66478.
+  2. *Offline Mobile Session Lockup Fix:* Added `getCachedLocalSession()` in `src/lib/auth/client.ts`, offline fast-path in `src/lib/auth/provider.tsx` restoring session from `localStorage` (`sb-*-auth-token`) when `!navigator.onLine`, suppressed `TOKEN_REFRESHED` null events while offline, and guarded `ProtectedRoute` on `!isLoading && !user`.
+  3. *Sign-Up OAuth Parity:* Added `OR` divider and "Continue with Google" (`prefetch={false}`) to `src/app/sign-up/page.tsx`.
+  4. *Instant Native Boot (Zero-Flash Elimination):* Synchronous lazy state initialization in `AuthProvider`, replaced prerendered spinner with silent `#020617` dark shell and 150ms deferred spinner in `ProtectedRoute.tsx`.
+- **Verification Outcomes**:
+  - Automated: `npm.cmd run typecheck` (0 errors), `npm.cmd test` (173/173 tests passing), `npm.cmd run build` (clean static compilation).
+  - Mobile Hardware QA: Verified cold boot launches straight into the active workspace with zero flicker and offline session persistence survives token expiration.
+
+
 

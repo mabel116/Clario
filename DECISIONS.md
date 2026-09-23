@@ -306,4 +306,18 @@
   5. Formally validated all 7 steps of the offline QA script across local SQLite persistence and online reconnection.
 - **Consequences**: Successfully ships the Clario v1.0 offline-first freelance workspace with zero cross-tenant data leakage, conflict-free append-only payments, sub-30ms local SQLite reads, and reliable standalone PWA execution.
 
+## ADR 049: Offline Auth Session Cache Fast-Path, Silent Cold-Boot Shell, and Sign-Up OAuth Parity
+- **Context**:
+  1. *Offline Mobile Session Lockup:* After 1 hour offline, Supabase JWT tokens expire. When users launched the mobile PWA offline, `supabase.auth.getSession()` attempted a network refresh, timed out, emitted an empty session or null token, and `ProtectedRoute` treated the user as unauthenticated, redirecting to `/sign-in` and locking them out of their local SQLite database.
+  2. *Static Shell Cold-Boot Micro-Flicker:* Next.js static prerendering baked `<Loader2/>` spinner HTML into the static output at build time with `isLoading: true`. On cold boot, users saw a ~50ms FCP spinner flash before client hydration restored the session.
+  3. *Sign-Up Onboarding Friction:* The `/sign-up` screen lacked Google OAuth, forcing users through email/password verification and hitting Resend SMTP test sandbox restrictions (`onboarding@resend.dev`), unlike `/sign-in` which offered Google OAuth.
+- **Decision**:
+  1. Added `getCachedLocalSession()` in `src/lib/auth/client.ts` to synchronously parse `localStorage` (`sb-*-auth-token`).
+  2. Updated `src/lib/auth/provider.tsx` with an offline fast-path to immediately restore cached sessions when `!navigator.onLine`, and suppressed `TOKEN_REFRESHED` null events while offline.
+  3. Initialized `AuthProvider` state synchronously via lazy state initialization (`useState(() => getCachedLocalSession())`).
+  4. In `src/components/ProtectedRoute.tsx`, guarded on `!isLoading && !user`, replaced the prerendered loader with a silent dark container (`<div className="min-h-screen bg-slate-950" />`), and deferred visible spinner display by 150ms.
+  5. Added standard `OR` divider and "Continue with Google" (`prefetch={false}`) to `src/app/sign-up/page.tsx` for parity with `/sign-in`.
+- **Consequences**: Guarantees permanent, uninterrupted offline access to local financial data without network-auth lockouts, eliminates visual layout flickers on native mobile cold boots, and provides a frictionless zero-cost onboarding path.
+
+
 
