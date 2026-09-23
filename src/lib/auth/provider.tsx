@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '../supabase';
-import { AuthActions } from './client';
+import { AuthActions, getCachedLocalSession } from './client';
 import { Session, User } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -25,17 +25,48 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     // Check initial session from local cache (synchronous or async)
     const checkInitialSession = async () => {
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+      // 1. Offline fast-path: immediately restore cached session from localStorage without awaiting network timeouts
+      if (isOffline) {
+        const cached = getCachedLocalSession();
+        if (cached) {
+          currentSessionRef.current = cached;
+          setSession(cached);
+          setUser(cached.user);
+          setIsLoading(false);
+          return;
+        }
+      }
+
       try {
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+
+        const initialSession = data?.session;
         if (initialSession) {
           currentSessionRef.current = initialSession;
           setSession(initialSession);
           setUser(initialSession.user);
+        } else if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          // If offline and getSession returns null, fallback to cached localStorage session
+          const cached = currentSessionRef.current || getCachedLocalSession();
+          if (cached) {
+            currentSessionRef.current = cached;
+            setSession(cached);
+            setUser(cached.user);
+          }
         }
       } catch (err: any) {
         console.error('Failed to get initial session:', err);
-        // Do not sign out/clear session on transient network error during boot
-        if (typeof navigator !== 'undefined' && navigator.onLine) {
+        // When supabase.auth.getSession() fails due to a network error or offline status,
+        // retain the cached session and user rather than setting them to null.
+        const cached = currentSessionRef.current || getCachedLocalSession();
+        if (cached) {
+          currentSessionRef.current = cached;
+          setSession(cached);
+          setUser(cached.user);
+        } else if (typeof navigator !== 'undefined' && navigator.onLine) {
           setError(err);
         }
       } finally {
@@ -49,7 +80,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log('Auth state changed event:', event);
 
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      // In onAuthStateChange, ignore TOKEN_REFRESHED events with null sessions if !navigator.onLine
+      if (event === 'TOKEN_REFRESHED') {
+        const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+        if (!currentSession && isOffline) {
+          console.warn('Ignoring TOKEN_REFRESHED with null session while offline to preserve local session');
+          return;
+        }
+
+        if (currentSession) {
+          const tokenChanged = currentSessionRef.current?.access_token !== currentSession?.access_token;
+          const userChanged = currentSessionRef.current?.user?.id !== currentSession?.user?.id;
+
+          if (tokenChanged || userChanged) {
+            currentSessionRef.current = currentSession;
+            setSession(currentSession);
+            setUser(currentSession.user ?? null);
+          }
+        }
+        setIsLoading(false);
+      } else if (event === 'SIGNED_IN') {
         const tokenChanged = currentSessionRef.current?.access_token !== currentSession?.access_token;
         const userChanged = currentSessionRef.current?.user?.id !== currentSession?.user?.id;
 

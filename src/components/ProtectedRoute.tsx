@@ -5,14 +5,16 @@ import { useAuth } from '../lib/auth/provider';
 import { useRouter } from 'next/navigation';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { session, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !session) {
+    // Only redirect when loading has completely settled and no authenticated user exists.
+    // This prevents transient offline token validation states from triggering router.replace('/sign-in').
+    if (!isLoading && !user) {
       router.replace('/sign-in');
     }
-  }, [session, isLoading, router]);
+  }, [user, isLoading, router]);
 
   if (isLoading) {
     return (
@@ -25,7 +27,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!session) {
+  if (!user) {
     return null; // Will redirect in useEffect
   }
 

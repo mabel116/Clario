@@ -121,10 +121,38 @@ export const AuthActions = {
 };
 
 /**
+ * Synchronously retrieves cached session from localStorage (sb-*-auth-token).
+ * Useful for offline fast-path boot without network timeouts.
+ */
+export function getCachedLocalSession(): any {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return null;
+  }
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const session = parsed?.currentSession || parsed;
+          if (session && (session.user || session.access_token)) {
+            return session;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to parse cached session from localStorage:', e);
+  }
+  return null;
+}
+
+/**
  * Retrieve the current authenticated user's ID.
  */
 export async function getAuthUserId(): Promise<string | null> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await getAuthSession();
   return session?.user?.id || null;
 }
 
@@ -132,8 +160,18 @@ export async function getAuthUserId(): Promise<string | null> {
  * Retrieve the current active session.
  */
 export async function getAuthSession() {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session;
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) return session;
+  } catch (err) {
+    console.warn('supabase.auth.getSession error:', err);
+  }
+
+  // Fallback to cached local session if offline
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return getCachedLocalSession();
+  }
+  return null;
 }
 
 /**
