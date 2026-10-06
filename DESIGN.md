@@ -62,6 +62,10 @@ Status is always conveyed by an explicit text label alongside a color indicator:
   - Inputs & Buttons: rounded-lg (8px)
   - Status Badges & Pill Tabs: rounded-full (9999px)
 
+### Form Input & Money Display Rules
+- Form Inputs: Desktop 40px (h-10), Mobile 44px (h-11) to meet touch target guidelines and prevent iOS auto-zoom. Border: 1px #E5E7EB in Light Mode, #27272a in Dark Mode. Radius: rounded-lg (8px).
+- Money Display: Always tabular figures (tabular-nums) with narrowSymbol formatting (e.g. ₦, $, €, £). In metric cards, the currency symbol sits in muted text while numbers carry primary text color.
+
 ## 4. Component Taxonomy & Button Architecture
 
 ### Button Variants
@@ -90,6 +94,10 @@ Status is always conveyed by an explicit text label alongside a color indicator:
   - icon: h-9 w-9 or h-8 w-8 centered flex
 - Mobile Touch Target: On touch viewports, tap target must extend to at least 44px.
 - States: Default, Hover, Focus-visible (ring-2 ring-blue-500), Disabled (opacity-50 pointer-events-none), Loading (inline spin loader maintaining fixed dimensions).
+
+### Iconography Standard
+- Library: lucide-react. Stroke width: 1.5px to 2px.
+- Sizing: 16px (w-4 h-4) in buttons, table menus, and badges; 20px (w-5 h-5) in primary navigation and header actions. Decorative icons are aria-hidden="true".
 
 ## 5. Responsive Layout Architecture
 - Hybrid Viewport Standard:

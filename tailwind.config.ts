@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: ["class"],
+  darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -10,6 +10,21 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        canvas: {
+          DEFAULT: "var(--canvas)",
+          light: "#ffffff",
+          dark: "#09090b",
+        },
+        surface: {
+          DEFAULT: "var(--surface)",
+          light: "#ffffff",
+          dark: "#121215",
+          nested: {
+            DEFAULT: "var(--surface-nested)",
+            light: "#F9FAFB",
+            dark: "#1c1c21",
+          },
+        },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {
