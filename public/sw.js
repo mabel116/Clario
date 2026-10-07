@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clario-cache-vTpPzkRWVif0omj_0VPhGN';
+const CACHE_NAME = 'clario-cache-vVoYfMoncw1GllUYTa4a0P';
 const CORE_ROUTES = [
   '/',
   '/clients',
@@ -32,8 +32,8 @@ const PRECACHE_URLS = [
   '/@powersync/wa-sqlite-async-CM6BmfRh.js',
   '/@powersync/websockets-Q8W_lerF.js',
   '/@powersync/worker.js',
-  '/_next/static/TpPzkRWVif0omj_0VPhGN/_buildManifest.js',
-  '/_next/static/TpPzkRWVif0omj_0VPhGN/_ssgManifest.js',
+  '/_next/static/VoYfMoncw1GllUYTa4a0P/_buildManifest.js',
+  '/_next/static/VoYfMoncw1GllUYTa4a0P/_ssgManifest.js',
   '/_next/static/chunks/1127-2f2210e830da84f2.js',
   '/_next/static/chunks/11390db7.c696782f2ce29acd.js',
   '/_next/static/chunks/1255-57ed0c74e155ba3a.js',
@@ -53,7 +53,7 @@ const PRECACHE_URLS = [
   '/_next/static/chunks/5363.7e89de19a3aef288.js',
   '/_next/static/chunks/5523-fe68af62eb214957.js',
   '/_next/static/chunks/5971.9c5c3e02081562e0.js',
-  '/_next/static/chunks/6194-9fa12239543e98a9.js',
+  '/_next/static/chunks/6194-9f8cd2965d197368.js',
   '/_next/static/chunks/6665.8e470cf7fbd0c5fb.js',
   '/_next/static/chunks/6740.55d97aedf107da5b.js',
   '/_next/static/chunks/7367.8d140ad141b14b1f.js',
@@ -80,7 +80,7 @@ const PRECACHE_URLS = [
   '/_next/static/chunks/app/invoices/[id]/page-095d9997f484d12b.js',
   '/_next/static/chunks/app/invoices/page-b680c8b43016b23b.js',
   '/_next/static/chunks/app/layout-414f02c3613a0906.js',
-  '/_next/static/chunks/app/page-a29ece8b2003372b.js',
+  '/_next/static/chunks/app/page-04381c6803d6a650.js',
   '/_next/static/chunks/app/payments/page-5d6fa10aea3eb7bf.js',
   '/_next/static/chunks/app/reset-password/page-726fd69f1d5e46ff.js',
   '/_next/static/chunks/app/settings/page-acbeb6c5a2fafe86.js',
@@ -97,7 +97,7 @@ const PRECACHE_URLS = [
   '/_next/static/chunks/pages/_error-d5437e6632e42397.js',
   '/_next/static/chunks/polyfills-42372ed130431b0a.js',
   '/_next/static/chunks/webpack-c04d39237e485a2e.js',
-  '/_next/static/css/532dc73cb46c0260.css',
+  '/_next/static/css/3ae0edb2620aeda1.css',
   '/_next/static/media/mc-wa-sqlite-async.e27ab1ed.wasm',
   '/_next/static/media/mc-wa-sqlite.194e2ec3.wasm',
   '/_next/static/media/wa-sqlite-async.b5c71aa6.wasm',

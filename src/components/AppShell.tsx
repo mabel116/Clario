@@ -37,7 +37,7 @@ const primaryNavItems: Array<{
   name: string;
   href: string;
   id: NavItem;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number; fill?: string }>;
 }> = [
   { name: 'Dashboard', href: '/', id: 'dashboard', icon: Home },
   { name: 'Invoices', href: '/invoices', id: 'invoices', icon: FileText },
@@ -128,7 +128,8 @@ function PrimaryNavigationLinks() {
                   ? 'text-white'
                   : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
               )}
-              strokeWidth={1.5}
+              strokeWidth={2}
+              fill={isActive ? 'currentColor' : 'none'}
             />
             <span>{item.name}</span>
           </Link>
@@ -167,7 +168,8 @@ function PrimaryNavigationLinksFallback() {
                   ? 'text-white'
                   : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
               )}
-              strokeWidth={1.5}
+              strokeWidth={2}
+              fill={isActive ? 'currentColor' : 'none'}
             />
             <span>{item.name}</span>
           </Link>
@@ -202,7 +204,8 @@ function SettingsSidebarLink() {
             ? 'text-white'
             : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
         )}
-        strokeWidth={1.5}
+        strokeWidth={2}
+        fill={isActive ? 'currentColor' : 'none'}
       />
       <span>Settings</span>
     </Link>
@@ -218,7 +221,8 @@ function SettingsSidebarLinkFallback() {
     >
       <Settings
         className="h-[18px] w-[18px] shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
-        strokeWidth={1.5}
+        strokeWidth={2}
+        fill="none"
       />
       <span>Settings</span>
     </Link>
@@ -256,7 +260,8 @@ function MobileNavLinks({ onItemClick }: { onItemClick: () => void }) {
                   ? 'text-white'
                   : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
               )}
-              strokeWidth={1.5}
+              strokeWidth={2}
+              fill={isActive ? 'currentColor' : 'none'}
             />
             <span>{item.name}</span>
           </Link>
@@ -295,7 +300,8 @@ function MobileNavLinksFallback({ onItemClick }: { onItemClick: () => void }) {
                   ? 'text-white'
                   : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
               )}
-              strokeWidth={1.5}
+              strokeWidth={2}
+              fill={isActive ? 'currentColor' : 'none'}
             />
             <span>{item.name}</span>
           </Link>
