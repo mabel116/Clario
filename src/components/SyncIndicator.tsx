@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import { useSyncStatus } from '../lib/sync/hooks';
 import { RefreshCw } from 'lucide-react';
+import { cn } from '../lib/utils';
 
-export function SyncIndicator() {
+export function SyncIndicator({ className }: { className?: string } = {}) {
   const { connected, lastSyncedAt, pendingUploads } = useSyncStatus();
   const [timeText, setTimeText] = useState('Never');
 
@@ -33,9 +34,16 @@ export function SyncIndicator() {
   }, [lastSyncedAt]);
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-full bg-slate-900/90 border border-slate-800/80 px-4 py-2 text-xs font-medium text-slate-300 shadow-xl backdrop-blur-md transition-all duration-300 hover:border-slate-700 hover:bg-slate-900">
+    <div
+      className={cn(
+        'flex items-center gap-2.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-300',
+        className
+          ? className
+          : 'fixed bottom-4 right-4 z-50 bg-slate-900/90 border-slate-800/80 text-slate-300 shadow-xl backdrop-blur-md hover:border-slate-700 hover:bg-slate-900'
+      )}
+    >
       {/* Network Connectivity Status */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 shrink-0">
         <span className="relative flex h-2 w-2">
           {connected ? (
             <>
@@ -49,24 +57,24 @@ export function SyncIndicator() {
             </>
           )}
         </span>
-        <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-          {connected ? 'Sync Connected' : 'Sync Offline'}
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">
+          {connected ? 'Connected' : 'Offline'}
         </span>
       </div>
 
-      <div className="h-3 w-px bg-slate-800"></div>
+      <div className="h-3 w-px bg-gray-200 dark:bg-[#27272a] shrink-0"></div>
 
       {/* Last Synced details */}
-      <div className="flex items-center gap-1">
-        <span className="text-slate-500">Last:</span>
-        <span className="text-slate-300 tabular-nums">{timeText}</span>
+      <div className="flex items-center gap-1 text-[11px] truncate">
+        <span className="text-gray-400 dark:text-zinc-500">Sync:</span>
+        <span className="text-gray-700 dark:text-zinc-300 tabular-nums">{timeText}</span>
       </div>
 
       {/* Pending uploads queue */}
       {pendingUploads > 0 && (
         <>
-          <div className="h-3 w-px bg-slate-800"></div>
-          <div className="flex items-center gap-1.5 text-amber-400 animate-pulse">
+          <div className="h-3 w-px bg-gray-200 dark:bg-[#27272a] shrink-0"></div>
+          <div className="flex items-center gap-1 text-[11px] text-amber-500 dark:text-amber-400 animate-pulse shrink-0">
             <RefreshCw className="h-3 w-3 animate-spin duration-[3000ms]" />
             <span className="font-semibold">{pendingUploads} queued</span>
           </div>

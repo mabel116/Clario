@@ -3,7 +3,6 @@ import "./globals.css";
 import { ThemeProvider } from "../components/ThemeProvider";
 import { AuthProvider } from "../lib/auth/provider";
 import { PowerSyncProvider } from "../lib/sync/provider";
-import { SyncIndicator } from "../components/SyncIndicator";
 import { PWARegistration } from "../components/PWARegistration";
 
 export const metadata: Metadata = {
@@ -31,7 +30,6 @@ export default function RootLayout({
           <AuthProvider>
             <PowerSyncProvider>
               {children}
-              <SyncIndicator />
               <PWARegistration />
             </PowerSyncProvider>
           </AuthProvider>

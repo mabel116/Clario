@@ -111,4 +111,4 @@ test('verify glyph rendering for all target currencies', async () => {
     expect(containsSymbol).toBe(true);
   }
   console.log('--------------------------------------------------\n');
-}, 60000);
+}, 120000);

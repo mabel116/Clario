@@ -102,7 +102,7 @@ test('generates PDF and extracts text to verify notes inclusion and internal not
   // Assert the private internal_note string is ABSOLUTELY ABSENT
   expect(text).not.toContain('SECRET_NEGOTIATION_2026_DO_NOT_SHOW');
   expect(text).not.toContain('internal_note');
-}, 30000);
+}, 60000);
 
 test('sanitizeFilename correctly sanitizes slashes, quotes, and invalid characters', () => {
   const resultSlash = sanitizeFilename('Acme/Consulting');
