@@ -7,11 +7,6 @@ import { useTheme } from 'next-themes';
 import { useAuth } from '../lib/auth/provider';
 import { resolveActiveNav, NavItem } from '../lib/navigation';
 import {
-  Home,
-  FileText,
-  Users,
-  CreditCard,
-  Settings,
   LogOut,
   Menu,
   X,
@@ -21,6 +16,20 @@ import {
   Moon,
   PanelLeft,
 } from 'lucide-react';
+import {
+  HomeIcon as HomeOutline,
+  DocumentTextIcon as InvoicesOutline,
+  CreditCardIcon as PaymentsOutline,
+  UsersIcon as ClientsOutline,
+  Cog6ToothIcon as SettingsOutline,
+} from '@heroicons/react/24/outline';
+import {
+  HomeIcon as HomeSolid,
+  DocumentTextIcon as InvoicesSolid,
+  CreditCardIcon as PaymentsSolid,
+  UsersIcon as ClientsSolid,
+  Cog6ToothIcon as SettingsSolid,
+} from '@heroicons/react/24/solid';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import {
@@ -37,17 +46,24 @@ const primaryNavItems: Array<{
   name: string;
   href: string;
   id: NavItem;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number; fill?: string }>;
+  outlineIcon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  solidIcon: React.ComponentType<{ className?: string }>;
 }> = [
-  { name: 'Dashboard', href: '/', id: 'dashboard', icon: Home },
-  { name: 'Invoices', href: '/invoices', id: 'invoices', icon: FileText },
-  { name: 'Payments', href: '/payments', id: 'payments', icon: CreditCard },
-  { name: 'Clients', href: '/clients', id: 'clients', icon: Users },
+  { name: 'Dashboard', href: '/', id: 'dashboard', outlineIcon: HomeOutline, solidIcon: HomeSolid },
+  { name: 'Invoices', href: '/invoices', id: 'invoices', outlineIcon: InvoicesOutline, solidIcon: InvoicesSolid },
+  { name: 'Payments', href: '/payments', id: 'payments', outlineIcon: PaymentsOutline, solidIcon: PaymentsSolid },
+  { name: 'Clients', href: '/clients', id: 'clients', outlineIcon: ClientsOutline, solidIcon: ClientsSolid },
 ];
 
 const allMobileNavItems = [
   ...primaryNavItems,
-  { name: 'Settings', href: '/settings', id: 'settings' as NavItem, icon: Settings },
+  {
+    name: 'Settings',
+    href: '/settings',
+    id: 'settings' as NavItem,
+    outlineIcon: SettingsOutline,
+    solidIcon: SettingsSolid,
+  },
 ];
 
 function ThemeToggle() {
@@ -106,7 +122,6 @@ function PrimaryNavigationLinks() {
   return (
     <nav className="space-y-1">
       {primaryNavItems.map((item) => {
-        const Icon = item.icon;
         const isActive = item.id === activeNav;
         return (
           <Link
@@ -114,23 +129,21 @@ function PrimaryNavigationLinks() {
             href={item.href}
             prefetch={false}
             className={cn(
-              'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-colors tap-target group',
+              'flex items-center gap-3 h-10 px-3.5 rounded-xl text-sm transition-colors tap-target group',
               isActive
                 ? 'bg-blue-600 text-white font-medium shadow-sm shadow-blue-600/20'
                 : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] font-medium'
             )}
             aria-current={isActive ? 'page' : undefined}
           >
-            <Icon
-              className={cn(
-                'h-[18px] w-[18px] shrink-0 transition-colors',
-                isActive
-                  ? 'text-white'
-                  : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
-              )}
-              strokeWidth={2}
-              fill={isActive ? 'currentColor' : 'none'}
-            />
+            {isActive ? (
+              <item.solidIcon className="h-5 w-5 shrink-0 text-white transition-colors" />
+            ) : (
+              <item.outlineIcon
+                className="h-5 w-5 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+                strokeWidth={2}
+              />
+            )}
             <span>{item.name}</span>
           </Link>
         );
@@ -146,7 +159,6 @@ function PrimaryNavigationLinksFallback() {
   return (
     <nav className="space-y-1">
       {primaryNavItems.map((item) => {
-        const Icon = item.icon;
         const isActive = item.id === activeNav;
         return (
           <Link
@@ -154,23 +166,21 @@ function PrimaryNavigationLinksFallback() {
             href={item.href}
             prefetch={false}
             className={cn(
-              'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-colors tap-target group',
+              'flex items-center gap-3 h-10 px-3.5 rounded-xl text-sm transition-colors tap-target group',
               isActive
                 ? 'bg-blue-600 text-white font-medium shadow-sm shadow-blue-600/20'
                 : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] font-medium'
             )}
             aria-current={isActive ? 'page' : undefined}
           >
-            <Icon
-              className={cn(
-                'h-[18px] w-[18px] shrink-0 transition-colors',
-                isActive
-                  ? 'text-white'
-                  : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
-              )}
-              strokeWidth={2}
-              fill={isActive ? 'currentColor' : 'none'}
-            />
+            {isActive ? (
+              <item.solidIcon className="h-5 w-5 shrink-0 text-white transition-colors" />
+            ) : (
+              <item.outlineIcon
+                className="h-5 w-5 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+                strokeWidth={2}
+              />
+            )}
             <span>{item.name}</span>
           </Link>
         );
@@ -190,23 +200,21 @@ function SettingsSidebarLink() {
       href="/settings"
       prefetch={false}
       className={cn(
-        'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-colors tap-target group',
+        'flex items-center gap-3 h-10 px-3.5 rounded-xl text-sm transition-colors tap-target group',
         isActive
           ? 'bg-blue-600 text-white font-medium shadow-sm shadow-blue-600/20'
           : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] font-medium'
       )}
       aria-current={isActive ? 'page' : undefined}
     >
-      <Settings
-        className={cn(
-          'h-[18px] w-[18px] shrink-0 transition-colors',
-          isActive
-            ? 'text-white'
-            : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
-        )}
-        strokeWidth={2}
-        fill={isActive ? 'currentColor' : 'none'}
-      />
+      {isActive ? (
+        <SettingsSolid className="h-5 w-5 shrink-0 text-white transition-colors" />
+      ) : (
+        <SettingsOutline
+          className="h-5 w-5 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+          strokeWidth={2}
+        />
+      )}
       <span>Settings</span>
     </Link>
   );
@@ -217,12 +225,11 @@ function SettingsSidebarLinkFallback() {
     <Link
       href="/settings"
       prefetch={false}
-      className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] font-medium transition-colors tap-target group"
+      className="flex items-center gap-3 h-10 px-3.5 rounded-xl text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] font-medium transition-colors tap-target group"
     >
-      <Settings
-        className="h-[18px] w-[18px] shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+      <SettingsOutline
+        className="h-5 w-5 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
         strokeWidth={2}
-        fill="none"
       />
       <span>Settings</span>
     </Link>
@@ -237,7 +244,6 @@ function MobileNavLinks({ onItemClick }: { onItemClick: () => void }) {
   return (
     <nav className="space-y-1.5">
       {allMobileNavItems.map((item) => {
-        const Icon = item.icon;
         const isActive = item.id === activeNav;
         return (
           <Link
@@ -246,23 +252,21 @@ function MobileNavLinks({ onItemClick }: { onItemClick: () => void }) {
             prefetch={false}
             onClick={onItemClick}
             className={cn(
-              'flex items-center gap-3 px-3.5 py-3 rounded-xl text-base transition-colors tap-target group',
+              'flex items-center gap-3 h-11 px-3.5 rounded-xl text-base transition-colors tap-target group',
               isActive
                 ? 'bg-blue-600 text-white font-medium shadow-sm shadow-blue-600/20'
                 : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] font-medium'
             )}
             aria-current={isActive ? 'page' : undefined}
           >
-            <Icon
-              className={cn(
-                'h-5 w-5 shrink-0 transition-colors',
-                isActive
-                  ? 'text-white'
-                  : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
-              )}
-              strokeWidth={2}
-              fill={isActive ? 'currentColor' : 'none'}
-            />
+            {isActive ? (
+              <item.solidIcon className="h-5 w-5 shrink-0 text-white transition-colors" />
+            ) : (
+              <item.outlineIcon
+                className="h-5 w-5 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+                strokeWidth={2}
+              />
+            )}
             <span>{item.name}</span>
           </Link>
         );
@@ -278,7 +282,6 @@ function MobileNavLinksFallback({ onItemClick }: { onItemClick: () => void }) {
   return (
     <nav className="space-y-1.5">
       {allMobileNavItems.map((item) => {
-        const Icon = item.icon;
         const isActive = item.id === activeNav;
         return (
           <Link
@@ -287,22 +290,20 @@ function MobileNavLinksFallback({ onItemClick }: { onItemClick: () => void }) {
             prefetch={false}
             onClick={onItemClick}
             className={cn(
-              'flex items-center gap-3 px-3.5 py-3 rounded-xl text-base transition-colors tap-target group',
+              'flex items-center gap-3 h-11 px-3.5 rounded-xl text-base transition-colors tap-target group',
               isActive
                 ? 'bg-blue-600 text-white font-medium shadow-sm shadow-blue-600/20'
                 : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] font-medium'
             )}
           >
-            <Icon
-              className={cn(
-                'h-5 w-5 shrink-0 transition-colors',
-                isActive
-                  ? 'text-white'
-                  : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
-              )}
-              strokeWidth={2}
-              fill={isActive ? 'currentColor' : 'none'}
-            />
+            {isActive ? (
+              <item.solidIcon className="h-5 w-5 shrink-0 text-white transition-colors" />
+            ) : (
+              <item.outlineIcon
+                className="h-5 w-5 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+                strokeWidth={2}
+              />
+            )}
             <span>{item.name}</span>
           </Link>
         );
@@ -498,7 +499,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </div>
                 <DropdownMenuItem asChild>
                   <Link href="/settings" prefetch={false} className="flex items-center gap-2 cursor-pointer w-full">
-                    <Settings className="h-3.5 w-3.5" />
+                    <SettingsOutline className="h-4 w-4" strokeWidth={2} />
                     <span>Settings</span>
                   </Link>
                 </DropdownMenuItem>

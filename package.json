@@ -12,6 +12,7 @@
     "postinstall": "powersync-web copy-assets -o public"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@journeyapps/wa-sqlite": "^1.7.2",
     "@powersync/common": "^2.1.0",
     "@powersync/react": "^2.0.0",
