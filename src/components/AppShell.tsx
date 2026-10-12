@@ -76,7 +76,7 @@ function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <div className="h-9 w-full rounded-lg bg-gray-50 dark:bg-[#1c1c21] border border-gray-200 dark:border-[#27272a] animate-pulse" />
+      <div className="h-10 w-full rounded-xl bg-gray-50 dark:bg-[#1c1c21] border border-gray-200 dark:border-[#27272a] animate-pulse" />
     );
   }
 
@@ -86,14 +86,14 @@ function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      className="flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-zinc-400 dark:hover:bg-[#1c1c21] dark:hover:text-white border border-gray-200 dark:border-[#27272a] transition-colors tap-target select-none"
+      className="h-10 px-3.5 rounded-xl text-sm font-normal text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] transition-colors tap-target w-full flex items-center justify-between select-none"
       aria-label="Toggle dark mode"
     >
-      <span className="flex items-center gap-2">
+      <span className="flex items-center gap-3">
         {isDark ? (
-          <Moon className="h-4 w-4 text-blue-400" />
+          <Moon className="h-[18px] w-[18px] text-blue-400" />
         ) : (
-          <Sun className="h-4 w-4 text-amber-500" />
+          <Sun className="h-[18px] w-[18px] text-amber-500" />
         )}
         <span>{isDark ? 'Dark Mode' : 'Light Mode'}</span>
       </span>
@@ -105,7 +105,7 @@ function ThemeToggle() {
       >
         <span
           className={cn(
-            'pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+            'pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white ring-0 transition duration-200 ease-in-out',
             isDark ? 'translate-x-3' : 'translate-x-0'
           )}
         />
@@ -129,18 +129,18 @@ function PrimaryNavigationLinks() {
             href={item.href}
             prefetch={false}
             className={cn(
-              'flex items-center gap-3 h-10 px-3.5 rounded-xl text-sm transition-colors tap-target group',
+              'flex items-center gap-3 h-10 px-3.5 rounded-xl text-sm transition-colors tap-target',
               isActive
-                ? 'bg-blue-600 text-white font-medium shadow-sm shadow-blue-600/20'
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] font-medium'
+                ? 'bg-blue-600 text-white font-medium shadow-none'
+                : 'font-normal text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21]'
             )}
             aria-current={isActive ? 'page' : undefined}
           >
             {isActive ? (
-              <item.solidIcon className="h-5 w-5 shrink-0 text-white transition-colors" />
+              <item.solidIcon className="h-[18px] w-[18px] shrink-0 text-white transition-colors" />
             ) : (
               <item.outlineIcon
-                className="h-5 w-5 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+                className="h-[18px] w-[18px] shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
                 strokeWidth={2}
               />
             )}
@@ -166,18 +166,18 @@ function PrimaryNavigationLinksFallback() {
             href={item.href}
             prefetch={false}
             className={cn(
-              'flex items-center gap-3 h-10 px-3.5 rounded-xl text-sm transition-colors tap-target group',
+              'flex items-center gap-3 h-10 px-3.5 rounded-xl text-sm transition-colors tap-target',
               isActive
-                ? 'bg-blue-600 text-white font-medium shadow-sm shadow-blue-600/20'
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] font-medium'
+                ? 'bg-blue-600 text-white font-medium shadow-none'
+                : 'font-normal text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21]'
             )}
             aria-current={isActive ? 'page' : undefined}
           >
             {isActive ? (
-              <item.solidIcon className="h-5 w-5 shrink-0 text-white transition-colors" />
+              <item.solidIcon className="h-[18px] w-[18px] shrink-0 text-white transition-colors" />
             ) : (
               <item.outlineIcon
-                className="h-5 w-5 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+                className="h-[18px] w-[18px] shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
                 strokeWidth={2}
               />
             )}
@@ -200,18 +200,18 @@ function SettingsSidebarLink() {
       href="/settings"
       prefetch={false}
       className={cn(
-        'flex items-center gap-3 h-10 px-3.5 rounded-xl text-sm transition-colors tap-target group',
+        'flex items-center gap-3 h-10 px-3.5 rounded-xl text-sm transition-colors tap-target',
         isActive
-          ? 'bg-blue-600 text-white font-medium shadow-sm shadow-blue-600/20'
-          : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] font-medium'
+          ? 'bg-blue-600 text-white font-medium shadow-none'
+          : 'font-normal text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21]'
       )}
       aria-current={isActive ? 'page' : undefined}
     >
       {isActive ? (
-        <SettingsSolid className="h-5 w-5 shrink-0 text-white transition-colors" />
+        <SettingsSolid className="h-[18px] w-[18px] shrink-0 text-white transition-colors" />
       ) : (
         <SettingsOutline
-          className="h-5 w-5 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+          className="h-[18px] w-[18px] shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
           strokeWidth={2}
         />
       )}
@@ -225,10 +225,10 @@ function SettingsSidebarLinkFallback() {
     <Link
       href="/settings"
       prefetch={false}
-      className="flex items-center gap-3 h-10 px-3.5 rounded-xl text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] font-medium transition-colors tap-target group"
+      className="flex items-center gap-3 h-10 px-3.5 rounded-xl text-sm font-normal text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] transition-colors tap-target"
     >
       <SettingsOutline
-        className="h-5 w-5 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+        className="h-[18px] w-[18px] shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
         strokeWidth={2}
       />
       <span>Settings</span>
@@ -252,18 +252,18 @@ function MobileNavLinks({ onItemClick }: { onItemClick: () => void }) {
             prefetch={false}
             onClick={onItemClick}
             className={cn(
-              'flex items-center gap-3 h-11 px-3.5 rounded-xl text-base transition-colors tap-target group',
+              'flex items-center gap-3 h-10 px-3.5 rounded-xl text-base transition-colors tap-target',
               isActive
-                ? 'bg-blue-600 text-white font-medium shadow-sm shadow-blue-600/20'
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] font-medium'
+                ? 'bg-blue-600 text-white font-medium shadow-none'
+                : 'font-normal text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21]'
             )}
             aria-current={isActive ? 'page' : undefined}
           >
             {isActive ? (
-              <item.solidIcon className="h-5 w-5 shrink-0 text-white transition-colors" />
+              <item.solidIcon className="h-[18px] w-[18px] shrink-0 text-white transition-colors" />
             ) : (
               <item.outlineIcon
-                className="h-5 w-5 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+                className="h-[18px] w-[18px] shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
                 strokeWidth={2}
               />
             )}
@@ -290,17 +290,17 @@ function MobileNavLinksFallback({ onItemClick }: { onItemClick: () => void }) {
             prefetch={false}
             onClick={onItemClick}
             className={cn(
-              'flex items-center gap-3 h-11 px-3.5 rounded-xl text-base transition-colors tap-target group',
+              'flex items-center gap-3 h-10 px-3.5 rounded-xl text-base transition-colors tap-target',
               isActive
-                ? 'bg-blue-600 text-white font-medium shadow-sm shadow-blue-600/20'
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] font-medium'
+                ? 'bg-blue-600 text-white font-medium shadow-none'
+                : 'font-normal text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21]'
             )}
           >
             {isActive ? (
-              <item.solidIcon className="h-5 w-5 shrink-0 text-white transition-colors" />
+              <item.solidIcon className="h-[18px] w-[18px] shrink-0 text-white transition-colors" />
             ) : (
               <item.outlineIcon
-                className="h-5 w-5 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+                className="h-[18px] w-[18px] shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
                 strokeWidth={2}
               />
             )}
@@ -370,7 +370,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               prefetch={false}
               className="flex items-center gap-2.5 tap-target group"
             >
-              <div className="h-8 w-8 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-base text-white shadow-sm shadow-blue-600/30">
+              <div className="h-8 w-8 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-base text-white">
                 C
               </div>
               <span className="font-extrabold tracking-tight text-gray-900 dark:text-white text-lg group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
@@ -398,7 +398,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* Sync Indicator */}
           <div className="pt-1">
-            <SyncIndicator className="w-full justify-between bg-gray-50 dark:bg-[#1c1c21] border-gray-200 dark:border-[#27272a] text-gray-600 dark:text-zinc-400 px-3 py-1.5 shadow-none" />
+            <SyncIndicator className="w-full px-3.5 py-1" />
           </div>
 
           {/* User Profile Info & Sign Out */}
@@ -533,7 +533,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           />
 
           {/* Slide-Over Drawer Content */}
-          <div className="relative z-50 w-72 max-w-[85vw] bg-white dark:bg-[#121215] border-r border-gray-200 dark:border-[#27272a] shadow-2xl flex flex-col justify-between p-5 animate-in slide-in-from-left duration-200">
+          <div className="relative z-50 w-72 max-w-[85vw] bg-white dark:bg-[#121215] border-r border-gray-200 dark:border-[#27272a] flex flex-col justify-between p-5 animate-in slide-in-from-left duration-200">
             {/* Top Brand & Close */}
             <div className="space-y-6">
               <div className="flex items-center justify-between">
@@ -543,7 +543,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-2.5 tap-target"
                 >
-                  <div className="h-8 w-8 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-base text-white shadow-sm shadow-blue-600/30">
+                  <div className="h-8 w-8 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-base text-white">
                     C
                   </div>
                   <span className="font-extrabold tracking-tight text-gray-900 dark:text-white text-lg">
@@ -573,7 +573,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <ThemeToggle />
 
               <div className="pt-1">
-                <SyncIndicator className="w-full justify-between bg-gray-50 dark:bg-[#1c1c21] border-gray-200 dark:border-[#27272a] text-gray-600 dark:text-zinc-400 px-3 py-1.5 shadow-none" />
+                <SyncIndicator className="w-full px-3.5 py-1" />
               </div>
 
               <div className="pt-2 border-t border-gray-100 dark:border-[#27272a]/60 flex items-center justify-between">

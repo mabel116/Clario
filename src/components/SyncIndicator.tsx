@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useSyncStatus } from '../lib/sync/hooks';
-import { RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export function SyncIndicator({ className }: { className?: string } = {}) {
@@ -34,52 +33,29 @@ export function SyncIndicator({ className }: { className?: string } = {}) {
   }, [lastSyncedAt]);
 
   return (
-    <div
-      className={cn(
-        'flex items-center gap-2.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-300',
-        className
-          ? className
-          : 'fixed bottom-4 right-4 z-50 bg-slate-900/90 border-slate-800/80 text-slate-300 shadow-xl backdrop-blur-md hover:border-slate-700 hover:bg-slate-900'
-      )}
-    >
-      {/* Network Connectivity Status */}
-      <div className="flex items-center gap-1.5 shrink-0">
-        <span className="relative flex h-2 w-2">
-          {connected ? (
-            <>
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </>
-          ) : (
-            <>
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-            </>
+    <div className={cn('flex items-center gap-2 text-left', className)}>
+      <span
+        className={cn(
+          'h-2 w-2 rounded-full shrink-0',
+          connected ? 'bg-emerald-500' : 'bg-amber-500'
+        )}
+      />
+      <div className="flex flex-col">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-medium text-gray-700 dark:text-zinc-300">
+            {connected ? 'Connected' : 'Offline'}
+          </span>
+          {pendingUploads > 0 && (
+            <span className="text-[11px] text-amber-500 dark:text-amber-400 font-medium">
+              ({pendingUploads} queued)
+            </span>
           )}
-        </span>
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">
-          {connected ? 'Connected' : 'Offline'}
+        </div>
+        <span className="text-[11px] text-gray-400 dark:text-zinc-500">
+          Last synced {timeText}
         </span>
       </div>
-
-      <div className="h-3 w-px bg-gray-200 dark:bg-[#27272a] shrink-0"></div>
-
-      {/* Last Synced details */}
-      <div className="flex items-center gap-1 text-[11px] truncate">
-        <span className="text-gray-400 dark:text-zinc-500">Sync:</span>
-        <span className="text-gray-700 dark:text-zinc-300 tabular-nums">{timeText}</span>
-      </div>
-
-      {/* Pending uploads queue */}
-      {pendingUploads > 0 && (
-        <>
-          <div className="h-3 w-px bg-gray-200 dark:bg-[#27272a] shrink-0"></div>
-          <div className="flex items-center gap-1 text-[11px] text-amber-500 dark:text-amber-400 animate-pulse shrink-0">
-            <RefreshCw className="h-3 w-3 animate-spin duration-[3000ms]" />
-            <span className="font-semibold">{pendingUploads} queued</span>
-          </div>
-        </>
-      )}
     </div>
   );
 }
+
