@@ -18,7 +18,7 @@ import {
   ChevronRight,
   ChevronDown,
   Check,
-  MoreHorizontal,
+  MoreVertical,
   Eye,
   X,
   Plus,
@@ -460,8 +460,8 @@ function DashboardView() {
               prefetch={false}
               className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors tap-target"
             >
-              <Plus className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
-              <span>Create invoice</span>
+              <Plus className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden="true" />
+              <span className="leading-none">Create invoice</span>
             </Link>
           </div>
         )}
@@ -530,7 +530,7 @@ function DashboardView() {
               <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-2.5 min-h-[44px] flex items-center justify-between">
                 <div className="inline-flex items-center gap-2 text-sm font-normal text-gray-600 dark:text-zinc-400 leading-none">
                   <CreditCard className="h-3.5 w-3.5 shrink-0 text-gray-600 dark:text-zinc-400" strokeWidth={2.25} />
-                  <span className="text-[13px] leading-[18px] font-medium text-gray-600 dark:text-zinc-400">Outstanding balances</span>
+                  <span className="text-[13px] leading-none font-medium text-gray-600 dark:text-zinc-400">Outstanding Balances</span>
                 </div>
                 {sortedOutstanding.length > 1 && (
                   <DropdownMenu>
@@ -603,7 +603,7 @@ function DashboardView() {
               <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-2.5 min-h-[44px] flex items-center justify-between">
                 <div className="inline-flex items-center gap-2 text-sm font-normal text-gray-600 dark:text-zinc-400 leading-none">
                   <Banknote className="h-[15px] w-[15px] shrink-0 text-gray-600 dark:text-zinc-400" strokeWidth={2.25} />
-                  <span className="text-[13px] leading-[18px] font-medium text-gray-600 dark:text-zinc-400">Payments received</span>
+                  <span className="text-[13px] leading-none font-medium text-gray-600 dark:text-zinc-400">Payments Received</span>
                 </div>
                 {sortedEarnings.length > 1 && (
                   <DropdownMenu>
@@ -672,7 +672,7 @@ function DashboardView() {
               <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-2.5 min-h-[44px] flex items-center justify-between">
                 <div className="inline-flex items-center gap-2 text-sm font-normal text-gray-600 dark:text-zinc-400 leading-none">
                   <Clock className="h-3.5 w-3.5 shrink-0 text-gray-600 dark:text-zinc-400" strokeWidth={2.25} />
-                  <span className="text-[13px] leading-[18px] font-medium text-gray-600 dark:text-zinc-400">Overdue invoices</span>
+                  <span className="text-[13px] leading-none font-medium text-gray-600 dark:text-zinc-400">Overdue Invoices</span>
                 </div>
               </div>
 
@@ -780,28 +780,28 @@ function DashboardView() {
                             </td>
                             <td className="py-3 px-2 align-middle text-center w-20">
                               <DropdownMenu>
-                                <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg mx-auto text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors focus:outline-none">
-                                  <MoreHorizontal className="h-4 w-4" strokeWidth={2} />
+                                <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg mx-auto text-gray-800 hover:text-gray-900 dark:text-zinc-200 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors focus:outline-none">
+                                  <MoreVertical className="h-4 w-4 shrink-0" strokeWidth={2} />
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-36 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1 shadow-lg">
-                                  <DropdownMenuItem asChild className="text-[13px] leading-[18px] font-medium text-gray-800 dark:text-zinc-100">
+                                  <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
                                     <Link
                                       href={`/invoices/${inv.id}?from=/`}
                                       prefetch={false}
-                                      className="flex items-center gap-2.5 px-3 py-2 text-[13px] leading-[18px] font-medium text-gray-800 dark:text-zinc-100 hover:bg-gray-100 dark:hover:bg-[#222226] rounded-lg w-full text-left no-underline cursor-pointer"
+                                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                     >
                                       <Eye className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
-                                      <span className="text-[13px] leading-[18px] font-medium text-gray-800 dark:text-zinc-100">View invoice</span>
+                                      <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">View invoice</span>
                                     </Link>
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem asChild className="text-[13px] leading-[18px] font-medium text-gray-800 dark:text-zinc-100">
+                                  <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
                                     <button
                                       type="button"
                                       onClick={() => setRecordPaymentTarget({ clientId: inv.client_id, invoiceId: inv.id })}
-                                      className="flex items-center gap-2.5 px-3 py-2 text-[13px] leading-[18px] font-medium text-gray-800 dark:text-zinc-100 hover:bg-gray-100 dark:hover:bg-[#222226] rounded-lg w-full text-left no-underline cursor-pointer"
+                                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                     >
                                       <CreditCard className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
-                                      <span className="text-[13px] leading-[18px] font-medium text-gray-800 dark:text-zinc-100">Record payment</span>
+                                      <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">Record payment</span>
                                     </button>
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
@@ -1021,7 +1021,7 @@ function DashboardView() {
                         <span className="font-mono text-xs font-medium bg-gray-100 dark:bg-[#27272a] text-gray-800 dark:text-zinc-200 px-2 py-0.5 rounded w-fit">
                           {out.currency.toUpperCase()}
                         </span>
-                        <span className="text-[12px] leading-[16px] font-normal text-gray-700 dark:text-zinc-300 text-left">
+                        <span className="text-[12px] leading-[16px] font-medium text-gray-700 dark:text-zinc-300 text-left">
                           {invCount} {invCount === 1 ? 'invoice' : 'invoices'}
                         </span>
                         <Money
@@ -1043,7 +1043,7 @@ function DashboardView() {
                         <span className="font-mono text-xs font-medium bg-gray-100 dark:bg-[#27272a] text-gray-800 dark:text-zinc-200 px-2 py-0.5 rounded w-fit">
                           {e.currency.toUpperCase()}
                         </span>
-                        <span className="text-[12px] leading-[16px] font-normal text-gray-700 dark:text-zinc-300 text-left">
+                        <span className="text-[12px] leading-[16px] font-medium text-gray-700 dark:text-zinc-300 text-left">
                           {pCount} {pCount === 1 ? 'payment' : 'payments'}
                         </span>
                         <Money
