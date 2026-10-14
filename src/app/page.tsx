@@ -207,11 +207,27 @@ function DashboardView() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currencyDrawer]);
 
-  const formatDate = (dateStr: string | null | undefined) => {
+  const formatDashboardDate = (dateStr: string | null | undefined): string => {
     if (!dateStr) return '';
     try {
+      const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+      const parts = datePart.split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        const year = parts[0];
+        const monthIdx = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        if (monthIdx >= 0 && monthIdx < 12 && !isNaN(day)) {
+          return `${day} ${monthNames[monthIdx]}, ${year}`;
+        }
+      }
       const d = new Date(dateStr);
-      return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString();
+      if (isNaN(d.getTime())) return dateStr;
+      const day = d.getDate();
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = monthNames[d.getMonth()];
+      const year = d.getFullYear();
+      return `${day} ${month}, ${year}`;
     } catch {
       return dateStr;
     }
@@ -240,7 +256,7 @@ function DashboardView() {
           id: `payment-${p.id}`,
           type: isReversal ? 'reversal' : 'payment',
           timestamp: isNaN(ts) ? 0 : ts,
-          dateText: formatDate(dateVal),
+          dateText: formatDashboardDate(dateVal),
           clientName: p.client_name || clientMap[p.client_id]?.name || 'Client',
           invoiceNumber: p.invoice_number,
           invoiceId: p.invoice_id,
@@ -258,7 +274,7 @@ function DashboardView() {
           id: `invoice-${inv.id}`,
           type: 'invoice_created',
           timestamp: isNaN(ts) ? 0 : ts,
-          dateText: formatDate(dateVal),
+          dateText: formatDashboardDate(dateVal),
           clientName: inv.client_name || clientMap[inv.client_id]?.name || 'Client',
           invoiceNumber: inv.invoice_number,
           invoiceId: inv.id,
@@ -357,44 +373,38 @@ function DashboardView() {
     return '';
   }, [user, profile?.business_name]);
 
-  const nameSuffix = firstName ? `, ${firstName}` : '';
-
-  const [headerGreeting, setHeaderGreeting] = useState<string>(() => {
+  const getGreeting = (name: string, isPastThreeDays: boolean = false) => {
+    if (isPastThreeDays) {
+      return name ? `Welcome back, ${name}` : 'Welcome back';
+    }
     const hour = new Date().getHours();
-    let base = 'Good morning';
-    if (hour === 23 || hour < 5) base = 'After-hours check-in';
-    else if (hour >= 5 && hour < 8) base = 'Early head start';
-    else if (hour >= 8 && hour < 12) base = 'Good morning';
-    else if (hour >= 12 && hour < 17) base = 'Good afternoon';
-    else base = 'Good evening';
-    return `${base}${nameSuffix}`;
-  });
+    if (hour === 23 || hour < 5) {
+      return name ? `Working late, ${name}?` : 'Working late?';
+    }
+    if (hour >= 5 && hour < 12) {
+      return name ? `Good morning, ${name}` : 'Good morning';
+    }
+    if (hour >= 12 && hour < 17) {
+      return name ? `Good afternoon, ${name}` : 'Good afternoon';
+    }
+    return name ? `Good evening, ${name}` : 'Good evening';
+  };
+
+  const [headerGreeting, setHeaderGreeting] = useState<string>(() => getGreeting(firstName, false));
 
   useEffect(() => {
-    let base = '';
+    let isPastThreeDays = false;
     try {
       const lastVisit = localStorage.getItem('clario_last_visit_ts');
       localStorage.setItem('clario_last_visit_ts', String(Date.now()));
       if (lastVisit && Date.now() - Number(lastVisit) > 3 * 24 * 60 * 60 * 1000) {
-        base = 'Good to have you back';
-      } else {
-        const hour = new Date().getHours();
-        if (hour === 23 || hour < 5) base = 'After-hours check-in';
-        else if (hour >= 5 && hour < 8) base = 'Early head start';
-        else if (hour >= 8 && hour < 12) base = 'Good morning';
-        else if (hour >= 12 && hour < 17) base = 'Good afternoon';
-        else base = 'Good evening';
+        isPastThreeDays = true;
       }
     } catch {
-      const hour = new Date().getHours();
-      if (hour === 23 || hour < 5) base = 'After-hours check-in';
-      else if (hour >= 5 && hour < 8) base = 'Early head start';
-      else if (hour >= 8 && hour < 12) base = 'Good morning';
-      else if (hour >= 12 && hour < 17) base = 'Good afternoon';
-      else base = 'Good evening';
+      // localStorage may fail in restricted/SSR environments
     }
-    setHeaderGreeting(`${base}${nameSuffix}`);
-  }, [nameSuffix]);
+    setHeaderGreeting(getGreeting(firstName, isPastThreeDays));
+  }, [firstName]);
 
   return (
     <>
@@ -520,7 +530,7 @@ function DashboardView() {
               <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-2.5 min-h-[44px] flex items-center justify-between">
                 <div className="inline-flex items-center gap-2 text-sm font-normal text-gray-600 dark:text-zinc-400 leading-none">
                   <CreditCard className="h-3.5 w-3.5 shrink-0 text-gray-600 dark:text-zinc-400" />
-                  <span>Outstanding balances</span>
+                  <span className="text-[14px] leading-[20px] font-medium text-gray-600 dark:text-zinc-400">Outstanding balances</span>
                 </div>
                 {sortedOutstanding.length > 1 && (
                   <DropdownMenu>
@@ -566,7 +576,7 @@ function DashboardView() {
                   <Link
                     href={`/invoices?status=outstanding&currency=${effectiveOutstandingCurr}`}
                     prefetch={false}
-                    className="block mt-1 text-xs text-gray-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 hover:underline w-fit"
+                    className="block mt-1 text-[12px] leading-[16px] font-normal text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white transition-colors w-fit no-underline"
                   >
                     {currentOutstandingCount} {currentOutstandingCount === 1 ? 'invoice' : 'invoices'} • {currentOverdueCount} overdue
                   </Link>
@@ -577,9 +587,10 @@ function DashboardView() {
                     <button
                       type="button"
                       onClick={() => setCurrencyDrawer('outstanding')}
-                      className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline text-left"
+                      className="group w-full flex items-center justify-between text-[12px] leading-[16px] font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white transition-colors text-left"
                     >
-                      View +{sortedOutstanding.length - 1} other {sortedOutstanding.length - 1 === 1 ? 'currency' : 'currencies'}
+                      <span>View +{sortedOutstanding.length - 1} other {sortedOutstanding.length - 1 === 1 ? 'currency' : 'currencies'}</span>
+                      <ChevronRight className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500 group-hover:text-gray-900 dark:group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
                     </button>
                   </div>
                 )}
@@ -591,8 +602,8 @@ function DashboardView() {
               {/* Header Shelf */}
               <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-2.5 min-h-[44px] flex items-center justify-between">
                 <div className="inline-flex items-center gap-2 text-sm font-normal text-gray-600 dark:text-zinc-400 leading-none">
-                  <Banknote className="h-3.5 w-3.5 shrink-0 text-gray-600 dark:text-zinc-400" />
-                  <span>Payments received</span>
+                  <Banknote className="h-[15px] w-[15px] shrink-0 text-gray-600 dark:text-zinc-400" />
+                  <span className="text-[14px] leading-[20px] font-medium text-gray-600 dark:text-zinc-400">Payments received</span>
                 </div>
                 {sortedEarnings.length > 1 && (
                   <DropdownMenu>
@@ -645,9 +656,10 @@ function DashboardView() {
                     <button
                       type="button"
                       onClick={() => setCurrencyDrawer('earnings')}
-                      className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline text-left"
+                      className="group w-full flex items-center justify-between text-[12px] leading-[16px] font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white transition-colors text-left"
                     >
-                      View +{sortedEarnings.length - 1} other {sortedEarnings.length - 1 === 1 ? 'currency' : 'currencies'}
+                      <span>View +{sortedEarnings.length - 1} other {sortedEarnings.length - 1 === 1 ? 'currency' : 'currencies'}</span>
+                      <ChevronRight className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500 group-hover:text-gray-900 dark:group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
                     </button>
                   </div>
                 )}
@@ -660,7 +672,7 @@ function DashboardView() {
               <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-2.5 min-h-[44px] flex items-center justify-between">
                 <div className="inline-flex items-center gap-2 text-sm font-normal text-gray-600 dark:text-zinc-400 leading-none">
                   <Clock className="h-3.5 w-3.5 shrink-0 text-gray-600 dark:text-zinc-400" />
-                  <span>Overdue invoices</span>
+                  <span className="text-[14px] leading-[20px] font-medium text-gray-600 dark:text-zinc-400">Overdue invoices</span>
                 </div>
               </div>
 
@@ -699,7 +711,7 @@ function DashboardView() {
                 <Link
                   href="/invoices?status=overdue"
                   prefetch={false}
-                  className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium text-gray-700 dark:text-zinc-300 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-lg hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+                  className="inline-flex items-center justify-center px-3 py-2.5 text-[12px] leading-none font-medium text-gray-700 dark:text-zinc-300 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-lg hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors no-underline"
                 >
                   View all invoices
                 </Link>
@@ -709,11 +721,11 @@ function DashboardView() {
                 <div className="overflow-x-auto flex-1">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-gray-100 dark:border-[#27272a] text-xs font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
-                        <th className="py-2.5 pl-4 pr-3 text-left font-medium">Invoice / Client</th>
-                        <th className="py-2.5 px-3 text-left font-medium">Amount Due</th>
-                        <th className="py-2.5 px-3 text-left font-medium">Due Date</th>
-                        <th className="py-2.5 pl-3 pr-4 text-right w-20 font-medium">Actions</th>
+                      <tr className="border-b border-gray-100 dark:border-[#27272a]">
+                        <th className="py-2.5 pl-4 pr-3 text-left text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Invoice / Client</th>
+                        <th className="py-2.5 px-3 text-left text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Amount Due</th>
+                        <th className="py-2.5 px-3 text-left text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Due Date</th>
+                        <th className="py-2.5 pl-3 pr-4 text-right w-20 text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-[#27272a]">
@@ -744,36 +756,36 @@ function DashboardView() {
                             </td>
                             <td className="py-3 px-3 align-middle">
                               <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                {formatDate(inv.due_date)}
+                                {formatDashboardDate(inv.due_date)}
                               </p>
                               <p className="text-xs text-rose-600 dark:text-rose-400 font-normal mt-0.5">
                                 {days}d overdue
                               </p>
                             </td>
-                            <td className="py-3 pl-3 pr-4 align-middle text-right">
+                            <td className="py-3 px-2 align-middle text-center w-20">
                               <DropdownMenu>
-                                <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors focus:outline-none">
+                                <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg mx-auto text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors focus:outline-none">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-36 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1 shadow-lg">
-                                  <DropdownMenuItem asChild>
+                                  <DropdownMenuItem asChild className="text-[13px] leading-[18px] font-normal text-gray-700 dark:text-zinc-200">
                                     <Link
                                       href={`/invoices/${inv.id}?from=/`}
                                       prefetch={false}
-                                      className="flex items-center gap-2.5 px-3 py-2 text-[13px] font-normal text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] rounded-lg cursor-pointer"
+                                      className="flex items-center gap-2.5 px-3 py-2 text-[13px] leading-[18px] font-normal text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] rounded-lg cursor-pointer"
                                     >
                                       <Eye className="h-[15px] w-[15px] text-gray-700 dark:text-zinc-200 shrink-0" />
-                                      <span>View invoice</span>
+                                      <span className="text-[13px] leading-[18px] font-normal text-gray-700 dark:text-zinc-200">View invoice</span>
                                     </Link>
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem asChild>
+                                  <DropdownMenuItem asChild className="text-[13px] leading-[18px] font-normal text-gray-700 dark:text-zinc-200">
                                     <button
                                       type="button"
                                       onClick={() => setRecordPaymentTarget({ clientId: inv.client_id, invoiceId: inv.id })}
-                                      className="flex items-center gap-2.5 px-3 py-2 text-[13px] font-normal text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] rounded-lg w-full text-left cursor-pointer"
+                                      className="flex items-center gap-2.5 px-3 py-2 text-[13px] leading-[18px] font-normal text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] rounded-lg w-full text-left cursor-pointer"
                                     >
                                       <CreditCard className="h-[15px] w-[15px] text-gray-700 dark:text-zinc-200 shrink-0" />
-                                      <span>Record payment</span>
+                                      <span className="text-[13px] leading-[18px] font-normal text-gray-700 dark:text-zinc-200">Record payment</span>
                                     </button>
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
@@ -801,7 +813,7 @@ function DashboardView() {
                 <Link
                   href="/payments"
                   prefetch={false}
-                  className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium text-gray-700 dark:text-zinc-300 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-lg hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+                  className="inline-flex items-center justify-center px-3 py-2.5 text-[12px] leading-none font-medium text-gray-700 dark:text-zinc-300 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-lg hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors no-underline"
                 >
                   View all
                 </Link>
@@ -823,7 +835,7 @@ function DashboardView() {
                                 <Link
                                   href={`/invoices/${item.invoiceId}?from=/`}
                                   prefetch={false}
-                                  className="font-medium text-gray-600 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
+                                  className="font-medium text-gray-600 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white transition-colors no-underline"
                                 >
                                   #{item.invoiceNumber}
                                 </Link>
@@ -863,7 +875,7 @@ function DashboardView() {
                                 <Link
                                   href={`/invoices/${item.invoiceId}?from=/`}
                                   prefetch={false}
-                                  className="font-medium text-gray-600 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
+                                  className="font-medium text-gray-600 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white transition-colors no-underline"
                                 >
                                   #{item.invoiceNumber}
                                 </Link>
@@ -903,7 +915,7 @@ function DashboardView() {
                               <Link
                                 href={`/invoices/${item.invoiceId}?from=/`}
                                 prefetch={false}
-                                className="font-medium text-gray-600 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
+                                className="font-medium text-gray-600 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white transition-colors no-underline"
                               >
                                 #{item.invoiceNumber}
                               </Link>
@@ -958,7 +970,7 @@ function DashboardView() {
             <div>
               <div className="flex items-start justify-between pb-4 border-b border-gray-100 dark:border-[#27272a]">
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                  <h3 className="text-[20px] leading-[28px] font-medium text-gray-900 dark:text-white">
                     Compare currencies
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">
@@ -976,10 +988,10 @@ function DashboardView() {
               </div>
 
               {/* Straight 3-Column Header */}
-              <div className="grid grid-cols-[100px_1fr_auto] items-center gap-4 px-2 pb-2 pt-3 border-b border-gray-200 dark:border-[#27272a] text-xs font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
-                <span>Currency</span>
-                <span>{currencyDrawer === 'outstanding' ? 'Invoices' : 'Payments'}</span>
-                <span className="text-right">Amount</span>
+              <div className="grid grid-cols-[100px_1fr_auto] items-center gap-4 px-2 pb-2 pt-3 border-b border-gray-200 dark:border-[#27272a] text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
+                <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Currency</span>
+                <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">{currencyDrawer === 'outstanding' ? 'Invoices' : 'Payments'}</span>
+                <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider text-right">Amount</span>
               </div>
 
               {/* Rows */}
