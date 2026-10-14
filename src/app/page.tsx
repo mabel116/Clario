@@ -982,92 +982,85 @@ function DashboardView() {
           />
 
           {/* Slide-Over Drawer Content */}
-          <div className="relative z-50 w-full max-w-md bg-white dark:bg-[#121215] border-l border-gray-200 dark:border-[#27272a] h-screen p-6 flex flex-col justify-between animate-in slide-in-from-right duration-200">
-            <div>
-              <div className="flex items-start justify-between pb-4 border-b border-gray-100 dark:border-[#27272a]">
-                <div>
-                  <h3 className="text-[20px] leading-[28px] font-medium text-gray-900 dark:text-white">
-                    Compare currencies
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">
-                    {currencyDrawer === 'outstanding' ? 'Outstanding balances' : 'Payments received'} • All currencies
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCurrencyDrawer(null)}
-                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-[#1c1c21] transition-colors"
-                  aria-label="Close drawer"
-                >
-                  <X className="h-5 w-5" strokeWidth={2} />
-                </button>
+          <div className="relative z-50 w-full max-w-md bg-white dark:bg-[#121215] border-l border-gray-200 dark:border-[#27272a] h-screen p-6 flex flex-col animate-in slide-in-from-right duration-200">
+            <div className="flex items-start justify-between pb-4 border-b border-gray-100 dark:border-[#27272a] shrink-0">
+              <div>
+                <h3 className="text-[20px] leading-[28px] font-medium text-gray-900 dark:text-white">
+                  Compare currencies
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">
+                  {currencyDrawer === 'outstanding' ? 'Outstanding balances' : 'Payments received'} • All currencies
+                </p>
               </div>
-
-              {/* Straight 3-Column Header */}
-              <div className="grid grid-cols-[100px_1fr_auto] items-center gap-4 px-2 pb-2 pt-3 border-b border-gray-200 dark:border-[#27272a] text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
-                <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Currency</span>
-                <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">{currencyDrawer === 'outstanding' ? 'Invoices' : 'Payments'}</span>
-                <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider text-right">Amount</span>
-              </div>
-
-              {/* Rows */}
-              <div className="divide-y divide-gray-100 dark:divide-[#27272a]">
-                {currencyDrawer === 'outstanding' ? (
-                  sortedOutstanding.map((out) => {
-                    const currKey = out.currency.toUpperCase();
-                    const invCount = invoiceCountsByCurrency[currKey]?.total || 0;
-                    return (
-                      <div key={out.currency} className="grid grid-cols-[100px_1fr_auto] items-center gap-4 px-2 h-12 border-b border-gray-100 dark:border-[#27272a] last:border-b-0">
-                        <span className="font-mono text-xs font-medium bg-gray-100 dark:bg-[#27272a] text-gray-800 dark:text-zinc-200 px-2 py-0.5 rounded w-fit">
-                          {out.currency.toUpperCase()}
-                        </span>
-                        <span className="text-[12px] leading-[16px] font-medium text-gray-700 dark:text-zinc-300 text-left">
-                          {invCount} {invCount === 1 ? 'invoice' : 'invoices'}
-                        </span>
-                        <Money
-                          amountMinor={out.amountMinor}
-                          currency={out.currency}
-                          variant="table"
-                          tone="default"
-                          className="text-sm font-medium text-gray-900 dark:text-white tabular-nums text-right"
-                        />
-                      </div>
-                    );
-                  })
-                ) : (
-                  sortedEarnings.map((e) => {
-                    const currKey = e.currency.toUpperCase();
-                    const pCount = paymentCountsByCurrency[currKey] || 0;
-                    return (
-                      <div key={e.currency} className="grid grid-cols-[100px_1fr_auto] items-center gap-4 px-2 h-12 border-b border-gray-100 dark:border-[#27272a] last:border-b-0">
-                        <span className="font-mono text-xs font-medium bg-gray-100 dark:bg-[#27272a] text-gray-800 dark:text-zinc-200 px-2 py-0.5 rounded w-fit">
-                          {e.currency.toUpperCase()}
-                        </span>
-                        <span className="text-[12px] leading-[16px] font-medium text-gray-700 dark:text-zinc-300 text-left">
-                          {pCount} {pCount === 1 ? 'payment' : 'payments'}
-                        </span>
-                        <Money
-                          amountMinor={e.amountMinor}
-                          currency={e.currency}
-                          variant="table"
-                          tone="default"
-                          className="text-sm font-medium text-gray-900 dark:text-white tabular-nums text-right"
-                        />
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-gray-100 dark:border-[#27272a] flex justify-end">
               <button
                 type="button"
                 onClick={() => setCurrencyDrawer(null)}
-                className="px-4 py-2 text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-[#1c1c21] rounded-xl transition-colors"
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-[#1c1c21] transition-colors"
+                aria-label="Close drawer"
               >
-                Close
+                <X className="h-5 w-5" strokeWidth={2} />
               </button>
+            </div>
+
+            {/* Straight 3-Column Header */}
+            <div className="grid grid-cols-[100px_1fr_auto] items-center gap-4 px-2 pb-2 pt-3 border-b border-gray-200 dark:border-[#27272a] text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider shrink-0">
+              <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Currency</span>
+              <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">{currencyDrawer === 'outstanding' ? 'Invoices' : 'Payments'}</span>
+              <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider text-right">Amount</span>
+            </div>
+
+            {/* Rows */}
+            <div className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-[#27272a]">
+              {currencyDrawer === 'outstanding' ? (
+                sortedOutstanding.map((out) => {
+                  const currKey = out.currency.toUpperCase();
+                  const invCount = invoiceCountsByCurrency[currKey]?.total || 0;
+                  return (
+                    <div key={out.currency} className="grid grid-cols-[100px_1fr_auto] items-center gap-4 px-2 h-12 border-b border-gray-100 dark:border-[#27272a] last:border-b-0">
+                      <span className="font-mono text-xs font-medium bg-gray-100 dark:bg-[#27272a] text-gray-800 dark:text-zinc-200 px-2 py-0.5 rounded w-fit">
+                        {out.currency.toUpperCase()}
+                      </span>
+                      <Link
+                        href={`/invoices?status=outstanding&currency=${encodeURIComponent(out.currency)}`}
+                        prefetch={false}
+                        onClick={() => setCurrencyDrawer(null)}
+                        className="text-[12px] leading-[16px] font-medium text-gray-700 hover:text-gray-900 dark:text-zinc-300 dark:hover:text-white transition-colors text-left w-fit no-underline cursor-pointer"
+                      >
+                        {invCount} {invCount === 1 ? 'invoice' : 'invoices'}
+                      </Link>
+                      <Money
+                        amountMinor={out.amountMinor}
+                        currency={out.currency}
+                        variant="table"
+                        tone="default"
+                        className="text-sm font-medium text-gray-900 dark:text-white tabular-nums text-right"
+                      />
+                    </div>
+                  );
+                })
+              ) : (
+                sortedEarnings.map((e) => {
+                  const currKey = e.currency.toUpperCase();
+                  const pCount = paymentCountsByCurrency[currKey] || 0;
+                  return (
+                    <div key={e.currency} className="grid grid-cols-[100px_1fr_auto] items-center gap-4 px-2 h-12 border-b border-gray-100 dark:border-[#27272a] last:border-b-0">
+                      <span className="font-mono text-xs font-medium bg-gray-100 dark:bg-[#27272a] text-gray-800 dark:text-zinc-200 px-2 py-0.5 rounded w-fit">
+                        {e.currency.toUpperCase()}
+                      </span>
+                      <span className="text-[12px] leading-[16px] font-medium text-gray-700 dark:text-zinc-300 text-left">
+                        {pCount} {pCount === 1 ? 'payment' : 'payments'}
+                      </span>
+                      <Money
+                        amountMinor={e.amountMinor}
+                        currency={e.currency}
+                        variant="table"
+                        tone="default"
+                        className="text-sm font-medium text-gray-900 dark:text-white tabular-nums text-right"
+                      />
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
