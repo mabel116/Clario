@@ -4,24 +4,25 @@ import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { AppShell } from '../components/AppShell';
+import { useAuth } from '../lib/auth/provider';
 import { useDashboard, useClients, useProfile, useAllPayments } from '../lib/data/hooks';
 import { DashboardRepo } from '../lib/data/dashboard';
 import { useDataReady } from '../lib/data/readiness';
 import { useSyncStatus } from '../lib/sync/hooks';
 import { Money } from '../components/ui/money';
 import {
-  CreditCardIcon,
-  ArrowDownLeftIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  ChevronRightIcon,
-  ChevronDownIcon,
-  CheckIcon,
-  EllipsisHorizontalIcon,
-  EyeIcon,
-  XMarkIcon,
-  PlusIcon,
-} from '@heroicons/react/24/outline';
+  CreditCard,
+  Banknote,
+  Clock,
+  CheckCircle,
+  ChevronRight,
+  ChevronDown,
+  Check,
+  MoreHorizontal,
+  Eye,
+  X,
+  Plus,
+} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -42,6 +43,8 @@ export default function Home() {
 }
 
 function DashboardView() {
+  const { user } = useAuth();
+
   // States
   const [periodDays, setPeriodDays] = useState<30 | 90 | 365>(30);
   const [selectedOutstandingCurr, setSelectedOutstandingCurr] = useState<string>('');
@@ -329,33 +332,87 @@ function DashboardView() {
   const currentEarningsAmount = currentEarningsData?.amountMinor || 0;
   const currentEarningsCount = paymentCountsByCurrency[effectiveEarningsCurr] || 0;
 
-  const greeting = useMemo(() => {
+  // Resolve User First Name Cleanly
+  const firstName = useMemo(() => {
+    const meta = user?.user_metadata;
+    if (meta?.first_name && typeof meta.first_name === 'string') {
+      return meta.first_name.trim();
+    }
+    if (meta?.full_name && typeof meta.full_name === 'string') {
+      return meta.full_name.trim().split(' ')[0];
+    }
+    if (meta?.name && typeof meta.name === 'string') {
+      return meta.name.trim().split(' ')[0];
+    }
+    if (profile?.business_name && typeof profile.business_name === 'string') {
+      return profile.business_name.trim();
+    }
+    if (user?.email) {
+      const localPart = user.email.split('@')[0];
+      const match = localPart.match(/^[a-zA-Z]+/);
+      if (match && match[0]) {
+        return match[0].charAt(0).toUpperCase() + match[0].slice(1).toLowerCase();
+      }
+    }
+    return '';
+  }, [user, profile?.business_name]);
+
+  const nameSuffix = firstName ? `, ${firstName}` : '';
+
+  const [headerGreeting, setHeaderGreeting] = useState<string>(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  }, []);
-  const headerTitle = profile?.business_name
-    ? `${greeting}, ${profile.business_name}`
-    : `${greeting}, Welcome back`;
+    let base = 'Good morning';
+    if (hour === 23 || hour < 5) base = 'After-hours check-in';
+    else if (hour >= 5 && hour < 8) base = 'Early head start';
+    else if (hour >= 8 && hour < 12) base = 'Good morning';
+    else if (hour >= 12 && hour < 17) base = 'Good afternoon';
+    else base = 'Good evening';
+    return `${base}${nameSuffix}`;
+  });
+
+  useEffect(() => {
+    let base = '';
+    try {
+      const lastVisit = localStorage.getItem('clario_last_visit_ts');
+      localStorage.setItem('clario_last_visit_ts', String(Date.now()));
+      if (lastVisit && Date.now() - Number(lastVisit) > 3 * 24 * 60 * 60 * 1000) {
+        base = 'Good to have you back';
+      } else {
+        const hour = new Date().getHours();
+        if (hour === 23 || hour < 5) base = 'After-hours check-in';
+        else if (hour >= 5 && hour < 8) base = 'Early head start';
+        else if (hour >= 8 && hour < 12) base = 'Good morning';
+        else if (hour >= 12 && hour < 17) base = 'Good afternoon';
+        else base = 'Good evening';
+      }
+    } catch {
+      const hour = new Date().getHours();
+      if (hour === 23 || hour < 5) base = 'After-hours check-in';
+      else if (hour >= 5 && hour < 8) base = 'Early head start';
+      else if (hour >= 8 && hour < 12) base = 'Good morning';
+      else if (hour >= 12 && hour < 17) base = 'Good afternoon';
+      else base = 'Good evening';
+    }
+    setHeaderGreeting(`${base}${nameSuffix}`);
+  }, [nameSuffix]);
 
   return (
-    <div className="space-y-6 text-left">
+    <>
+      <div className="space-y-6 text-left">
       
       {/* 1. Page Header with Period Selector & Primary Action */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
-            {headerTitle}
+            {headerGreeting}
           </h1>
           <div className="flex flex-wrap items-center gap-2 mt-1 min-h-[22px]">
             <p className="text-xs text-gray-500 dark:text-zinc-400 font-normal">
               Here&apos;s a quick look at your money and what needs your attention.
             </p>
             {isCached && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-opacity duration-300">
-                <ClockIcon className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                Showing snapshot from {cachedAgoText}
+              <span className="text-xs text-gray-400 dark:text-zinc-500 font-normal">
+                &bull; Showing snapshot from {cachedAgoText}
               </span>
             )}
           </div>
@@ -393,7 +450,7 @@ function DashboardView() {
               prefetch={false}
               className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors tap-target"
             >
-              <PlusIcon className="h-4 w-4 stroke-[2.5]" aria-hidden="true" />
+              <Plus className="h-4 w-4 stroke-[2.5]" aria-hidden="true" />
               <span>Create invoice</span>
             </Link>
           </div>
@@ -415,7 +472,7 @@ function DashboardView() {
       ) : isFirstRun ? (
         <div className="max-w-xl mx-auto rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#121215] p-6 sm:p-8 space-y-6 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
-            <CheckCircleIcon className="h-7 w-7" />
+            <CheckCircle className="h-7 w-7" />
           </div>
           <div className="space-y-2">
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Let&apos;s set up your business</h3>
@@ -435,7 +492,7 @@ function DashboardView() {
                 <span className="block font-semibold text-sm text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">Add your first client</span>
                 <span className="block text-xs text-gray-500 dark:text-zinc-400">Log client billing coordinates and default currency.</span>
               </div>
-              <ChevronRightIcon className="h-4 w-4 text-gray-400 dark:text-zinc-500 ml-auto self-center group-hover:text-gray-600 dark:group-hover:text-zinc-300 group-hover:translate-x-0.5 transition" />
+              <ChevronRight className="h-4 w-4 text-gray-400 dark:text-zinc-500 ml-auto self-center group-hover:text-gray-600 dark:group-hover:text-zinc-300 group-hover:translate-x-0.5 transition" />
             </Link>
 
             <Link 
@@ -448,7 +505,7 @@ function DashboardView() {
                 <span className="block font-semibold text-sm text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">Issue your first invoice</span>
                 <span className="block text-xs text-gray-500 dark:text-zinc-400">Build custom line items and set payment due dates.</span>
               </div>
-              <ChevronRightIcon className="h-4 w-4 text-gray-400 dark:text-zinc-500 ml-auto self-center group-hover:text-gray-600 dark:group-hover:text-zinc-300 group-hover:translate-x-0.5 transition" />
+              <ChevronRight className="h-4 w-4 text-gray-400 dark:text-zinc-500 ml-auto self-center group-hover:text-gray-600 dark:group-hover:text-zinc-300 group-hover:translate-x-0.5 transition" />
             </Link>
           </div>
         </div>
@@ -460,16 +517,16 @@ function DashboardView() {
             {/* Card 1: Outstanding Balances */}
             <div className="border border-gray-200 dark:border-[#27272a] rounded-2xl flex flex-col justify-between overflow-hidden bg-white dark:bg-[#18181b]">
               {/* Header Shelf */}
-              <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-zinc-400">
-                  <CreditCardIcon className="h-4 w-4 text-gray-600 dark:text-zinc-400" strokeWidth={2} />
+              <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-2.5 min-h-[44px] flex items-center justify-between">
+                <div className="inline-flex items-center gap-2 text-sm font-normal text-gray-600 dark:text-zinc-400 leading-none">
+                  <CreditCard className="h-3.5 w-3.5 shrink-0 text-gray-600 dark:text-zinc-400" />
                   <span>Outstanding balances</span>
                 </div>
                 {sortedOutstanding.length > 1 && (
                   <DropdownMenu>
-                    <DropdownMenuTrigger className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded-lg border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] transition-colors focus:outline-none">
+                    <DropdownMenuTrigger className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-xs font-medium text-gray-700 dark:text-zinc-300 transition-colors focus:outline-none">
                       <span>{effectiveOutstandingCurr}</span>
-                      <ChevronDownIcon className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+                      <ChevronDown className="h-3 w-3 text-gray-400 dark:text-zinc-500" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-28">
                       {sortedOutstanding.map((o) => {
@@ -480,12 +537,12 @@ function DashboardView() {
                             key={o.currency}
                             onClick={() => setSelectedOutstandingCurr(curr)}
                             className={cn(
-                              'cursor-pointer text-xs justify-between flex items-center',
+                              'cursor-pointer text-[13px] font-normal text-gray-700 dark:text-zinc-200 justify-between flex items-center',
                               isActive && 'font-semibold text-blue-600 dark:text-blue-400'
                             )}
                           >
                             <span>{curr}</span>
-                            {isActive && <CheckIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />}
+                            {isActive && <Check className="h-[15px] w-[15px] text-gray-700 dark:text-zinc-200" />}
                           </DropdownMenuItem>
                         );
                       })}
@@ -497,17 +554,19 @@ function DashboardView() {
               {/* Card Body */}
               <div className="p-4 flex-1 flex flex-col justify-between bg-white dark:bg-[#18181b]">
                 <div>
-                  <Money
-                    amountMinor={currentOutstandingAmount}
-                    currency={effectiveOutstandingCurr}
-                    variant="table"
-                    tone="default"
-                    className="text-[18px] font-medium text-gray-900 dark:text-white tabular-nums"
-                  />
+                  <div className="block">
+                    <Money
+                      amountMinor={currentOutstandingAmount}
+                      currency={effectiveOutstandingCurr}
+                      variant="table"
+                      tone="default"
+                      className="text-[18px] font-medium text-gray-900 dark:text-white tabular-nums"
+                    />
+                  </div>
                   <Link
                     href={`/invoices?status=outstanding&currency=${effectiveOutstandingCurr}`}
                     prefetch={false}
-                    className="text-xs text-gray-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 mt-1 inline-block hover:underline"
+                    className="block mt-1 text-xs text-gray-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 hover:underline w-fit"
                   >
                     {currentOutstandingCount} {currentOutstandingCount === 1 ? 'invoice' : 'invoices'} • {currentOverdueCount} overdue
                   </Link>
@@ -530,16 +589,16 @@ function DashboardView() {
             {/* Card 2: Payments Received */}
             <div className="border border-gray-200 dark:border-[#27272a] rounded-2xl flex flex-col justify-between overflow-hidden bg-white dark:bg-[#18181b]">
               {/* Header Shelf */}
-              <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-zinc-400">
-                  <ArrowDownLeftIcon className="h-4 w-4 text-gray-600 dark:text-zinc-400" strokeWidth={2} />
+              <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-2.5 min-h-[44px] flex items-center justify-between">
+                <div className="inline-flex items-center gap-2 text-sm font-normal text-gray-600 dark:text-zinc-400 leading-none">
+                  <Banknote className="h-3.5 w-3.5 shrink-0 text-gray-600 dark:text-zinc-400" />
                   <span>Payments received</span>
                 </div>
                 {sortedEarnings.length > 1 && (
                   <DropdownMenu>
-                    <DropdownMenuTrigger className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded-lg border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] transition-colors focus:outline-none">
+                    <DropdownMenuTrigger className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-xs font-medium text-gray-700 dark:text-zinc-300 transition-colors focus:outline-none">
                       <span>{effectiveEarningsCurr}</span>
-                      <ChevronDownIcon className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
+                      <ChevronDown className="h-3 w-3 text-gray-400 dark:text-zinc-500" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-28">
                       {sortedEarnings.map((e) => {
@@ -550,12 +609,12 @@ function DashboardView() {
                             key={e.currency}
                             onClick={() => setSelectedEarningsCurr(curr)}
                             className={cn(
-                              'cursor-pointer text-xs justify-between flex items-center',
+                              'cursor-pointer text-[13px] font-normal text-gray-700 dark:text-zinc-200 justify-between flex items-center',
                               isActive && 'font-semibold text-blue-600 dark:text-blue-400'
                             )}
                           >
                             <span>{curr}</span>
-                            {isActive && <CheckIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />}
+                            {isActive && <Check className="h-[15px] w-[15px] text-gray-700 dark:text-zinc-200" />}
                           </DropdownMenuItem>
                         );
                       })}
@@ -567,14 +626,16 @@ function DashboardView() {
               {/* Card Body */}
               <div className="p-4 flex-1 flex flex-col justify-between bg-white dark:bg-[#18181b]">
                 <div>
-                  <Money
-                    amountMinor={currentEarningsAmount}
-                    currency={effectiveEarningsCurr}
-                    variant="table"
-                    tone="default"
-                    className="text-[18px] font-medium text-gray-900 dark:text-white tabular-nums"
-                  />
-                  <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1 font-normal">
+                  <div className="block">
+                    <Money
+                      amountMinor={currentEarningsAmount}
+                      currency={effectiveEarningsCurr}
+                      variant="table"
+                      tone="default"
+                      className="text-[18px] font-medium text-gray-900 dark:text-white tabular-nums"
+                    />
+                  </div>
+                  <p className="block mt-1 text-xs text-gray-500 dark:text-zinc-400 font-normal">
                     Past {periodDays} days • {currentEarningsCount} {currentEarningsCount === 1 ? 'payment' : 'payments'}
                   </p>
                 </div>
@@ -596,9 +657,9 @@ function DashboardView() {
             {/* Card 3: Overdue Invoices */}
             <div className="border border-gray-200 dark:border-[#27272a] rounded-2xl flex flex-col justify-between overflow-hidden bg-white dark:bg-[#18181b]">
               {/* Header Shelf */}
-              <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-zinc-400">
-                  <ClockIcon className="h-4 w-4 text-gray-600 dark:text-zinc-400" strokeWidth={2} />
+              <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-2.5 min-h-[44px] flex items-center justify-between">
+                <div className="inline-flex items-center gap-2 text-sm font-normal text-gray-600 dark:text-zinc-400 leading-none">
+                  <Clock className="h-3.5 w-3.5 shrink-0 text-gray-600 dark:text-zinc-400" />
                   <span>Overdue invoices</span>
                 </div>
               </div>
@@ -606,10 +667,12 @@ function DashboardView() {
               {/* Card Body */}
               <div className="p-4 flex-1 flex flex-col justify-between bg-white dark:bg-[#18181b]">
                 <div>
-                  <span className="text-[18px] font-medium text-gray-900 dark:text-white tabular-nums">
-                    {overdueInvoices.length}
-                  </span>
-                  <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1 font-normal">
+                  <div className="block">
+                    <span className="text-[18px] font-medium text-gray-900 dark:text-white tabular-nums">
+                      {overdueInvoices.length}
+                    </span>
+                  </div>
+                  <p className="block mt-1 text-xs text-gray-500 dark:text-zinc-400 font-normal">
                     Across all currencies
                   </p>
                 </div>
@@ -624,11 +687,11 @@ function DashboardView() {
 
           </div>
 
-          {/* Middle Tier: 60/40 Split */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start mt-6">
+          {/* Middle Tier: Equal-Height 60/40 Split */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-stretch mt-6">
             
             {/* Left Panel (60% / lg:col-span-3): Needs Attention */}
-            <div className="lg:col-span-3 border border-gray-200 dark:border-[#27272a] rounded-2xl overflow-hidden bg-white dark:bg-[#18181b]">
+            <div className="lg:col-span-3 h-full flex flex-col border border-gray-200 dark:border-[#27272a] rounded-2xl overflow-hidden bg-white dark:bg-[#18181b]">
               <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
                   Needs Attention
@@ -636,95 +699,101 @@ function DashboardView() {
                 <Link
                   href="/invoices?status=overdue"
                   prefetch={false}
-                  className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                  className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium text-gray-700 dark:text-zinc-300 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-lg hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
                 >
                   View all invoices
                 </Link>
               </div>
 
               {overdueInvoices.length > 0 ? (
-                <div className="p-4 divide-y divide-gray-100 dark:divide-[#27272a]">
-                  <div className="grid grid-cols-12 gap-3 text-xs font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider pb-2">
-                    <div className="col-span-4 sm:col-span-5">Invoice / Client</div>
-                    <div className="col-span-3 text-right sm:text-left">Amount Due</div>
-                    <div className="col-span-4 sm:col-span-3">Due Date</div>
-                    <div className="col-span-1 text-right">Actions</div>
-                  </div>
-                  {overdueInvoices.slice(0, 5).map((inv) => {
-                    const days = getDaysOverdue(inv.due_date);
-                    return (
-                      <div key={inv.id} className="grid grid-cols-12 gap-3 items-center py-3">
-                        <div className="col-span-4 sm:col-span-5 min-w-0">
-                          <Link
-                            href={`/invoices/${inv.id}?from=/`}
-                            prefetch={false}
-                            className="text-sm font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors block truncate"
-                          >
-                            {inv.invoice_number}
-                          </Link>
-                          <p className="text-xs text-gray-500 dark:text-zinc-400 font-normal truncate mt-0.5">
-                            {inv.client_name || clientMap[inv.client_id]?.name || 'Client'}
-                          </p>
-                        </div>
-                        <div className="col-span-3 text-right sm:text-left">
-                          <Money
-                            amountMinor={inv.balanceDueMinor}
-                            currency={inv.currency}
-                            variant="table"
-                            tone="default"
-                            className="text-sm font-medium text-gray-900 dark:text-white tabular-nums"
-                          />
-                        </div>
-                        <div className="col-span-4 sm:col-span-3 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {formatDate(inv.due_date)}
-                          </p>
-                          <p className="text-xs text-rose-600 dark:text-rose-400 font-normal mt-0.5">
-                            {days}d overdue
-                          </p>
-                        </div>
-                        <div className="col-span-1 text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger className="p-1 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-zinc-300 hover:bg-gray-100 dark:hover:bg-[#1c1c21] transition-colors focus:outline-none">
-                              <EllipsisHorizontalIcon className="h-4 w-4" />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-36 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1 shadow-lg">
-                              <DropdownMenuItem asChild>
-                                <Link
-                                  href={`/invoices/${inv.id}?from=/`}
-                                  prefetch={false}
-                                  className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] rounded-lg cursor-pointer"
-                                >
-                                  <EyeIcon className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
-                                  <span>View invoice</span>
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                                <button
-                                  type="button"
-                                  onClick={() => setRecordPaymentTarget({ clientId: inv.client_id, invoiceId: inv.id })}
-                                  className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] rounded-lg w-full text-left cursor-pointer"
-                                >
-                                  <CreditCardIcon className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
-                                  <span>Record payment</span>
-                                </button>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="overflow-x-auto flex-1">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-100 dark:border-[#27272a] text-xs font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
+                        <th className="py-2.5 pl-4 pr-3 text-left font-medium">Invoice / Client</th>
+                        <th className="py-2.5 px-3 text-left font-medium">Amount Due</th>
+                        <th className="py-2.5 px-3 text-left font-medium">Due Date</th>
+                        <th className="py-2.5 pl-3 pr-4 text-right w-20 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-[#27272a]">
+                      {overdueInvoices.slice(0, 5).map((inv) => {
+                        const days = getDaysOverdue(inv.due_date);
+                        return (
+                          <tr key={inv.id}>
+                            <td className="py-3 pl-4 pr-3 align-middle min-w-0">
+                              <Link
+                                href={`/invoices/${inv.id}?from=/`}
+                                prefetch={false}
+                                className="text-sm font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors block truncate"
+                              >
+                                {inv.invoice_number}
+                              </Link>
+                              <p className="text-xs text-gray-500 dark:text-zinc-400 font-normal truncate mt-0.5">
+                                {inv.client_name || clientMap[inv.client_id]?.name || 'Client'}
+                              </p>
+                            </td>
+                            <td className="py-3 px-3 align-middle">
+                              <Money
+                                amountMinor={inv.balanceDueMinor}
+                                currency={inv.currency}
+                                variant="table"
+                                tone="default"
+                                className="text-sm font-medium text-gray-900 dark:text-white tabular-nums"
+                              />
+                            </td>
+                            <td className="py-3 px-3 align-middle">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                {formatDate(inv.due_date)}
+                              </p>
+                              <p className="text-xs text-rose-600 dark:text-rose-400 font-normal mt-0.5">
+                                {days}d overdue
+                              </p>
+                            </td>
+                            <td className="py-3 pl-3 pr-4 align-middle text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors focus:outline-none">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-36 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1 shadow-lg">
+                                  <DropdownMenuItem asChild>
+                                    <Link
+                                      href={`/invoices/${inv.id}?from=/`}
+                                      prefetch={false}
+                                      className="flex items-center gap-2.5 px-3 py-2 text-[13px] font-normal text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] rounded-lg cursor-pointer"
+                                    >
+                                      <Eye className="h-[15px] w-[15px] text-gray-700 dark:text-zinc-200 shrink-0" />
+                                      <span>View invoice</span>
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem asChild>
+                                    <button
+                                      type="button"
+                                      onClick={() => setRecordPaymentTarget({ clientId: inv.client_id, invoiceId: inv.id })}
+                                      className="flex items-center gap-2.5 px-3 py-2 text-[13px] font-normal text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] rounded-lg w-full text-left cursor-pointer"
+                                    >
+                                      <CreditCard className="h-[15px] w-[15px] text-gray-700 dark:text-zinc-200 shrink-0" />
+                                      <span>Record payment</span>
+                                    </button>
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
-                <div className="p-4 text-center py-8 text-xs text-gray-500 dark:text-zinc-400">
+                <div className="p-4 text-center py-8 text-xs text-gray-500 dark:text-zinc-400 flex-1 flex items-center justify-center">
                   All caught up! No invoices require immediate attention.
                 </div>
               )}
             </div>
 
-            {/* Right Panel (40% / lg:col-span-2): Recent Activity Feed (Option B Mixed Stream) */}
-            <div className="lg:col-span-2 border border-gray-200 dark:border-[#27272a] rounded-2xl overflow-hidden bg-white dark:bg-[#18181b]">
+            {/* Right Panel (40% / lg:col-span-2): Recent Activity Feed */}
+            <div className="lg:col-span-2 h-full flex flex-col border border-gray-200 dark:border-[#27272a] rounded-2xl overflow-hidden bg-white dark:bg-[#18181b]">
               <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
                   Recent activity
@@ -732,50 +801,50 @@ function DashboardView() {
                 <Link
                   href="/payments"
                   prefetch={false}
-                  className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                  className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium text-gray-700 dark:text-zinc-300 bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-lg hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
                 >
                   View all
                 </Link>
               </div>
 
               {activityStream.length > 0 ? (
-                <div className="p-4 divide-y divide-gray-100 dark:divide-[#27272a]">
+                <div className="divide-y divide-gray-100 dark:divide-[#27272a] flex-1">
                   {activityStream.map((item) => {
                     if (item.type === 'payment') {
                       return (
-                        <div key={item.id} className="py-3 flex items-center justify-between gap-4 first:pt-1 last:pb-1">
-                          <div className="min-w-0 space-y-0.5">
+                        <div key={item.id} className="px-4 py-3.5 flex items-center justify-between gap-4">
+                          <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                               {item.clientName}
                             </p>
-                            <div className="text-xs text-gray-500 dark:text-zinc-400 font-normal flex items-center gap-1 flex-wrap">
-                              <span>Payment received</span>
-                              {item.invoiceNumber && item.invoiceId && (
-                                <>
-                                  <span>for</span>
-                                  <Link
-                                    href={`/invoices/${item.invoiceId}?from=/`}
-                                    prefetch={false}
-                                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                                  >
-                                    #{item.invoiceNumber}
-                                  </Link>
-                                </>
+                            <p className="text-xs text-gray-500 dark:text-zinc-400 font-normal mt-0.5 truncate">
+                              Payment received ·{' '}
+                              {item.invoiceNumber && item.invoiceId ? (
+                                <Link
+                                  href={`/invoices/${item.invoiceId}?from=/`}
+                                  prefetch={false}
+                                  className="font-medium text-gray-600 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
+                                >
+                                  #{item.invoiceNumber}
+                                </Link>
+                              ) : (
+                                <span>Payment</span>
                               )}
-                              <span>• {item.dateText}</span>
-                            </div>
+                            </p>
                           </div>
                           <div className="text-right shrink-0">
-                            <span className="inline-flex items-center gap-1">
-                              <span className="text-emerald-600 dark:text-emerald-400 font-medium text-sm">+</span>
-                              <Money
+                            <div className="text-sm font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
+                              + <Money
                                 amountMinor={item.amountMinor}
                                 currency={item.currency}
                                 variant="table"
                                 tone="positive"
                                 className="text-sm font-medium text-emerald-600 dark:text-emerald-400 tabular-nums"
                               />
-                            </span>
+                            </div>
+                            <p className="text-xs text-gray-400 dark:text-zinc-500 font-normal mt-0.5">
+                              {item.dateText}
+                            </p>
                           </div>
                         </div>
                       );
@@ -783,19 +852,29 @@ function DashboardView() {
 
                     if (item.type === 'reversal') {
                       return (
-                        <div key={item.id} className="py-3 flex items-center justify-between gap-4 first:pt-1 last:pb-1">
-                          <div className="min-w-0 space-y-0.5">
+                        <div key={item.id} className="px-4 py-3.5 flex items-center justify-between gap-4">
+                          <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                               {item.clientName}
                             </p>
-                            <p className="text-xs text-gray-500 dark:text-zinc-400 font-normal">
-                              Payment reversed • {item.dateText}
+                            <p className="text-xs text-gray-500 dark:text-zinc-400 font-normal mt-0.5 truncate">
+                              Payment reversed ·{' '}
+                              {item.invoiceNumber && item.invoiceId ? (
+                                <Link
+                                  href={`/invoices/${item.invoiceId}?from=/`}
+                                  prefetch={false}
+                                  className="font-medium text-gray-600 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
+                                >
+                                  #{item.invoiceNumber}
+                                </Link>
+                              ) : (
+                                <span>Payment</span>
+                              )}
                             </p>
                           </div>
                           <div className="text-right shrink-0">
-                            <div className="inline-flex items-center gap-1">
-                              <span className="text-rose-600 dark:text-rose-400 font-medium text-sm">−</span>
-                              <Money
+                            <div className="text-sm font-medium text-rose-600 dark:text-rose-400 tabular-nums">
+                              − <Money
                                 amountMinor={item.amountMinor}
                                 currency={item.currency}
                                 variant="table"
@@ -803,9 +882,9 @@ function DashboardView() {
                                 className="text-sm font-medium text-rose-600 dark:text-rose-400 tabular-nums"
                               />
                             </div>
-                            <span className="block text-[10px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
-                              Reversal
-                            </span>
+                            <p className="text-xs text-gray-400 dark:text-zinc-500 font-normal mt-0.5">
+                              {item.dateText}
+                            </p>
                           </div>
                         </div>
                       );
@@ -813,40 +892,46 @@ function DashboardView() {
 
                     // invoice_created
                     return (
-                      <div key={item.id} className="py-3 flex items-center justify-between gap-4 first:pt-1 last:pb-1">
-                        <div className="min-w-0 space-y-0.5">
+                      <div key={item.id} className="px-4 py-3.5 flex items-center justify-between gap-4">
+                        <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                             {item.clientName}
                           </p>
-                          <div className="text-xs text-gray-500 dark:text-zinc-400 font-normal flex items-center gap-1 flex-wrap">
-                            <span>Invoice created</span>
-                            {item.invoiceNumber && item.invoiceId && (
+                          <p className="text-xs text-gray-500 dark:text-zinc-400 font-normal mt-0.5 truncate">
+                            Invoice created ·{' '}
+                            {item.invoiceNumber && item.invoiceId ? (
                               <Link
                                 href={`/invoices/${item.invoiceId}?from=/`}
                                 prefetch={false}
-                                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                                className="font-medium text-gray-600 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
                               >
                                 #{item.invoiceNumber}
                               </Link>
+                            ) : (
+                              <span>Invoice</span>
                             )}
-                            <span>• {item.dateText}</span>
-                          </div>
+                          </p>
                         </div>
                         <div className="text-right shrink-0">
-                          <Money
-                            amountMinor={item.amountMinor}
-                            currency={item.currency}
-                            variant="table"
-                            tone="default"
-                            className="text-sm font-medium text-gray-900 dark:text-white tabular-nums"
-                          />
+                          <div className="text-sm font-medium text-gray-900 dark:text-white tabular-nums">
+                            <Money
+                              amountMinor={item.amountMinor}
+                              currency={item.currency}
+                              variant="table"
+                              tone="default"
+                              className="text-sm font-medium text-gray-900 dark:text-white tabular-nums"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-400 dark:text-zinc-500 font-normal mt-0.5">
+                            {item.dateText}
+                          </p>
                         </div>
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <div className="p-4 text-center py-8 text-xs text-gray-500 dark:text-zinc-400">
+                <div className="p-4 text-center py-8 text-xs text-gray-500 dark:text-zinc-400 flex-1 flex items-center justify-center">
                   No recent activity recorded yet.
                 </div>
               )}
@@ -855,6 +940,8 @@ function DashboardView() {
           </div>
         </>
       )}
+
+      </div>
 
       {/* Compare Currencies Slide-Over Drawer */}
       {currencyDrawer && (
@@ -867,7 +954,7 @@ function DashboardView() {
           />
 
           {/* Slide-Over Drawer Content */}
-          <div className="relative z-50 w-full max-w-md bg-white dark:bg-[#121215] border-l border-gray-200 dark:border-[#27272a] h-full shadow-2xl p-6 flex flex-col justify-between animate-in slide-in-from-right duration-200">
+          <div className="relative z-50 w-full max-w-md bg-white dark:bg-[#121215] border-l border-gray-200 dark:border-[#27272a] h-screen p-6 flex flex-col justify-between animate-in slide-in-from-right duration-200">
             <div>
               <div className="flex items-start justify-between pb-4 border-b border-gray-100 dark:border-[#27272a]">
                 <div>
@@ -884,12 +971,12 @@ function DashboardView() {
                   className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-[#1c1c21] transition-colors"
                   aria-label="Close drawer"
                 >
-                  <XMarkIcon className="h-5 w-5" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
-              {/* Table Header */}
-              <div className="flex items-center justify-between py-3 text-xs font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider border-b border-gray-100 dark:border-[#27272a] px-1">
+              {/* Straight 3-Column Header */}
+              <div className="grid grid-cols-[100px_1fr_auto] items-center gap-4 px-2 pb-2 pt-3 border-b border-gray-200 dark:border-[#27272a] text-xs font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
                 <span>Currency</span>
                 <span>{currencyDrawer === 'outstanding' ? 'Invoices' : 'Payments'}</span>
                 <span className="text-right">Amount</span>
@@ -902,11 +989,11 @@ function DashboardView() {
                     const currKey = out.currency.toUpperCase();
                     const invCount = invoiceCountsByCurrency[currKey]?.total || 0;
                     return (
-                      <div key={out.currency} className="h-12 flex items-center justify-between border-b border-gray-100 dark:border-[#27272a] last:border-b-0 px-1 text-sm">
-                        <span className="font-mono text-xs font-medium bg-gray-100 dark:bg-[#27272a] text-gray-800 dark:text-zinc-200 px-2 py-0.5 rounded">
+                      <div key={out.currency} className="grid grid-cols-[100px_1fr_auto] items-center gap-4 px-2 h-12 border-b border-gray-100 dark:border-[#27272a] last:border-b-0">
+                        <span className="font-mono text-xs font-medium bg-gray-100 dark:bg-[#27272a] text-gray-800 dark:text-zinc-200 px-2 py-0.5 rounded w-fit">
                           {out.currency.toUpperCase()}
                         </span>
-                        <span className="text-xs text-gray-500 dark:text-zinc-400">
+                        <span className="text-xs text-gray-500 dark:text-zinc-400 text-left">
                           {invCount} {invCount === 1 ? 'invoice' : 'invoices'}
                         </span>
                         <Money
@@ -924,11 +1011,11 @@ function DashboardView() {
                     const currKey = e.currency.toUpperCase();
                     const pCount = paymentCountsByCurrency[currKey] || 0;
                     return (
-                      <div key={e.currency} className="h-12 flex items-center justify-between border-b border-gray-100 dark:border-[#27272a] last:border-b-0 px-1 text-sm">
-                        <span className="font-mono text-xs font-medium bg-gray-100 dark:bg-[#27272a] text-gray-800 dark:text-zinc-200 px-2 py-0.5 rounded">
+                      <div key={e.currency} className="grid grid-cols-[100px_1fr_auto] items-center gap-4 px-2 h-12 border-b border-gray-100 dark:border-[#27272a] last:border-b-0">
+                        <span className="font-mono text-xs font-medium bg-gray-100 dark:bg-[#27272a] text-gray-800 dark:text-zinc-200 px-2 py-0.5 rounded w-fit">
                           {e.currency.toUpperCase()}
                         </span>
-                        <span className="text-xs text-gray-500 dark:text-zinc-400">
+                        <span className="text-xs text-gray-500 dark:text-zinc-400 text-left">
                           {pCount} {pCount === 1 ? 'payment' : 'payments'}
                         </span>
                         <Money
@@ -966,7 +1053,6 @@ function DashboardView() {
           onClose={() => setRecordPaymentTarget(null)}
         />
       )}
-
-    </div>
+    </>
   );
 }

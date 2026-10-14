@@ -7,27 +7,21 @@ import { useTheme } from 'next-themes';
 import { useAuth } from '../lib/auth/provider';
 import { resolveActiveNav, NavItem } from '../lib/navigation';
 import {
-  HomeIcon as HomeOutline,
-  DocumentTextIcon as InvoicesOutline,
-  CreditCardIcon as PaymentsOutline,
-  UsersIcon as ClientsOutline,
-  Cog6ToothIcon as SettingsOutline,
-  ArrowRightOnRectangleIcon,
-  Bars3Icon,
-  XMarkIcon,
-  MagnifyingGlassIcon,
-  BellIcon,
-  SunIcon,
-  MoonIcon,
-  Bars3BottomLeftIcon,
-} from '@heroicons/react/24/outline';
-import {
-  HomeIcon as HomeSolid,
-  DocumentTextIcon as InvoicesSolid,
-  CreditCardIcon as PaymentsSolid,
-  UsersIcon as ClientsSolid,
-  Cog6ToothIcon as SettingsSolid,
-} from '@heroicons/react/24/solid';
+  Home,
+  FileText,
+  CreditCard,
+  Users,
+  Settings,
+  PanelLeft,
+  LogOut,
+  Menu,
+  X,
+  Search,
+  Bell,
+  Sun,
+  Moon,
+  type LucideIcon,
+} from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import {
@@ -44,13 +38,12 @@ const primaryNavItems: Array<{
   name: string;
   href: string;
   id: NavItem;
-  outlineIcon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
-  solidIcon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
 }> = [
-  { name: 'Dashboard', href: '/', id: 'dashboard', outlineIcon: HomeOutline, solidIcon: HomeSolid },
-  { name: 'Invoices', href: '/invoices', id: 'invoices', outlineIcon: InvoicesOutline, solidIcon: InvoicesSolid },
-  { name: 'Payments', href: '/payments', id: 'payments', outlineIcon: PaymentsOutline, solidIcon: PaymentsSolid },
-  { name: 'Clients', href: '/clients', id: 'clients', outlineIcon: ClientsOutline, solidIcon: ClientsSolid },
+  { name: 'Dashboard', href: '/', id: 'dashboard', icon: Home },
+  { name: 'Invoices', href: '/invoices', id: 'invoices', icon: FileText },
+  { name: 'Payments', href: '/payments', id: 'payments', icon: CreditCard },
+  { name: 'Clients', href: '/clients', id: 'clients', icon: Users },
 ];
 
 const allMobileNavItems = [
@@ -59,8 +52,7 @@ const allMobileNavItems = [
     name: 'Settings',
     href: '/settings',
     id: 'settings' as NavItem,
-    outlineIcon: SettingsOutline,
-    solidIcon: SettingsSolid,
+    icon: Settings,
   },
 ];
 
@@ -89,9 +81,9 @@ function ThemeToggle() {
     >
       <span className="flex items-center gap-3">
         {isDark ? (
-          <MoonIcon className="h-4 w-4 text-blue-400" />
+          <Moon className="h-4 w-4 text-blue-400" strokeWidth={1.75} />
         ) : (
-          <SunIcon className="h-4 w-4 text-amber-500" />
+          <Sun className="h-4 w-4 text-amber-500" strokeWidth={1.75} />
         )}
         <span>{isDark ? 'Dark Mode' : 'Light Mode'}</span>
       </span>
@@ -121,6 +113,7 @@ function PrimaryNavigationLinks() {
     <nav className="space-y-1">
       {primaryNavItems.map((item) => {
         const isActive = item.id === activeNav;
+        const Icon = item.icon;
         return (
           <Link
             key={item.name}
@@ -134,14 +127,15 @@ function PrimaryNavigationLinks() {
             )}
             aria-current={isActive ? 'page' : undefined}
           >
-            {isActive ? (
-              <item.solidIcon className="h-4 w-4 shrink-0 text-white transition-colors" />
-            ) : (
-              <item.outlineIcon
-                className="h-4 w-4 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
-                strokeWidth={2}
-              />
-            )}
+            <Icon
+              className={cn(
+                'h-4 w-4 shrink-0 transition-colors',
+                isActive
+                  ? 'text-white'
+                  : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
+              )}
+              strokeWidth={1.75}
+            />
             <span>{item.name}</span>
           </Link>
         );
@@ -158,6 +152,7 @@ function PrimaryNavigationLinksFallback() {
     <nav className="space-y-1">
       {primaryNavItems.map((item) => {
         const isActive = item.id === activeNav;
+        const Icon = item.icon;
         return (
           <Link
             key={item.name}
@@ -171,14 +166,15 @@ function PrimaryNavigationLinksFallback() {
             )}
             aria-current={isActive ? 'page' : undefined}
           >
-            {isActive ? (
-              <item.solidIcon className="h-4 w-4 shrink-0 text-white transition-colors" />
-            ) : (
-              <item.outlineIcon
-                className="h-4 w-4 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
-                strokeWidth={2}
-              />
-            )}
+            <Icon
+              className={cn(
+                'h-4 w-4 shrink-0 transition-colors',
+                isActive
+                  ? 'text-white'
+                  : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
+              )}
+              strokeWidth={1.75}
+            />
             <span>{item.name}</span>
           </Link>
         );
@@ -205,14 +201,15 @@ function SettingsSidebarLink() {
       )}
       aria-current={isActive ? 'page' : undefined}
     >
-      {isActive ? (
-        <SettingsSolid className="h-4 w-4 shrink-0 text-white transition-colors" />
-      ) : (
-        <SettingsOutline
-          className="h-4 w-4 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
-          strokeWidth={2}
-        />
-      )}
+      <Settings
+        className={cn(
+          'h-4 w-4 shrink-0 transition-colors',
+          isActive
+            ? 'text-white'
+            : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
+        )}
+        strokeWidth={1.75}
+      />
       <span>Settings</span>
     </Link>
   );
@@ -225,9 +222,9 @@ function SettingsSidebarLinkFallback() {
       prefetch={false}
       className="flex items-center gap-3 h-10 px-3.5 rounded-xl text-sm font-normal text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] transition-colors tap-target"
     >
-      <SettingsOutline
+      <Settings
         className="h-4 w-4 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
-        strokeWidth={2}
+        strokeWidth={1.75}
       />
       <span>Settings</span>
     </Link>
@@ -243,6 +240,7 @@ function MobileNavLinks({ onItemClick }: { onItemClick: () => void }) {
     <nav className="space-y-1.5">
       {allMobileNavItems.map((item) => {
         const isActive = item.id === activeNav;
+        const Icon = item.icon;
         return (
           <Link
             key={item.name}
@@ -257,14 +255,15 @@ function MobileNavLinks({ onItemClick }: { onItemClick: () => void }) {
             )}
             aria-current={isActive ? 'page' : undefined}
           >
-            {isActive ? (
-              <item.solidIcon className="h-4 w-4 shrink-0 text-white transition-colors" />
-            ) : (
-              <item.outlineIcon
-                className="h-4 w-4 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
-                strokeWidth={2}
-              />
-            )}
+            <Icon
+              className={cn(
+                'h-4 w-4 shrink-0 transition-colors',
+                isActive
+                  ? 'text-white'
+                  : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
+              )}
+              strokeWidth={1.75}
+            />
             <span>{item.name}</span>
           </Link>
         );
@@ -281,6 +280,7 @@ function MobileNavLinksFallback({ onItemClick }: { onItemClick: () => void }) {
     <nav className="space-y-1.5">
       {allMobileNavItems.map((item) => {
         const isActive = item.id === activeNav;
+        const Icon = item.icon;
         return (
           <Link
             key={item.name}
@@ -294,14 +294,15 @@ function MobileNavLinksFallback({ onItemClick }: { onItemClick: () => void }) {
                 : 'font-normal text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21]'
             )}
           >
-            {isActive ? (
-              <item.solidIcon className="h-4 w-4 shrink-0 text-white transition-colors" />
-            ) : (
-              <item.outlineIcon
-                className="h-4 w-4 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
-                strokeWidth={2}
-              />
-            )}
+            <Icon
+              className={cn(
+                'h-4 w-4 shrink-0 transition-colors',
+                isActive
+                  ? 'text-white'
+                  : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
+              )}
+              strokeWidth={1.75}
+            />
             <span>{item.name}</span>
           </Link>
         );
@@ -375,7 +376,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 Clario
               </span>
             </Link>
-            <Bars3BottomLeftIcon className="h-4 w-4 text-gray-400 dark:text-zinc-500" aria-hidden="true" />
+            <PanelLeft className="h-4 w-4 text-gray-400 dark:text-zinc-500" aria-hidden="true" strokeWidth={1.75} />
           </div>
 
           {/* Primary Navigation Items */}
@@ -420,7 +421,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               aria-label="Sign out"
               title="Sign out"
             >
-              <ArrowRightOnRectangleIcon className="h-4 w-4" />
+              <LogOut className="h-4 w-4" strokeWidth={1.75} />
             </Button>
           </div>
         </div>
@@ -439,7 +440,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="md:hidden text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white tap-target"
               aria-label="Open navigation menu"
             >
-              <Bars3Icon className="h-5 w-5" />
+              <Menu className="h-5 w-5" strokeWidth={1.75} />
             </Button>
 
             <Suspense fallback={<HeaderTitleFallback />}>
@@ -452,7 +453,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Input
               type="text"
               placeholder="Search anything..."
-              leadingIcon={<MagnifyingGlassIcon className="h-4 w-4 text-gray-400 dark:text-zinc-500" />}
+              leadingIcon={<Search className="h-4 w-4 text-gray-400 dark:text-zinc-500" strokeWidth={1.75} />}
               trailingIcon={
                 <kbd className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-[#1c1c21] border border-gray-200 dark:border-[#27272a] rounded select-none">
                   ⌘K
@@ -471,7 +472,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="relative text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white tap-target"
               aria-label="Notifications"
             >
-              <BellIcon className="h-4 w-4" />
+              <Bell className="h-4 w-4" strokeWidth={1.75} />
               <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-blue-600" />
             </Button>
 
@@ -497,7 +498,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </div>
                 <DropdownMenuItem asChild>
                   <Link href="/settings" prefetch={false} className="flex items-center gap-2 cursor-pointer w-full">
-                    <SettingsOutline className="h-4 w-4" strokeWidth={2} />
+                    <Settings className="h-4 w-4" strokeWidth={1.75} />
                     <span>Settings</span>
                   </Link>
                 </DropdownMenuItem>
@@ -506,7 +507,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   onClick={signOut}
                   className="text-rose-600 dark:text-rose-400 focus:text-rose-600 dark:focus:text-rose-400 flex items-center gap-2 cursor-pointer"
                 >
-                  <ArrowRightOnRectangleIcon className="h-3.5 w-3.5" />
+                  <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
                   <span>Sign out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -556,7 +557,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className="text-gray-400 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white tap-target"
                   aria-label="Close navigation menu"
                 >
-                  <XMarkIcon className="h-5 w-5" />
+                  <X className="h-5 w-5" strokeWidth={1.75} />
                 </Button>
               </div>
 
@@ -597,7 +598,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   aria-label="Sign out"
                   title="Sign out"
                 >
-                  <ArrowRightOnRectangleIcon className="h-4.5 w-4.5" />
+                  <LogOut className="h-4.5 w-4.5" strokeWidth={1.75} />
                 </Button>
               </div>
             </div>
