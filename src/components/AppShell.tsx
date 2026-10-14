@@ -81,9 +81,9 @@ function ThemeToggle() {
     >
       <span className="flex items-center gap-3">
         {isDark ? (
-          <Moon className="h-4 w-4 text-blue-400" strokeWidth={1.75} />
+          <Moon className="h-4 w-4 text-blue-400" strokeWidth={2} />
         ) : (
-          <Sun className="h-4 w-4 text-amber-500" strokeWidth={1.75} />
+          <Sun className="h-4 w-4 text-amber-500" strokeWidth={2} />
         )}
         <span>{isDark ? 'Dark Mode' : 'Light Mode'}</span>
       </span>
@@ -134,7 +134,7 @@ function PrimaryNavigationLinks() {
                   ? 'text-white'
                   : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
               )}
-              strokeWidth={1.75}
+              strokeWidth={2}
             />
             <span>{item.name}</span>
           </Link>
@@ -173,7 +173,7 @@ function PrimaryNavigationLinksFallback() {
                   ? 'text-white'
                   : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
               )}
-              strokeWidth={1.75}
+              strokeWidth={2}
             />
             <span>{item.name}</span>
           </Link>
@@ -208,7 +208,7 @@ function SettingsSidebarLink() {
             ? 'text-white'
             : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
         )}
-        strokeWidth={1.75}
+        strokeWidth={2}
       />
       <span>Settings</span>
     </Link>
@@ -224,7 +224,7 @@ function SettingsSidebarLinkFallback() {
     >
       <Settings
         className="h-4 w-4 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
-        strokeWidth={1.75}
+        strokeWidth={2}
       />
       <span>Settings</span>
     </Link>
@@ -262,7 +262,7 @@ function MobileNavLinks({ onItemClick }: { onItemClick: () => void }) {
                   ? 'text-white'
                   : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
               )}
-              strokeWidth={1.75}
+              strokeWidth={2}
             />
             <span>{item.name}</span>
           </Link>
@@ -301,7 +301,7 @@ function MobileNavLinksFallback({ onItemClick }: { onItemClick: () => void }) {
                   ? 'text-white'
                   : 'text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300'
               )}
-              strokeWidth={1.75}
+              strokeWidth={2}
             />
             <span>{item.name}</span>
           </Link>
@@ -376,7 +376,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 Clario
               </span>
             </Link>
-            <PanelLeft className="h-4 w-4 text-gray-400 dark:text-zinc-500" aria-hidden="true" strokeWidth={1.75} />
+            <PanelLeft className="h-4 w-4 text-gray-400 dark:text-zinc-500" aria-hidden="true" strokeWidth={2} />
           </div>
 
           {/* Primary Navigation Items */}
@@ -421,7 +421,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               aria-label="Sign out"
               title="Sign out"
             >
-              <LogOut className="h-4 w-4" strokeWidth={1.75} />
+              <LogOut className="h-4 w-4" strokeWidth={2} />
             </Button>
           </div>
         </div>
@@ -440,7 +440,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="md:hidden text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white tap-target"
               aria-label="Open navigation menu"
             >
-              <Menu className="h-5 w-5" strokeWidth={1.75} />
+              <Menu className="h-5 w-5" strokeWidth={2} />
             </Button>
 
             <Suspense fallback={<HeaderTitleFallback />}>
@@ -453,7 +453,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Input
               type="text"
               placeholder="Search anything..."
-              leadingIcon={<Search className="h-4 w-4 text-gray-400 dark:text-zinc-500" strokeWidth={1.75} />}
+              leadingIcon={<Search className="h-4 w-4 text-gray-400 dark:text-zinc-500" strokeWidth={2} />}
               trailingIcon={
                 <kbd className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-[#1c1c21] border border-gray-200 dark:border-[#27272a] rounded select-none">
                   ⌘K
@@ -472,7 +472,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="relative text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white tap-target"
               aria-label="Notifications"
             >
-              <Bell className="h-4 w-4" strokeWidth={1.75} />
+              <Bell className="h-4 w-4" strokeWidth={2} />
               <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-blue-600" />
             </Button>
 
@@ -498,7 +498,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </div>
                 <DropdownMenuItem asChild>
                   <Link href="/settings" prefetch={false} className="flex items-center gap-2 cursor-pointer w-full">
-                    <Settings className="h-4 w-4" strokeWidth={1.75} />
+                    <Settings className="h-4 w-4" strokeWidth={2} />
                     <span>Settings</span>
                   </Link>
                 </DropdownMenuItem>
@@ -507,7 +507,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   onClick={signOut}
                   className="text-rose-600 dark:text-rose-400 focus:text-rose-600 dark:focus:text-rose-400 flex items-center gap-2 cursor-pointer"
                 >
-                  <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  <LogOut className="h-3.5 w-3.5" strokeWidth={2} />
                   <span>Sign out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -557,7 +557,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className="text-gray-400 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white tap-target"
                   aria-label="Close navigation menu"
                 >
-                  <X className="h-5 w-5" strokeWidth={1.75} />
+                  <X className="h-5 w-5" strokeWidth={2} />
                 </Button>
               </div>
 
@@ -598,7 +598,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   aria-label="Sign out"
                   title="Sign out"
                 >
-                  <LogOut className="h-4.5 w-4.5" strokeWidth={1.75} />
+                  <LogOut className="h-4.5 w-4.5" strokeWidth={2} />
                 </Button>
               </div>
             </div>

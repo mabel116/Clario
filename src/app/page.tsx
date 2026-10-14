@@ -460,7 +460,7 @@ function DashboardView() {
               prefetch={false}
               className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors tap-target"
             >
-              <Plus className="h-4 w-4 stroke-[2.5]" aria-hidden="true" />
+              <Plus className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
               <span>Create invoice</span>
             </Link>
           </div>
@@ -482,7 +482,7 @@ function DashboardView() {
       ) : isFirstRun ? (
         <div className="max-w-xl mx-auto rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#121215] p-6 sm:p-8 space-y-6 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
-            <CheckCircle className="h-7 w-7" />
+            <CheckCircle className="h-7 w-7" strokeWidth={2} />
           </div>
           <div className="space-y-2">
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Let&apos;s set up your business</h3>
@@ -502,7 +502,7 @@ function DashboardView() {
                 <span className="block font-semibold text-sm text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">Add your first client</span>
                 <span className="block text-xs text-gray-500 dark:text-zinc-400">Log client billing coordinates and default currency.</span>
               </div>
-              <ChevronRight className="h-4 w-4 text-gray-400 dark:text-zinc-500 ml-auto self-center group-hover:text-gray-600 dark:group-hover:text-zinc-300 group-hover:translate-x-0.5 transition" />
+              <ChevronRight className="h-4 w-4 text-gray-400 dark:text-zinc-500 ml-auto self-center group-hover:text-gray-600 dark:group-hover:text-zinc-300 group-hover:translate-x-0.5 transition" strokeWidth={2} />
             </Link>
 
             <Link 
@@ -515,7 +515,7 @@ function DashboardView() {
                 <span className="block font-semibold text-sm text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">Issue your first invoice</span>
                 <span className="block text-xs text-gray-500 dark:text-zinc-400">Build custom line items and set payment due dates.</span>
               </div>
-              <ChevronRight className="h-4 w-4 text-gray-400 dark:text-zinc-500 ml-auto self-center group-hover:text-gray-600 dark:group-hover:text-zinc-300 group-hover:translate-x-0.5 transition" />
+              <ChevronRight className="h-4 w-4 text-gray-400 dark:text-zinc-500 ml-auto self-center group-hover:text-gray-600 dark:group-hover:text-zinc-300 group-hover:translate-x-0.5 transition" strokeWidth={2} />
             </Link>
           </div>
         </div>
@@ -529,14 +529,14 @@ function DashboardView() {
               {/* Header Shelf */}
               <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-2.5 min-h-[44px] flex items-center justify-between">
                 <div className="inline-flex items-center gap-2 text-sm font-normal text-gray-600 dark:text-zinc-400 leading-none">
-                  <CreditCard className="h-3.5 w-3.5 shrink-0 text-gray-600 dark:text-zinc-400" />
-                  <span className="text-[14px] leading-[20px] font-medium text-gray-600 dark:text-zinc-400">Outstanding balances</span>
+                  <CreditCard className="h-3.5 w-3.5 shrink-0 text-gray-600 dark:text-zinc-400" strokeWidth={2.25} />
+                  <span className="text-[13px] leading-[18px] font-medium text-gray-600 dark:text-zinc-400">Outstanding balances</span>
                 </div>
                 {sortedOutstanding.length > 1 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-xs font-medium text-gray-700 dark:text-zinc-300 transition-colors focus:outline-none">
                       <span>{effectiveOutstandingCurr}</span>
-                      <ChevronDown className="h-3 w-3 text-gray-400 dark:text-zinc-500" />
+                      <ChevronDown className="h-3 w-3 text-gray-400 dark:text-zinc-500" strokeWidth={2} />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-28">
                       {sortedOutstanding.map((o) => {
@@ -547,12 +547,12 @@ function DashboardView() {
                             key={o.currency}
                             onClick={() => setSelectedOutstandingCurr(curr)}
                             className={cn(
-                              'cursor-pointer text-[13px] font-normal text-gray-700 dark:text-zinc-200 justify-between flex items-center',
+                              'cursor-pointer text-[13px] leading-[18px] font-medium text-gray-800 dark:text-zinc-100 hover:bg-gray-100 dark:hover:bg-[#222226] justify-between flex items-center',
                               isActive && 'font-semibold text-blue-600 dark:text-blue-400'
                             )}
                           >
                             <span>{curr}</span>
-                            {isActive && <Check className="h-[15px] w-[15px] text-gray-700 dark:text-zinc-200" />}
+                            {isActive && <Check className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />}
                           </DropdownMenuItem>
                         );
                       })}
@@ -590,7 +590,7 @@ function DashboardView() {
                       className="group w-full flex items-center justify-between text-[12px] leading-[16px] font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white transition-colors text-left"
                     >
                       <span>View +{sortedOutstanding.length - 1} other {sortedOutstanding.length - 1 === 1 ? 'currency' : 'currencies'}</span>
-                      <ChevronRight className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500 group-hover:text-gray-900 dark:group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
+                      <ChevronRight className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500 group-hover:text-gray-900 dark:group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" strokeWidth={2} />
                     </button>
                   </div>
                 )}
@@ -602,14 +602,14 @@ function DashboardView() {
               {/* Header Shelf */}
               <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-2.5 min-h-[44px] flex items-center justify-between">
                 <div className="inline-flex items-center gap-2 text-sm font-normal text-gray-600 dark:text-zinc-400 leading-none">
-                  <Banknote className="h-[15px] w-[15px] shrink-0 text-gray-600 dark:text-zinc-400" />
-                  <span className="text-[14px] leading-[20px] font-medium text-gray-600 dark:text-zinc-400">Payments received</span>
+                  <Banknote className="h-[15px] w-[15px] shrink-0 text-gray-600 dark:text-zinc-400" strokeWidth={2.25} />
+                  <span className="text-[13px] leading-[18px] font-medium text-gray-600 dark:text-zinc-400">Payments received</span>
                 </div>
                 {sortedEarnings.length > 1 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-xs font-medium text-gray-700 dark:text-zinc-300 transition-colors focus:outline-none">
                       <span>{effectiveEarningsCurr}</span>
-                      <ChevronDown className="h-3 w-3 text-gray-400 dark:text-zinc-500" />
+                      <ChevronDown className="h-3 w-3 text-gray-400 dark:text-zinc-500" strokeWidth={2} />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-28">
                       {sortedEarnings.map((e) => {
@@ -620,12 +620,12 @@ function DashboardView() {
                             key={e.currency}
                             onClick={() => setSelectedEarningsCurr(curr)}
                             className={cn(
-                              'cursor-pointer text-[13px] font-normal text-gray-700 dark:text-zinc-200 justify-between flex items-center',
+                              'cursor-pointer text-[13px] leading-[18px] font-medium text-gray-800 dark:text-zinc-100 hover:bg-gray-100 dark:hover:bg-[#222226] justify-between flex items-center',
                               isActive && 'font-semibold text-blue-600 dark:text-blue-400'
                             )}
                           >
                             <span>{curr}</span>
-                            {isActive && <Check className="h-[15px] w-[15px] text-gray-700 dark:text-zinc-200" />}
+                            {isActive && <Check className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />}
                           </DropdownMenuItem>
                         );
                       })}
@@ -659,7 +659,7 @@ function DashboardView() {
                       className="group w-full flex items-center justify-between text-[12px] leading-[16px] font-medium text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white transition-colors text-left"
                     >
                       <span>View +{sortedEarnings.length - 1} other {sortedEarnings.length - 1 === 1 ? 'currency' : 'currencies'}</span>
-                      <ChevronRight className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500 group-hover:text-gray-900 dark:group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
+                      <ChevronRight className="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500 group-hover:text-gray-900 dark:group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" strokeWidth={2} />
                     </button>
                   </div>
                 )}
@@ -671,8 +671,8 @@ function DashboardView() {
               {/* Header Shelf */}
               <div className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-100 dark:border-[#27272a] px-4 py-2.5 min-h-[44px] flex items-center justify-between">
                 <div className="inline-flex items-center gap-2 text-sm font-normal text-gray-600 dark:text-zinc-400 leading-none">
-                  <Clock className="h-3.5 w-3.5 shrink-0 text-gray-600 dark:text-zinc-400" />
-                  <span className="text-[14px] leading-[20px] font-medium text-gray-600 dark:text-zinc-400">Overdue invoices</span>
+                  <Clock className="h-3.5 w-3.5 shrink-0 text-gray-600 dark:text-zinc-400" strokeWidth={2.25} />
+                  <span className="text-[13px] leading-[18px] font-medium text-gray-600 dark:text-zinc-400">Overdue invoices</span>
                 </div>
               </div>
 
@@ -722,10 +722,26 @@ function DashboardView() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-gray-100 dark:border-[#27272a]">
-                        <th className="py-2.5 pl-4 pr-3 text-left text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Invoice / Client</th>
-                        <th className="py-2.5 px-3 text-left text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Amount Due</th>
-                        <th className="py-2.5 px-3 text-left text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Due Date</th>
-                        <th className="py-2.5 pl-3 pr-4 text-right w-20 text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Actions</th>
+                        <th className="py-2.5 pl-4 pr-3 text-left">
+                          <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
+                            Invoice / Client
+                          </span>
+                        </th>
+                        <th className="py-2.5 px-3 text-left">
+                          <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
+                            Amount Due
+                          </span>
+                        </th>
+                        <th className="py-2.5 px-3 text-left">
+                          <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
+                            Due Date
+                          </span>
+                        </th>
+                        <th className="py-2.5 pl-3 pr-4 text-right w-20">
+                          <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
+                            Actions
+                          </span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-[#27272a]">
@@ -765,27 +781,27 @@ function DashboardView() {
                             <td className="py-3 px-2 align-middle text-center w-20">
                               <DropdownMenu>
                                 <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg mx-auto text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors focus:outline-none">
-                                  <MoreHorizontal className="h-4 w-4" />
+                                  <MoreHorizontal className="h-4 w-4" strokeWidth={2} />
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-36 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1 shadow-lg">
-                                  <DropdownMenuItem asChild className="text-[13px] leading-[18px] font-normal text-gray-700 dark:text-zinc-200">
+                                  <DropdownMenuItem asChild className="text-[13px] leading-[18px] font-medium text-gray-800 dark:text-zinc-100">
                                     <Link
                                       href={`/invoices/${inv.id}?from=/`}
                                       prefetch={false}
-                                      className="flex items-center gap-2.5 px-3 py-2 text-[13px] leading-[18px] font-normal text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] rounded-lg cursor-pointer"
+                                      className="flex items-center gap-2.5 px-3 py-2 text-[13px] leading-[18px] font-medium text-gray-800 dark:text-zinc-100 hover:bg-gray-100 dark:hover:bg-[#222226] rounded-lg w-full text-left no-underline cursor-pointer"
                                     >
-                                      <Eye className="h-[15px] w-[15px] text-gray-700 dark:text-zinc-200 shrink-0" />
-                                      <span className="text-[13px] leading-[18px] font-normal text-gray-700 dark:text-zinc-200">View invoice</span>
+                                      <Eye className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
+                                      <span className="text-[13px] leading-[18px] font-medium text-gray-800 dark:text-zinc-100">View invoice</span>
                                     </Link>
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem asChild className="text-[13px] leading-[18px] font-normal text-gray-700 dark:text-zinc-200">
+                                  <DropdownMenuItem asChild className="text-[13px] leading-[18px] font-medium text-gray-800 dark:text-zinc-100">
                                     <button
                                       type="button"
                                       onClick={() => setRecordPaymentTarget({ clientId: inv.client_id, invoiceId: inv.id })}
-                                      className="flex items-center gap-2.5 px-3 py-2 text-[13px] leading-[18px] font-normal text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] rounded-lg w-full text-left cursor-pointer"
+                                      className="flex items-center gap-2.5 px-3 py-2 text-[13px] leading-[18px] font-medium text-gray-800 dark:text-zinc-100 hover:bg-gray-100 dark:hover:bg-[#222226] rounded-lg w-full text-left no-underline cursor-pointer"
                                     >
-                                      <CreditCard className="h-[15px] w-[15px] text-gray-700 dark:text-zinc-200 shrink-0" />
-                                      <span className="text-[13px] leading-[18px] font-normal text-gray-700 dark:text-zinc-200">Record payment</span>
+                                      <CreditCard className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
+                                      <span className="text-[13px] leading-[18px] font-medium text-gray-800 dark:text-zinc-100">Record payment</span>
                                     </button>
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
@@ -837,7 +853,7 @@ function DashboardView() {
                                   prefetch={false}
                                   className="font-medium text-gray-600 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white transition-colors no-underline"
                                 >
-                                  #{item.invoiceNumber}
+                                  {item.invoiceNumber}
                                 </Link>
                               ) : (
                                 <span>Payment</span>
@@ -877,7 +893,7 @@ function DashboardView() {
                                   prefetch={false}
                                   className="font-medium text-gray-600 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white transition-colors no-underline"
                                 >
-                                  #{item.invoiceNumber}
+                                  {item.invoiceNumber}
                                 </Link>
                               ) : (
                                 <span>Payment</span>
@@ -917,7 +933,7 @@ function DashboardView() {
                                 prefetch={false}
                                 className="font-medium text-gray-600 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white transition-colors no-underline"
                               >
-                                #{item.invoiceNumber}
+                                {item.invoiceNumber}
                               </Link>
                             ) : (
                               <span>Invoice</span>
@@ -983,7 +999,7 @@ function DashboardView() {
                   className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-[#1c1c21] transition-colors"
                   aria-label="Close drawer"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-5 w-5" strokeWidth={2} />
                 </button>
               </div>
 
@@ -1005,7 +1021,7 @@ function DashboardView() {
                         <span className="font-mono text-xs font-medium bg-gray-100 dark:bg-[#27272a] text-gray-800 dark:text-zinc-200 px-2 py-0.5 rounded w-fit">
                           {out.currency.toUpperCase()}
                         </span>
-                        <span className="text-xs text-gray-500 dark:text-zinc-400 text-left">
+                        <span className="text-[12px] leading-[16px] font-normal text-gray-700 dark:text-zinc-300 text-left">
                           {invCount} {invCount === 1 ? 'invoice' : 'invoices'}
                         </span>
                         <Money
@@ -1027,7 +1043,7 @@ function DashboardView() {
                         <span className="font-mono text-xs font-medium bg-gray-100 dark:bg-[#27272a] text-gray-800 dark:text-zinc-200 px-2 py-0.5 rounded w-fit">
                           {e.currency.toUpperCase()}
                         </span>
-                        <span className="text-xs text-gray-500 dark:text-zinc-400 text-left">
+                        <span className="text-[12px] leading-[16px] font-normal text-gray-700 dark:text-zinc-300 text-left">
                           {pCount} {pCount === 1 ? 'payment' : 'payments'}
                         </span>
                         <Money

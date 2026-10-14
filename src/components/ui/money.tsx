@@ -77,8 +77,20 @@ export function Money({
   try {
     parts = formatter.formatToParts(majorAmount);
   } catch {
-    parts = [{ type: 'literal', value: `${code} ${majorAmount.toFixed(exponent)}` }];
+    parts = [{ type: 'literal', value: `${code}${majorAmount.toFixed(exponent)}` }];
   }
+
+  // Filter out whitespace literal parts immediately adjacent to currency symbols to ensure flush formatting
+  const cleanParts = parts.filter((p, i) => {
+    if (p.type === 'literal' && /^[\s\u00A0\u202F]+$/.test(p.value)) {
+      const prev = parts[i - 1];
+      const next = parts[i + 1];
+      if ((prev && prev.type === 'currency') || (next && next.type === 'currency')) {
+        return false;
+      }
+    }
+    return true;
+  });
 
   return (
     <span
@@ -90,12 +102,13 @@ export function Money({
       )}
       {...props}
     >
-      {parts.map((p, i) => {
+      {cleanParts.map((p, i) => {
         let displayVal = p.value;
         if (p.type === 'currency' && info?.symbol) {
           if (displayVal === code || displayVal.includes(code)) {
             displayVal = displayVal.replace(code, info.symbol);
           }
+          displayVal = displayVal.trim();
         }
 
         if (p.type === 'currency' && variant === 'metric') {
