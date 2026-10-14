@@ -7,21 +7,19 @@ import { useTheme } from 'next-themes';
 import { useAuth } from '../lib/auth/provider';
 import { resolveActiveNav, NavItem } from '../lib/navigation';
 import {
-  LogOut,
-  Menu,
-  X,
-  Search,
-  Bell,
-  Sun,
-  Moon,
-  PanelLeft,
-} from 'lucide-react';
-import {
   HomeIcon as HomeOutline,
   DocumentTextIcon as InvoicesOutline,
   CreditCardIcon as PaymentsOutline,
   UsersIcon as ClientsOutline,
   Cog6ToothIcon as SettingsOutline,
+  ArrowRightOnRectangleIcon,
+  Bars3Icon,
+  XMarkIcon,
+  MagnifyingGlassIcon,
+  BellIcon,
+  SunIcon,
+  MoonIcon,
+  Bars3BottomLeftIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeSolid,
@@ -91,9 +89,9 @@ function ThemeToggle() {
     >
       <span className="flex items-center gap-3">
         {isDark ? (
-          <Moon className="h-[18px] w-[18px] text-blue-400" />
+          <MoonIcon className="h-4 w-4 text-blue-400" />
         ) : (
-          <Sun className="h-[18px] w-[18px] text-amber-500" />
+          <SunIcon className="h-4 w-4 text-amber-500" />
         )}
         <span>{isDark ? 'Dark Mode' : 'Light Mode'}</span>
       </span>
@@ -137,10 +135,10 @@ function PrimaryNavigationLinks() {
             aria-current={isActive ? 'page' : undefined}
           >
             {isActive ? (
-              <item.solidIcon className="h-[18px] w-[18px] shrink-0 text-white transition-colors" />
+              <item.solidIcon className="h-4 w-4 shrink-0 text-white transition-colors" />
             ) : (
               <item.outlineIcon
-                className="h-[18px] w-[18px] shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+                className="h-4 w-4 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
                 strokeWidth={2}
               />
             )}
@@ -174,10 +172,10 @@ function PrimaryNavigationLinksFallback() {
             aria-current={isActive ? 'page' : undefined}
           >
             {isActive ? (
-              <item.solidIcon className="h-[18px] w-[18px] shrink-0 text-white transition-colors" />
+              <item.solidIcon className="h-4 w-4 shrink-0 text-white transition-colors" />
             ) : (
               <item.outlineIcon
-                className="h-[18px] w-[18px] shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+                className="h-4 w-4 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
                 strokeWidth={2}
               />
             )}
@@ -208,10 +206,10 @@ function SettingsSidebarLink() {
       aria-current={isActive ? 'page' : undefined}
     >
       {isActive ? (
-        <SettingsSolid className="h-[18px] w-[18px] shrink-0 text-white transition-colors" />
+        <SettingsSolid className="h-4 w-4 shrink-0 text-white transition-colors" />
       ) : (
         <SettingsOutline
-          className="h-[18px] w-[18px] shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+          className="h-4 w-4 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
           strokeWidth={2}
         />
       )}
@@ -228,7 +226,7 @@ function SettingsSidebarLinkFallback() {
       className="flex items-center gap-3 h-10 px-3.5 rounded-xl text-sm font-normal text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1c1c21] transition-colors tap-target"
     >
       <SettingsOutline
-        className="h-[18px] w-[18px] shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+        className="h-4 w-4 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
         strokeWidth={2}
       />
       <span>Settings</span>
@@ -260,10 +258,10 @@ function MobileNavLinks({ onItemClick }: { onItemClick: () => void }) {
             aria-current={isActive ? 'page' : undefined}
           >
             {isActive ? (
-              <item.solidIcon className="h-[18px] w-[18px] shrink-0 text-white transition-colors" />
+              <item.solidIcon className="h-4 w-4 shrink-0 text-white transition-colors" />
             ) : (
               <item.outlineIcon
-                className="h-[18px] w-[18px] shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+                className="h-4 w-4 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
                 strokeWidth={2}
               />
             )}
@@ -297,10 +295,10 @@ function MobileNavLinksFallback({ onItemClick }: { onItemClick: () => void }) {
             )}
           >
             {isActive ? (
-              <item.solidIcon className="h-[18px] w-[18px] shrink-0 text-white transition-colors" />
+              <item.solidIcon className="h-4 w-4 shrink-0 text-white transition-colors" />
             ) : (
               <item.outlineIcon
-                className="h-[18px] w-[18px] shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
+                className="h-4 w-4 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-700 dark:group-hover:text-zinc-300 transition-colors"
                 strokeWidth={2}
               />
             )}
@@ -360,7 +358,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-white dark:bg-[#09090b] text-gray-900 dark:text-white flex flex-col md:flex-row">
       {/* Desktop Sidebar */}
-      <aside className="w-64 border-r border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#121215] flex flex-col justify-between hidden md:flex shrink-0 sticky top-0 h-screen p-4 select-none">
+      <aside className="w-64 border-r border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#121215] flex flex-col justify-between hidden md:flex shrink-0 sticky top-0 h-screen overflow-hidden p-4 select-none">
         {/* Top Section */}
         <div className="space-y-6">
           {/* Brand Logo & Layout Toggle */}
@@ -377,7 +375,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 Clario
               </span>
             </Link>
-            <PanelLeft className="h-4 w-4 text-gray-400 dark:text-zinc-500" aria-hidden="true" />
+            <Bars3BottomLeftIcon className="h-4 w-4 text-gray-400 dark:text-zinc-500" aria-hidden="true" />
           </div>
 
           {/* Primary Navigation Items */}
@@ -422,7 +420,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               aria-label="Sign out"
               title="Sign out"
             >
-              <LogOut className="h-4 w-4" />
+              <ArrowRightOnRectangleIcon className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -441,7 +439,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="md:hidden text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white tap-target"
               aria-label="Open navigation menu"
             >
-              <Menu className="h-5 w-5" />
+              <Bars3Icon className="h-5 w-5" />
             </Button>
 
             <Suspense fallback={<HeaderTitleFallback />}>
@@ -454,7 +452,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Input
               type="text"
               placeholder="Search anything..."
-              leadingIcon={<Search className="h-4 w-4 text-gray-400 dark:text-zinc-500" />}
+              leadingIcon={<MagnifyingGlassIcon className="h-4 w-4 text-gray-400 dark:text-zinc-500" />}
               trailingIcon={
                 <kbd className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-[#1c1c21] border border-gray-200 dark:border-[#27272a] rounded select-none">
                   ⌘K
@@ -473,7 +471,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="relative text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white tap-target"
               aria-label="Notifications"
             >
-              <Bell className="h-4 w-4" />
+              <BellIcon className="h-4 w-4" />
               <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-blue-600" />
             </Button>
 
@@ -508,7 +506,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   onClick={signOut}
                   className="text-rose-600 dark:text-rose-400 focus:text-rose-600 dark:focus:text-rose-400 flex items-center gap-2 cursor-pointer"
                 >
-                  <LogOut className="h-3.5 w-3.5" />
+                  <ArrowRightOnRectangleIcon className="h-3.5 w-3.5" />
                   <span>Sign out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -517,7 +515,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Main Content Area */}
-        <main className="bg-white dark:bg-[#09090b] min-h-[calc(100vh-4rem)] p-4 sm:p-6 lg:p-8 text-gray-900 dark:text-white transition-colors flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto min-h-screen bg-white dark:bg-[#09090b] p-4 sm:p-6 lg:p-8 text-gray-900 dark:text-white transition-colors">
           {children}
         </main>
       </div>
@@ -558,7 +556,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className="text-gray-400 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white tap-target"
                   aria-label="Close navigation menu"
                 >
-                  <X className="h-5 w-5" />
+                  <XMarkIcon className="h-5 w-5" />
                 </Button>
               </div>
 
@@ -599,7 +597,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   aria-label="Sign out"
                   title="Sign out"
                 >
-                  <LogOut className="h-4.5 w-4.5" />
+                  <ArrowRightOnRectangleIcon className="h-4.5 w-4.5" />
                 </Button>
               </div>
             </div>
