@@ -718,72 +718,135 @@ function DashboardView() {
               </div>
 
               {overdueInvoices.length > 0 ? (
-                <div className="overflow-x-auto flex-1">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-gray-100 dark:border-[#27272a]">
-                        <th className="py-2.5 pl-4 pr-3 text-left">
-                          <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
-                            Invoice / Client
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-left">
-                          <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
-                            Amount Due
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 text-left">
-                          <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
-                            Due Date
-                          </span>
-                        </th>
-                        <th className="py-2.5 pl-3 pr-4 text-right w-20">
-                          <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
-                            Actions
-                          </span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-[#27272a]">
-                      {overdueInvoices.slice(0, 5).map((inv) => {
-                        const days = getDaysOverdue(inv.due_date);
-                        return (
-                          <tr key={inv.id}>
-                            <td className="py-3 pl-4 pr-3 align-middle min-w-0">
-                              <Link
-                                href={`/invoices/${inv.id}?from=/`}
-                                prefetch={false}
-                                className="text-sm font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors block truncate"
-                              >
+                <>
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-x-auto flex-1">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-gray-100 dark:border-[#27272a]">
+                          <th className="py-2.5 pl-4 pr-3 text-left">
+                            <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
+                              Invoice / Client
+                            </span>
+                          </th>
+                          <th className="py-2.5 px-3 text-left">
+                            <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
+                              Amount Due
+                            </span>
+                          </th>
+                          <th className="py-2.5 px-3 text-left">
+                            <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
+                              Due Date
+                            </span>
+                          </th>
+                          <th className="py-2.5 pl-3 pr-4 text-right w-20">
+                            <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
+                              Actions
+                            </span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-[#27272a]">
+                        {overdueInvoices.slice(0, 5).map((inv) => {
+                          const days = getDaysOverdue(inv.due_date);
+                          return (
+                            <tr key={inv.id}>
+                              <td className="py-3 pl-4 pr-3 align-middle min-w-0">
+                                <Link
+                                  href={`/invoices/${inv.id}?from=/`}
+                                  prefetch={false}
+                                  className="text-sm font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors block truncate"
+                                >
+                                  {inv.invoice_number}
+                                </Link>
+                                <p className="text-xs text-gray-500 dark:text-zinc-400 font-normal truncate mt-0.5">
+                                  {inv.client_name || clientMap[inv.client_id]?.name || 'Client'}
+                                </p>
+                              </td>
+                              <td className="py-3 px-3 align-middle">
+                                <Money
+                                  amountMinor={inv.balanceDueMinor}
+                                  currency={inv.currency}
+                                  variant="table"
+                                  tone="default"
+                                  className="text-sm font-medium text-gray-900 dark:text-white tabular-nums"
+                                />
+                              </td>
+                              <td className="py-3 px-3 align-middle">
+                                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {formatDashboardDate(inv.due_date)}
+                                </p>
+                                <p className="text-xs text-rose-600 dark:text-rose-400 font-normal mt-0.5">
+                                  {days}d overdue
+                                </p>
+                              </td>
+                              <td className="py-3 px-2 align-middle text-center w-20">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg mx-auto text-gray-800 hover:text-gray-900 dark:text-zinc-200 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors focus:outline-none">
+                                    <MoreVertical className="h-4 w-4 shrink-0" strokeWidth={2} />
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-36 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1 shadow-none">
+                                    <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                      <Link
+                                        href={`/invoices/${inv.id}?from=/`}
+                                        prefetch={false}
+                                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
+                                      >
+                                        <Eye className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
+                                        <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">View invoice</span>
+                                      </Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                      <button
+                                        type="button"
+                                        onClick={() => setRecordPaymentTarget({ clientId: inv.client_id, invoiceId: inv.id })}
+                                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
+                                      >
+                                        <CreditCard className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
+                                        <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">Record payment</span>
+                                      </button>
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Stacked Card View */}
+                  <div className="md:hidden divide-y divide-gray-100 dark:divide-[#27272a]">
+                    {overdueInvoices.slice(0, 5).map((inv) => {
+                      const days = getDaysOverdue(inv.due_date);
+                      return (
+                        <div key={inv.id} className="p-4">
+                          {/* Row 1 (Top) */}
+                          <div className="flex items-start justify-between gap-3">
+                            <Link
+                              href={`/invoices/${inv.id}?from=/`}
+                              prefetch={false}
+                              className="group min-w-0 no-underline"
+                            >
+                              <span className="block text-[14px] leading-[20px] font-medium text-gray-900 dark:text-white tabular-nums">
                                 {inv.invoice_number}
-                              </Link>
-                              <p className="text-xs text-gray-500 dark:text-zinc-400 font-normal truncate mt-0.5">
+                              </span>
+                              <p className="text-[12px] leading-[16px] font-normal text-gray-500 dark:text-zinc-400 truncate mt-0.5">
                                 {inv.client_name || clientMap[inv.client_id]?.name || 'Client'}
                               </p>
-                            </td>
-                            <td className="py-3 px-3 align-middle">
-                              <Money
-                                amountMinor={inv.balanceDueMinor}
-                                currency={inv.currency}
-                                variant="table"
-                                tone="default"
-                                className="text-sm font-medium text-gray-900 dark:text-white tabular-nums"
-                              />
-                            </td>
-                            <td className="py-3 px-3 align-middle">
-                              <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                {formatDashboardDate(inv.due_date)}
-                              </p>
-                              <p className="text-xs text-rose-600 dark:text-rose-400 font-normal mt-0.5">
+                            </Link>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" aria-hidden="true" />
                                 {days}d overdue
-                              </p>
-                            </td>
-                            <td className="py-3 px-2 align-middle text-center w-20">
+                              </span>
                               <DropdownMenu>
                                 <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg mx-auto text-gray-800 hover:text-gray-900 dark:text-zinc-200 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors focus:outline-none">
                                   <MoreVertical className="h-4 w-4 shrink-0" strokeWidth={2} />
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-36 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1 shadow-lg">
+                                <DropdownMenuContent align="end" className="w-36 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1 shadow-none">
                                   <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
                                     <Link
                                       href={`/invoices/${inv.id}?from=/`}
@@ -806,13 +869,27 @@ function DashboardView() {
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                            </div>
+                          </div>
+
+                          {/* Row 2 (Bottom) */}
+                          <div className="flex items-center justify-between pt-2.5 mt-2.5 border-t border-gray-100 dark:border-[#27272a]">
+                            <span className="text-[12px] leading-[16px] font-normal text-gray-500 dark:text-zinc-400 tabular-nums">
+                              Due {formatDashboardDate(inv.due_date)}
+                            </span>
+                            <Money
+                              amountMinor={inv.balanceDueMinor}
+                              currency={inv.currency}
+                              variant="table"
+                              tone="default"
+                              className="text-[14px] leading-[20px] font-medium text-gray-900 dark:text-white tabular-nums"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               ) : (
                 <div className="p-4 text-center py-8 text-xs text-gray-500 dark:text-zinc-400 flex-1 flex items-center justify-center">
                   All caught up! No invoices require immediate attention.

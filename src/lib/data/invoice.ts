@@ -377,6 +377,10 @@ export const InvoiceRepo = {
     );
   },
 
+  async markAsSent(id: string, issueDate: string, dueDate: string): Promise<void> {
+    return this.markSent(id, issueDate, dueDate);
+  },
+
   async void(id: string): Promise<void> {
     if ((typeof window === 'undefined' && !isTest) || !db) {
       throw new Error('Database connection not available');
