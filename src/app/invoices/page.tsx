@@ -12,6 +12,7 @@ import { ProfileRepo } from '../../lib/data/profile';
 import { useDataReady } from '../../lib/data/readiness';
 import { Money } from '../../components/ui/money';
 import { RecordPaymentModal } from '../../components/RecordPaymentModal';
+import { useToast } from '../../components/Toast';
 import { resolveInvoicesListNavigation } from '../../lib/navigation';
 import { cn } from '../../lib/utils';
 import { LiveQuery, InvoiceSummary } from '../../lib/data/types';
@@ -206,6 +207,7 @@ function InvoicesSkeleton() {
 
 function InvoicesListContent() {
   const router = useRouter();
+  const { showToast } = useToast();
   const searchParams = useSearchParams();
   const targetCurrency = searchParams?.get('currency') || null;
   const targetStatus = searchParams?.get('status') || null;
@@ -454,6 +456,7 @@ function InvoicesListContent() {
       setIsMarkingSent(true);
       await InvoiceRepo.markAsSent(markSentTarget.id, markSentIssueDate, markSentDueDate);
       setMarkSentTarget(null);
+      showToast('Invoice marked as sent');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to mark invoice as sent.';
       alert(message);
@@ -497,6 +500,7 @@ function InvoicesListContent() {
         profile: profileRow,
         mode: 'download',
       });
+      showToast('Invoice PDF downloaded');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to generate PDF document.';
       alert(message);
@@ -572,15 +576,19 @@ function InvoicesListContent() {
 
   const hasActiveFilters =
     searchQuery.trim().length > 0 ||
-    statusFilter !== (isOverdueDrilldown ? 'overdue' : 'all') ||
-    currencyFilter !== (targetCurrency ? targetCurrency.toUpperCase() : 'all') ||
+    statusFilter !== 'all' ||
+    (!targetCurrency && currencyFilter !== 'all') ||
     issueDateFilter !== 'all' ||
     dueDateFilter !== 'all';
 
   const handleResetFilters = () => {
     setSearchQuery('');
-    setStatusFilter(isOverdueDrilldown ? 'overdue' : 'all');
-    setCurrencyFilter(targetCurrency ? targetCurrency.toUpperCase() : 'all');
+    setStatusFilter('all');
+    if (targetCurrency) {
+      setCurrencyFilter(targetCurrency.toUpperCase());
+    } else {
+      setCurrencyFilter('all');
+    }
     setIssueDateFilter('all');
     setDueDateFilter('all');
     setCurrentPage(1);
@@ -715,39 +723,41 @@ function InvoicesListContent() {
               </DropdownMenu>
 
               {/* Currency Pill */}
-              <DropdownMenu>
-                <DropdownMenuTrigger className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-gray-50 dark:hover:bg-[#222226] text-[13px] leading-none transition-colors focus:outline-none">
-                  <span className="text-[13px] leading-none font-medium text-gray-500 dark:text-zinc-400">
-                    Currency:{' '}
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {selectedCurrencyLabel}
+              {!targetCurrency && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-gray-50 dark:hover:bg-[#222226] text-[13px] leading-none transition-colors focus:outline-none">
+                    <span className="text-[13px] leading-none font-medium text-gray-500 dark:text-zinc-400">
+                      Currency:{' '}
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {selectedCurrencyLabel}
+                      </span>
                     </span>
-                  </span>
-                  <ChevronDown className="h-3.5 w-3.5 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 min-w-[160px] max-h-[260px] overflow-y-auto overscroll-contain z-30 shadow-none">
-                  {currencyOptions.map((opt) => {
-                    const isActive = currencyFilter === opt.id;
-                    return (
-                      <DropdownMenuItem
-                        key={opt.id}
-                        onClick={() => setCurrencyFilter(opt.id)}
-                        className={cn(
-                          'flex items-center justify-between gap-3 w-full px-3.5 py-2.5 sm:py-2 rounded-lg text-[13px] leading-none whitespace-nowrap cursor-pointer transition-colors',
-                          isActive
-                            ? 'font-medium text-gray-900 dark:text-white bg-gray-50 dark:bg-[#222226]'
-                            : 'font-normal text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#222226]'
-                        )}
-                      >
-                        <span>{opt.label}</span>
-                        {isActive && (
-                          <Check className="h-[15px] w-[15px] text-gray-900 dark:text-white shrink-0" strokeWidth={2} />
-                        )}
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <ChevronDown className="h-3.5 w-3.5 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 min-w-[160px] max-h-[260px] overflow-y-auto overscroll-contain z-30 shadow-none">
+                    {currencyOptions.map((opt) => {
+                      const isActive = currencyFilter === opt.id;
+                      return (
+                        <DropdownMenuItem
+                          key={opt.id}
+                          onClick={() => setCurrencyFilter(opt.id)}
+                          className={cn(
+                            'flex items-center justify-between gap-3 w-full px-3.5 py-2.5 sm:py-2 rounded-lg text-[13px] leading-none whitespace-nowrap cursor-pointer transition-colors',
+                            isActive
+                              ? 'font-medium text-gray-900 dark:text-white bg-gray-50 dark:bg-[#222226]'
+                              : 'font-normal text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#222226]'
+                          )}
+                        >
+                          <span>{opt.label}</span>
+                          {isActive && (
+                            <Check className="h-[15px] w-[15px] text-gray-900 dark:text-white shrink-0" strokeWidth={2} />
+                          )}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
               {/* Issue Date Pill */}
               <DropdownMenu>
@@ -936,7 +946,7 @@ function InvoicesListContent() {
 
                           {/* 4. Currency */}
                           <td className="py-3.5 px-3.5 whitespace-nowrap">
-                            <span className="text-[13px] leading-[18px] font-normal text-gray-600 dark:text-zinc-400 uppercase tabular-nums">
+                            <span className="text-[14px] leading-[20px] font-medium text-gray-900 dark:text-white tabular-nums uppercase">
                               {inv.currency}
                             </span>
                           </td>
@@ -950,7 +960,7 @@ function InvoicesListContent() {
 
                           {/* 6. Due Date */}
                           <td className="py-3.5 px-3.5 whitespace-nowrap">
-                            <span className="text-[14px] leading-[20px] font-normal text-gray-600 dark:text-zinc-300 tabular-nums">
+                            <span className="text-[14px] leading-[20px] font-medium text-gray-900 dark:text-white tabular-nums">
                               {inv.due_date ? formatDate(inv.due_date) : '—'}
                             </span>
                           </td>
@@ -1204,7 +1214,7 @@ function InvoicesListContent() {
 
               {/* Pagination Footer Bar */}
               {filteredInvoices.length > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200 dark:border-[#27272a] pt-4 mt-4">
                   {/* Left: Show rows per page */}
                   <div className="flex items-center gap-2 text-[13px] text-gray-600 dark:text-zinc-400">
                     <span>Show</span>
@@ -1324,6 +1334,9 @@ function InvoicesListContent() {
           clientId={recordPaymentTarget.clientId}
           invoiceId={recordPaymentTarget.invoiceId}
           onClose={() => setRecordPaymentTarget(null)}
+          onSuccess={() => {
+            showToast('Payment recorded successfully');
+          }}
         />
       )}
 

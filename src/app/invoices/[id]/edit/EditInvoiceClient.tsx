@@ -10,6 +10,7 @@ import { InvoiceRepo } from '../../../../lib/data/invoice';
 import { formatMoney, parseMoneyInput, multiplyMinor } from '../../../../lib/money';
 import { resolveRouteParam } from '../../../../lib/navigation';
 import { ArrowUp, ArrowDown, Trash2, Plus, ArrowLeft, Lock } from 'lucide-react';
+import { useToast } from '../../../../components/Toast';
 
 export function EditInvoiceSkeleton() {
   return (
@@ -73,6 +74,7 @@ export function EditInvoiceClient() {
 
 function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const params = useParams();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -278,6 +280,7 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
       }
 
       // 3. Redirect back to invoice details
+      showToast('Invoice changes saved');
       router.push(backUrl);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to update invoice.';

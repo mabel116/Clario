@@ -4,6 +4,7 @@ import { ThemeProvider } from "../components/ThemeProvider";
 import { AuthProvider } from "../lib/auth/provider";
 import { PowerSyncProvider } from "../lib/sync/provider";
 import { PWARegistration } from "../components/PWARegistration";
+import { ToastProvider } from "../components/Toast";
 
 export const metadata: Metadata = {
   title: "Clario — Offline-First Freelance Workspace",
@@ -12,10 +13,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#020617",
-  width: "device-width",
+  width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#09090b' },
+  ],
 };
 
 export default function RootLayout({
@@ -29,8 +34,10 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <AuthProvider>
             <PowerSyncProvider>
-              {children}
-              <PWARegistration />
+              <ToastProvider>
+                {children}
+                <PWARegistration />
+              </ToastProvider>
             </PowerSyncProvider>
           </AuthProvider>
         </ThemeProvider>

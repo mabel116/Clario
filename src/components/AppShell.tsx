@@ -339,6 +339,22 @@ function HeaderTitleFallback() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { resolvedTheme } = useTheme();
+
+  // Sync theme-color meta tag with active theme for installed PWAs
+  useEffect(() => {
+    if (!resolvedTheme) return;
+    const color = resolvedTheme === 'dark' ? '#09090b' : '#ffffff';
+    const metaTags = document.querySelectorAll('meta[name="theme-color"]');
+    if (metaTags.length > 0) {
+      metaTags.forEach((tag) => tag.setAttribute('content', color));
+    } else {
+      const meta = document.createElement('meta');
+      meta.setAttribute('name', 'theme-color');
+      meta.setAttribute('content', color);
+      document.head.appendChild(meta);
+    }
+  }, [resolvedTheme]);
 
   // Close mobile drawer on ESC key
   useEffect(() => {

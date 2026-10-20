@@ -5,11 +5,13 @@ import { useInvoicesForClient, useInvoice } from '../lib/data/hooks';
 import { PaymentRepo } from '../lib/data/payment';
 import { formatMoney, parseMoneyInput, CURRENCIES } from '../lib/money';
 import { X, CreditCard, AlertTriangle } from 'lucide-react';
+import { useToast } from './Toast';
 
 interface RecordPaymentModalProps {
   clientId: string;
   invoiceId?: string;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
 /**
@@ -64,7 +66,9 @@ export function resolvePaymentModalState({
   return 'ready';
 }
 
-export function RecordPaymentModal({ clientId, invoiceId, onClose }: RecordPaymentModalProps) {
+export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: RecordPaymentModalProps) {
+  const { showToast } = useToast();
+
   // Queries
   const { data: clientInvoices, isLoading: isInvoicesLoading } = useInvoicesForClient(clientId);
   const { data: singleInvoice, isLoading: isSingleInvoiceLoading } = useInvoice(invoiceId || '');
@@ -128,6 +132,11 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose }: RecordPayme
       note: note.trim() || null,
       occurred_at: occurredAt || undefined
     });
+    if (onSuccess) {
+      onSuccess();
+    } else {
+      showToast('Payment recorded successfully');
+    }
     onClose();
   };
 

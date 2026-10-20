@@ -63,6 +63,15 @@
   * {
     @apply border-border;
   }
+  html,
+  body {
+    overscroll-behavior-y: none;
+    background-color: #ffffff;
+  }
+  html.dark,
+  html.dark body {
+    background-color: #09090b;
+  }
   body {
     @apply bg-background text-foreground;
   }
