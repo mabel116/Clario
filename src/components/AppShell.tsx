@@ -16,14 +16,11 @@ import {
   LogOut,
   Menu,
   X,
-  Search,
-  Bell,
   Sun,
   Moon,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -325,7 +322,7 @@ function HeaderTitle() {
   };
 
   return (
-    <h1 className="text-base font-semibold text-gray-900 dark:text-white hidden sm:block">
+    <h1 className="text-[14px] font-medium text-gray-700 dark:text-zinc-300">
       {titles[activeNav] || 'Dashboard'}
     </h1>
   );
@@ -333,7 +330,7 @@ function HeaderTitle() {
 
 function HeaderTitleFallback() {
   return (
-    <h1 className="text-base font-semibold text-gray-900 dark:text-white hidden sm:block">
+    <h1 className="text-[14px] font-medium text-gray-700 dark:text-zinc-300">
       Dashboard
     </h1>
   );
@@ -430,14 +427,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main Content Column with Top Global Header */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Global Header */}
-        <header className="h-16 border-b border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#121215] px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 transition-colors">
+        <header className="h-16 border-b border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#09090b] px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 transition-colors">
           {/* Left: Hamburger Menu (Mobile) & Breadcrumb Context */}
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white tap-target"
+              className="md:hidden text-gray-700 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white tap-target"
               aria-label="Open navigation menu"
             >
               <Menu className="h-5 w-5" strokeWidth={2} />
@@ -448,41 +445,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Suspense>
           </div>
 
-          {/* Center / Search: Input Trigger */}
-          <div className="relative max-w-xs md:max-w-sm w-full mx-4 hidden sm:block">
-            <Input
-              type="text"
-              placeholder="Search anything..."
-              leadingIcon={<Search className="h-4 w-4 text-gray-400 dark:text-zinc-500" strokeWidth={2} />}
-              trailingIcon={
-                <kbd className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-[#1c1c21] border border-gray-200 dark:border-[#27272a] rounded select-none">
-                  ⌘K
-                </kbd>
-              }
-              className="h-9 text-xs bg-gray-50 dark:bg-[#1c1c21] border-gray-200 dark:border-[#27272a] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-blue-500"
-              aria-label="Search"
-            />
-          </div>
-
-          {/* Right: Notification Bell & User Avatar Pill */}
+          {/* Right: User Profile Avatar */}
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white tap-target"
-              aria-label="Notifications"
-            >
-              <Bell className="h-4 w-4" strokeWidth={2} />
-              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-blue-600" />
-            </Button>
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-[#1c1c21] transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 tap-target"
                   aria-label="User account menu"
                 >
-                  <div className="h-8 w-8 rounded-full bg-blue-600/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30 flex items-center justify-center font-semibold text-xs uppercase">
+                  <div className="h-8 w-8 rounded-full bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20 flex items-center justify-center font-semibold text-xs uppercase select-none">
                     {user?.email ? user.email.slice(0, 2) : 'CL'}
                   </div>
                 </button>

@@ -538,7 +538,7 @@ function DashboardView() {
                       <span>{effectiveOutstandingCurr}</span>
                       <ChevronDown className="h-3 w-3 text-gray-400 dark:text-zinc-500" strokeWidth={2} />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-28">
+                    <DropdownMenuContent align="end" className="w-28 max-h-[260px] overflow-y-auto overscroll-contain p-1">
                       {sortedOutstanding.map((o) => {
                         const curr = o.currency.toUpperCase();
                         const isActive = curr === effectiveOutstandingCurr;
@@ -547,12 +547,14 @@ function DashboardView() {
                             key={o.currency}
                             onClick={() => setSelectedOutstandingCurr(curr)}
                             className={cn(
-                              'cursor-pointer text-[13px] leading-[18px] font-medium text-gray-800 dark:text-zinc-100 hover:bg-gray-100 dark:hover:bg-[#222226] justify-between flex items-center',
-                              isActive && 'font-semibold text-blue-600 dark:text-blue-400'
+                              'cursor-pointer text-[13px] leading-[18px] justify-between flex items-center rounded-lg px-3 py-2 transition-colors',
+                              isActive
+                                ? 'font-medium text-gray-900 dark:text-white bg-gray-50 dark:bg-[#222226]'
+                                : 'font-normal text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#222226]'
                             )}
                           >
                             <span>{curr}</span>
-                            {isActive && <Check className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />}
+                            {isActive && <Check className="h-[15px] w-[15px] text-gray-900 dark:text-white shrink-0" strokeWidth={2} />}
                           </DropdownMenuItem>
                         );
                       })}
@@ -611,7 +613,7 @@ function DashboardView() {
                       <span>{effectiveEarningsCurr}</span>
                       <ChevronDown className="h-3 w-3 text-gray-400 dark:text-zinc-500" strokeWidth={2} />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-28">
+                    <DropdownMenuContent align="end" className="w-28 max-h-[260px] overflow-y-auto overscroll-contain p-1">
                       {sortedEarnings.map((e) => {
                         const curr = e.currency.toUpperCase();
                         const isActive = curr === effectiveEarningsCurr;
@@ -620,12 +622,14 @@ function DashboardView() {
                             key={e.currency}
                             onClick={() => setSelectedEarningsCurr(curr)}
                             className={cn(
-                              'cursor-pointer text-[13px] leading-[18px] font-medium text-gray-800 dark:text-zinc-100 hover:bg-gray-100 dark:hover:bg-[#222226] justify-between flex items-center',
-                              isActive && 'font-semibold text-blue-600 dark:text-blue-400'
+                              'cursor-pointer text-[13px] leading-[18px] justify-between flex items-center rounded-lg px-3 py-2 transition-colors',
+                              isActive
+                                ? 'font-medium text-gray-900 dark:text-white bg-gray-50 dark:bg-[#222226]'
+                                : 'font-normal text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#222226]'
                             )}
                           >
                             <span>{curr}</span>
-                            {isActive && <Check className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />}
+                            {isActive && <Check className="h-[15px] w-[15px] text-gray-900 dark:text-white shrink-0" strokeWidth={2} />}
                           </DropdownMenuItem>
                         );
                       })}
@@ -785,12 +789,12 @@ function DashboardView() {
                                   <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg mx-auto text-gray-800 hover:text-gray-900 dark:text-zinc-200 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors focus:outline-none">
                                     <MoreVertical className="h-4 w-4 shrink-0" strokeWidth={2} />
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-36 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1 shadow-none">
+                                  <DropdownMenuContent align="end" className="min-w-[180px] rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-none">
                                     <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
                                       <Link
                                         href={`/invoices/${inv.id}?from=/`}
                                         prefetch={false}
-                                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
+                                        className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                       >
                                         <Eye className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
                                         <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">View invoice</span>
@@ -800,7 +804,7 @@ function DashboardView() {
                                       <button
                                         type="button"
                                         onClick={() => setRecordPaymentTarget({ clientId: inv.client_id, invoiceId: inv.id })}
-                                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
+                                        className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                       >
                                         <CreditCard className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
                                         <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">Record payment</span>
@@ -846,12 +850,12 @@ function DashboardView() {
                                 <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg mx-auto text-gray-800 hover:text-gray-900 dark:text-zinc-200 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors focus:outline-none">
                                   <MoreVertical className="h-4 w-4 shrink-0" strokeWidth={2} />
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-36 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1 shadow-none">
+                                <DropdownMenuContent align="end" className="min-w-[180px] rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-none">
                                   <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
                                     <Link
                                       href={`/invoices/${inv.id}?from=/`}
                                       prefetch={false}
-                                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
+                                      className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                     >
                                       <Eye className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
                                       <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">View invoice</span>
@@ -861,7 +865,7 @@ function DashboardView() {
                                     <button
                                       type="button"
                                       onClick={() => setRecordPaymentTarget({ clientId: inv.client_id, invoiceId: inv.id })}
-                                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
+                                      className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                     >
                                       <CreditCard className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
                                       <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">Record payment</span>

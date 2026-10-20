@@ -19,6 +19,8 @@ import {
   ArrowLeft,
   Search,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Check,
   MoreVertical,
   Eye,
@@ -155,6 +157,19 @@ function formatDate(dateStr: string | null | undefined): string {
   } catch {
     return dateStr;
   }
+}
+
+function getPaginationPages(currentPage: number, totalPages: number): (number | 'ellipsis')[] {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  if (currentPage <= 4) {
+    return [1, 2, 3, 4, 5, 'ellipsis', totalPages];
+  }
+  if (currentPage >= totalPages - 3) {
+    return [1, 'ellipsis', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+  }
+  return [1, 'ellipsis', currentPage - 1, currentPage, currentPage + 1, 'ellipsis', totalPages];
 }
 
 function InvoicesSkeleton() {
@@ -396,6 +411,30 @@ function InvoicesListContent() {
     clientMap,
   ]);
 
+  // Client-side pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState<number>(10);
+
+  // Reset currentPage to 1 whenever search, filters, rowsPerPage, or URL params change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    searchQuery,
+    statusFilter,
+    currencyFilter,
+    issueDateFilter,
+    dueDateFilter,
+    rowsPerPage,
+    targetStatus,
+    targetCurrency,
+  ]);
+
+  const totalPages = Math.ceil(filteredInvoices.length / rowsPerPage) || 1;
+  const paginatedInvoices = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filteredInvoices.slice(start, start + rowsPerPage);
+  }, [filteredInvoices, currentPage, rowsPerPage]);
+
   // Mark as sent handlers
   const handleOpenMarkSent = (inv: InvoiceSummary) => {
     const today = new Date();
@@ -544,6 +583,7 @@ function InvoicesListContent() {
     setCurrencyFilter(targetCurrency ? targetCurrency.toUpperCase() : 'all');
     setIssueDateFilter('all');
     setDueDateFilter('all');
+    setCurrentPage(1);
   };
 
   return (
@@ -633,7 +673,7 @@ function InvoicesListContent() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by invoice #, client name..."
-                className="w-full h-10 pl-10 pr-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-gray-400 dark:focus:border-zinc-600 transition-colors"
+                className="w-full py-2.5 pl-10 pr-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] leading-[18px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-gray-400 dark:focus:border-zinc-600 transition-colors"
               />
             </div>
 
@@ -641,27 +681,32 @@ function InvoicesListContent() {
             <div className="flex flex-wrap items-center gap-2.5">
               {/* Status Pill */}
               <DropdownMenu>
-                <DropdownMenuTrigger className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-gray-50 dark:hover:bg-[#222226] text-[13px] leading-none text-gray-600 dark:text-zinc-400 transition-colors focus:outline-none">
-                  <span>
+                <DropdownMenuTrigger className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-gray-50 dark:hover:bg-[#222226] text-[13px] leading-none transition-colors focus:outline-none">
+                  <span className="text-[13px] leading-none font-medium text-gray-500 dark:text-zinc-400">
                     Status:{' '}
-                    <strong className="font-medium text-gray-900 dark:text-white">
+                    <span className="font-medium text-gray-900 dark:text-white">
                       {selectedStatusLabel}
-                    </strong>
+                    </span>
                   </span>
                   <ChevronDown className="h-3.5 w-3.5 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 min-w-[160px] z-30 shadow-none">
+                <DropdownMenuContent align="end" className="rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 min-w-[160px] max-h-[260px] overflow-y-auto overscroll-contain z-30 shadow-none">
                   {statusOptions.map((opt) => {
                     const isActive = statusFilter === opt.id;
                     return (
                       <DropdownMenuItem
                         key={opt.id}
                         onClick={() => setStatusFilter(opt.id)}
-                        className="flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100 hover:bg-gray-100 dark:hover:bg-[#222226] cursor-pointer"
+                        className={cn(
+                          'flex items-center justify-between gap-3 w-full px-3.5 py-2.5 sm:py-2 rounded-lg text-[13px] leading-none whitespace-nowrap cursor-pointer transition-colors',
+                          isActive
+                            ? 'font-medium text-gray-900 dark:text-white bg-gray-50 dark:bg-[#222226]'
+                            : 'font-normal text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#222226]'
+                        )}
                       >
                         <span>{opt.label}</span>
                         {isActive && (
-                          <Check className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
+                          <Check className="h-[15px] w-[15px] text-gray-900 dark:text-white shrink-0" strokeWidth={2} />
                         )}
                       </DropdownMenuItem>
                     );
@@ -671,27 +716,32 @@ function InvoicesListContent() {
 
               {/* Currency Pill */}
               <DropdownMenu>
-                <DropdownMenuTrigger className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-gray-50 dark:hover:bg-[#222226] text-[13px] leading-none text-gray-600 dark:text-zinc-400 transition-colors focus:outline-none">
-                  <span>
+                <DropdownMenuTrigger className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-gray-50 dark:hover:bg-[#222226] text-[13px] leading-none transition-colors focus:outline-none">
+                  <span className="text-[13px] leading-none font-medium text-gray-500 dark:text-zinc-400">
                     Currency:{' '}
-                    <strong className="font-medium text-gray-900 dark:text-white">
+                    <span className="font-medium text-gray-900 dark:text-white">
                       {selectedCurrencyLabel}
-                    </strong>
+                    </span>
                   </span>
                   <ChevronDown className="h-3.5 w-3.5 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 min-w-[160px] z-30 shadow-none">
+                <DropdownMenuContent align="end" className="rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 min-w-[160px] max-h-[260px] overflow-y-auto overscroll-contain z-30 shadow-none">
                   {currencyOptions.map((opt) => {
                     const isActive = currencyFilter === opt.id;
                     return (
                       <DropdownMenuItem
                         key={opt.id}
                         onClick={() => setCurrencyFilter(opt.id)}
-                        className="flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100 hover:bg-gray-100 dark:hover:bg-[#222226] cursor-pointer"
+                        className={cn(
+                          'flex items-center justify-between gap-3 w-full px-3.5 py-2.5 sm:py-2 rounded-lg text-[13px] leading-none whitespace-nowrap cursor-pointer transition-colors',
+                          isActive
+                            ? 'font-medium text-gray-900 dark:text-white bg-gray-50 dark:bg-[#222226]'
+                            : 'font-normal text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#222226]'
+                        )}
                       >
                         <span>{opt.label}</span>
                         {isActive && (
-                          <Check className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
+                          <Check className="h-[15px] w-[15px] text-gray-900 dark:text-white shrink-0" strokeWidth={2} />
                         )}
                       </DropdownMenuItem>
                     );
@@ -701,27 +751,32 @@ function InvoicesListContent() {
 
               {/* Issue Date Pill */}
               <DropdownMenu>
-                <DropdownMenuTrigger className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-gray-50 dark:hover:bg-[#222226] text-[13px] leading-none text-gray-600 dark:text-zinc-400 transition-colors focus:outline-none">
-                  <span>
+                <DropdownMenuTrigger className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-gray-50 dark:hover:bg-[#222226] text-[13px] leading-none transition-colors focus:outline-none">
+                  <span className="text-[13px] leading-none font-medium text-gray-500 dark:text-zinc-400">
                     Issue Date:{' '}
-                    <strong className="font-medium text-gray-900 dark:text-white">
+                    <span className="font-medium text-gray-900 dark:text-white">
                       {selectedIssueDateLabel}
-                    </strong>
+                    </span>
                   </span>
                   <ChevronDown className="h-3.5 w-3.5 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 min-w-[160px] z-30 shadow-none">
+                <DropdownMenuContent align="end" className="rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 min-w-[160px] max-h-[260px] overflow-y-auto overscroll-contain z-30 shadow-none">
                   {issueDateOptions.map((opt) => {
                     const isActive = issueDateFilter === opt.id;
                     return (
                       <DropdownMenuItem
                         key={opt.id}
                         onClick={() => setIssueDateFilter(opt.id)}
-                        className="flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100 hover:bg-gray-100 dark:hover:bg-[#222226] cursor-pointer"
+                        className={cn(
+                          'flex items-center justify-between gap-3 w-full px-3.5 py-2.5 sm:py-2 rounded-lg text-[13px] leading-none whitespace-nowrap cursor-pointer transition-colors',
+                          isActive
+                            ? 'font-medium text-gray-900 dark:text-white bg-gray-50 dark:bg-[#222226]'
+                            : 'font-normal text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#222226]'
+                        )}
                       >
                         <span>{opt.label}</span>
                         {isActive && (
-                          <Check className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
+                          <Check className="h-[15px] w-[15px] text-gray-900 dark:text-white shrink-0" strokeWidth={2} />
                         )}
                       </DropdownMenuItem>
                     );
@@ -731,27 +786,32 @@ function InvoicesListContent() {
 
               {/* Due Date Pill */}
               <DropdownMenu>
-                <DropdownMenuTrigger className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-gray-50 dark:hover:bg-[#222226] text-[13px] leading-none text-gray-600 dark:text-zinc-400 transition-colors focus:outline-none">
-                  <span>
+                <DropdownMenuTrigger className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-gray-50 dark:hover:bg-[#222226] text-[13px] leading-none transition-colors focus:outline-none">
+                  <span className="text-[13px] leading-none font-medium text-gray-500 dark:text-zinc-400">
                     Due Date:{' '}
-                    <strong className="font-medium text-gray-900 dark:text-white">
+                    <span className="font-medium text-gray-900 dark:text-white">
                       {selectedDueDateLabel}
-                    </strong>
+                    </span>
                   </span>
                   <ChevronDown className="h-3.5 w-3.5 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 min-w-[160px] z-30 shadow-none">
+                <DropdownMenuContent align="end" className="rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 min-w-[160px] max-h-[260px] overflow-y-auto overscroll-contain z-30 shadow-none">
                   {dueDateOptions.map((opt) => {
                     const isActive = dueDateFilter === opt.id;
                     return (
                       <DropdownMenuItem
                         key={opt.id}
                         onClick={() => setDueDateFilter(opt.id)}
-                        className="flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100 hover:bg-gray-100 dark:hover:bg-[#222226] cursor-pointer"
+                        className={cn(
+                          'flex items-center justify-between gap-3 w-full px-3.5 py-2.5 sm:py-2 rounded-lg text-[13px] leading-none whitespace-nowrap cursor-pointer transition-colors',
+                          isActive
+                            ? 'font-medium text-gray-900 dark:text-white bg-gray-50 dark:bg-[#222226]'
+                            : 'font-normal text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#222226]'
+                        )}
                       >
                         <span>{opt.label}</span>
                         {isActive && (
-                          <Check className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
+                          <Check className="h-[15px] w-[15px] text-gray-900 dark:text-white shrink-0" strokeWidth={2} />
                         )}
                       </DropdownMenuItem>
                     );
@@ -763,7 +823,7 @@ function InvoicesListContent() {
                 <button
                   type="button"
                   onClick={handleResetFilters}
-                  className="inline-flex items-center gap-1 h-10 px-3 rounded-xl text-xs font-medium text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+                  className="inline-flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs font-medium text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
                 >
                   <X className="h-3.5 w-3.5" strokeWidth={2} />
                   <span>Reset</span>
@@ -776,7 +836,7 @@ function InvoicesListContent() {
             <>
               {/* Desktop 8-Column Table (hidden md:block) */}
               <div className="hidden md:block rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] overflow-hidden">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full table-auto text-left border-collapse">
                   <thead className="bg-gray-50/80 dark:bg-[#121215] border-b border-gray-200 dark:border-[#27272a]">
                     <tr>
                       <th className="py-3 px-4 text-left">
@@ -784,32 +844,32 @@ function InvoicesListContent() {
                           Invoice #
                         </span>
                       </th>
-                      <th className="py-3 px-4 text-left">
+                      <th className="py-3 px-3.5 text-left">
                         <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500">
                           Client
                         </span>
                       </th>
-                      <th className="py-3 px-4 text-left">
+                      <th className="py-3 px-3.5 text-left">
                         <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500">
                           Amount
                         </span>
                       </th>
-                      <th className="py-3 px-4 text-left">
+                      <th className="py-3 px-3.5 text-left">
                         <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500">
                           Currency
                         </span>
                       </th>
-                      <th className="py-3 px-4 text-left">
+                      <th className="py-3 px-3.5 text-left">
                         <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500">
                           Issue Date
                         </span>
                       </th>
-                      <th className="py-3 px-4 text-left">
+                      <th className="py-3 px-3.5 text-left">
                         <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500">
                           Due Date
                         </span>
                       </th>
-                      <th className="py-3 px-4 text-left">
+                      <th className="py-3 px-3.5 text-left">
                         <span className="text-[12px] leading-[16px] font-medium text-gray-400 dark:text-zinc-500">
                           Status
                         </span>
@@ -822,7 +882,7 @@ function InvoicesListContent() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-[#27272a] bg-white dark:bg-[#18181b]">
-                    {filteredInvoices.map((inv) => {
+                    {paginatedInvoices.map((inv) => {
                       const client = clientMap[inv.client_id];
                       const badgeStatus = getVisualBadgeStatus(inv);
 
@@ -843,49 +903,60 @@ function InvoicesListContent() {
                           </td>
 
                           {/* 2. Client */}
-                          <td className="py-3.5 px-4 min-w-[180px]">
-                            <div className="text-[14px] leading-[20px] font-medium text-gray-900 dark:text-white truncate">
+                          <td className="max-w-[180px] lg:max-w-[220px] xl:max-w-[260px] py-3.5 px-3.5">
+                            <div
+                              className="text-[14px] leading-[20px] font-medium text-gray-900 dark:text-white truncate"
+                              title={inv.client_name || client?.name || 'Client'}
+                            >
                               {inv.client_name || client?.name || 'Client'}
                             </div>
-                            <div className="text-[12px] leading-[16px] font-normal text-gray-500 dark:text-zinc-400 truncate mt-0.5">
+                            <div
+                              className="text-[12px] leading-[16px] font-normal text-gray-500 dark:text-zinc-400 truncate mt-0.5"
+                              title={client?.email || client?.company || ''}
+                            >
                               {client?.email || client?.company || '—'}
                             </div>
                           </td>
 
                           {/* 3. Amount */}
-                          <td className="py-3.5 px-4 whitespace-nowrap text-left">
+                          <td className="py-3.5 px-3.5 whitespace-nowrap text-left">
                             <Money
                               amountMinor={inv.total_minor}
                               currency={inv.currency}
                               variant="table"
                               tone="default"
-                              className="text-[14px] leading-[20px] font-medium text-gray-900 dark:text-white tabular-nums"
+                              className="text-[14px] leading-[20px] font-medium text-gray-900 dark:text-white tabular-nums block"
                             />
+                            {inv.status === 'sent' && (
+                              <div className="text-[12px] leading-[16px] font-normal text-gray-500 dark:text-zinc-400 tabular-nums mt-0.5 whitespace-nowrap">
+                                Due: <Money amountMinor={inv.balanceDueMinor} currency={inv.currency} className="inline font-normal text-gray-500 dark:text-zinc-400 tabular-nums" />
+                              </div>
+                            )}
                           </td>
 
                           {/* 4. Currency */}
-                          <td className="py-3.5 px-4 whitespace-nowrap">
+                          <td className="py-3.5 px-3.5 whitespace-nowrap">
                             <span className="text-[13px] leading-[18px] font-normal text-gray-600 dark:text-zinc-400 uppercase tabular-nums">
                               {inv.currency}
                             </span>
                           </td>
 
                           {/* 5. Issue Date */}
-                          <td className="py-3.5 px-4 whitespace-nowrap">
+                          <td className="py-3.5 px-3.5 whitespace-nowrap">
                             <span className="text-[14px] leading-[20px] font-medium text-gray-900 dark:text-white tabular-nums">
                               {inv.issue_date ? formatDate(inv.issue_date) : '—'}
                             </span>
                           </td>
 
                           {/* 6. Due Date */}
-                          <td className="py-3.5 px-4 whitespace-nowrap">
+                          <td className="py-3.5 px-3.5 whitespace-nowrap">
                             <span className="text-[14px] leading-[20px] font-normal text-gray-600 dark:text-zinc-300 tabular-nums">
                               {inv.due_date ? formatDate(inv.due_date) : '—'}
                             </span>
                           </td>
 
                           {/* 7. Status */}
-                          <td className="py-3.5 px-4 whitespace-nowrap">
+                          <td className="py-3.5 px-3.5 whitespace-nowrap">
                             <InvoiceStatusBadge status={badgeStatus} />
                           </td>
 
@@ -900,13 +971,13 @@ function InvoicesListContent() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent
                                 align="end"
-                                className="w-44 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-none z-30"
+                                className="min-w-[185px] rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-none z-30"
                               >
                                 <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
                                   <Link
                                     href={`/invoices/${inv.id}?from=${encodeURIComponent(currentPathWithQuery)}`}
                                     prefetch={false}
-                                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
+                                    className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                   >
                                     <Eye className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
                                     <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
@@ -920,7 +991,7 @@ function InvoicesListContent() {
                                     <Link
                                       href={`/invoices/${inv.id}/edit?from=${encodeURIComponent(currentPathWithQuery)}`}
                                       prefetch={false}
-                                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
+                                      className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                     >
                                       <Pencil className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
                                       <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
@@ -935,7 +1006,7 @@ function InvoicesListContent() {
                                     <button
                                       type="button"
                                       onClick={() => handleOpenMarkSent(inv)}
-                                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
+                                      className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                     >
                                       <Send className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
                                       <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
@@ -950,7 +1021,7 @@ function InvoicesListContent() {
                                     <button
                                       type="button"
                                       onClick={() => setRecordPaymentTarget({ clientId: inv.client_id, invoiceId: inv.id })}
-                                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
+                                      className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                     >
                                       <CreditCard className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
                                       <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
@@ -965,7 +1036,7 @@ function InvoicesListContent() {
                                     type="button"
                                     onClick={() => handleDownloadPDF(inv)}
                                     disabled={generatingPdfInvoiceId === inv.id}
-                                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226] disabled:opacity-50"
+                                    className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226] disabled:opacity-50"
                                   >
                                     {generatingPdfInvoiceId === inv.id ? (
                                       <Loader2 className="h-[15px] w-[15px] animate-spin text-gray-800 dark:text-zinc-100 shrink-0" />
@@ -989,7 +1060,7 @@ function InvoicesListContent() {
 
               {/* Mobile 2-Row Stacked Cards (md:hidden) */}
               <div className="md:hidden space-y-3">
-                {filteredInvoices.map((inv) => {
+                {paginatedInvoices.map((inv) => {
                   const client = clientMap[inv.client_id];
                   const badgeStatus = getVisualBadgeStatus(inv);
 
@@ -1024,13 +1095,13 @@ function InvoicesListContent() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent
                               align="end"
-                              className="w-44 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-none z-30"
+                              className="min-w-[185px] rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-none z-30"
                             >
                               <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
                                 <Link
                                   href={`/invoices/${inv.id}?from=${encodeURIComponent(currentPathWithQuery)}`}
                                   prefetch={false}
-                                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
+                                  className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                 >
                                   <Eye className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
                                   <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
@@ -1044,7 +1115,7 @@ function InvoicesListContent() {
                                   <Link
                                     href={`/invoices/${inv.id}/edit?from=${encodeURIComponent(currentPathWithQuery)}`}
                                     prefetch={false}
-                                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
+                                    className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                   >
                                     <Pencil className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
                                     <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
@@ -1059,7 +1130,7 @@ function InvoicesListContent() {
                                   <button
                                     type="button"
                                     onClick={() => handleOpenMarkSent(inv)}
-                                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
+                                    className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                   >
                                     <Send className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
                                     <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
@@ -1074,7 +1145,7 @@ function InvoicesListContent() {
                                   <button
                                     type="button"
                                     onClick={() => setRecordPaymentTarget({ clientId: inv.client_id, invoiceId: inv.id })}
-                                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
+                                    className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                   >
                                     <CreditCard className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
                                     <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
@@ -1089,7 +1160,7 @@ function InvoicesListContent() {
                                   type="button"
                                   onClick={() => handleDownloadPDF(inv)}
                                   disabled={generatingPdfInvoiceId === inv.id}
-                                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226] disabled:opacity-50"
+                                  className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226] disabled:opacity-50"
                                 >
                                   {generatingPdfInvoiceId === inv.id ? (
                                     <Loader2 className="h-[15px] w-[15px] animate-spin text-gray-800 dark:text-zinc-100 shrink-0" />
@@ -1111,18 +1182,114 @@ function InvoicesListContent() {
                         <span className="text-[12px] leading-[16px] font-normal text-gray-500 dark:text-zinc-400 tabular-nums">
                           {inv.due_date ? `Due ${formatDate(inv.due_date)}` : 'No due date'}
                         </span>
-                        <Money
-                          amountMinor={inv.total_minor}
-                          currency={inv.currency}
-                          variant="table"
-                          tone="default"
-                          className="text-[14px] leading-[20px] font-medium text-gray-900 dark:text-white tabular-nums"
-                        />
+                        <div className="text-right">
+                          <Money
+                            amountMinor={inv.total_minor}
+                            currency={inv.currency}
+                            variant="table"
+                            tone="default"
+                            className="text-[14px] leading-[20px] font-medium text-gray-900 dark:text-white tabular-nums block"
+                          />
+                          {inv.status === 'sent' && (
+                            <div className="text-[12px] leading-[16px] font-normal text-gray-500 dark:text-zinc-400 tabular-nums mt-0.5 whitespace-nowrap">
+                              Due: <Money amountMinor={inv.balanceDueMinor} currency={inv.currency} className="inline font-normal text-gray-500 dark:text-zinc-400 tabular-nums" />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
+
+              {/* Pagination Footer Bar */}
+              {filteredInvoices.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+                  {/* Left: Show rows per page */}
+                  <div className="flex items-center gap-2 text-[13px] text-gray-600 dark:text-zinc-400">
+                    <span>Show</span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger className="px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-900 dark:text-white inline-flex items-center gap-1.5 focus:outline-none transition-colors">
+                        <span>{rowsPerPage}</span>
+                        <ChevronDown className="h-3 w-3 text-gray-400 dark:text-zinc-500" strokeWidth={2} />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="min-w-[80px] p-1 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] shadow-none z-30">
+                        {[10, 20, 50].map((num) => (
+                          <DropdownMenuItem
+                            key={num}
+                            onClick={() => setRowsPerPage(num)}
+                            className={cn(
+                              'flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[13px] leading-none cursor-pointer',
+                              rowsPerPage === num
+                                ? 'font-medium text-gray-900 dark:text-white bg-gray-50 dark:bg-[#222226]'
+                                : 'font-normal text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#222226]'
+                            )}
+                          >
+                            <span>{num}</span>
+                            {rowsPerPage === num && <Check className="h-3.5 w-3.5 text-gray-900 dark:text-white shrink-0" strokeWidth={2} />}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <span>rows per page</span>
+                  </div>
+
+                  {/* Center: Page numbers */}
+                  <div className="flex items-center gap-1">
+                    {getPaginationPages(currentPage, totalPages).map((p, idx) => {
+                      if (p === 'ellipsis') {
+                        return (
+                          <span
+                            key={`ellipsis-${idx}`}
+                            className="h-9 min-w-[36px] px-2.5 flex items-center justify-center text-[13px] text-gray-400 dark:text-zinc-500 select-none"
+                          >
+                            ...
+                          </span>
+                        );
+                      }
+                      const isActive = p === currentPage;
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setCurrentPage(p)}
+                          className={cn(
+                            'h-9 min-w-[36px] px-2.5 rounded-lg text-[13px] tabular-nums transition-colors',
+                            isActive
+                              ? 'border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] font-medium text-gray-900 dark:text-white'
+                              : 'font-normal text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#18181b]'
+                          )}
+                          aria-current={isActive ? 'page' : undefined}
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Right: Previous & Next */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      disabled={currentPage <= 1}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2} />
+                      <span>Previous</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage >= totalPages}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                    >
+                      <span>Next</span>
+                      <ChevronRight className="h-3.5 w-3.5" strokeWidth={2} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-12 text-center space-y-4">
