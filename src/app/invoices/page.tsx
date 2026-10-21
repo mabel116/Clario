@@ -273,8 +273,6 @@ function InvoicesListContent() {
   const [markSentIssueDate, setMarkSentIssueDate] = useState('');
   const [markSentDueDate, setMarkSentDueDate] = useState('');
   const [isMarkingSent, setIsMarkingSent] = useState(false);
-  const [clientSelectorOpen, setClientSelectorOpen] = useState(false);
-  const [selectedClientForNewInvoice, setSelectedClientForNewInvoice] = useState('');
   const [generatingPdfInvoiceId, setGeneratingPdfInvoiceId] = useState<string | null>(null);
 
   // Distinct currencies list
@@ -509,27 +507,6 @@ function InvoicesListContent() {
     }
   };
 
-  // Primary Create Invoice CTA handler
-  const handleCreateInvoiceClick = () => {
-    if (!clients || clients.length === 0) {
-      router.push('/clients');
-      return;
-    }
-    if (clients.length === 1) {
-      router.push(`/clients/${clients[0].id}/invoices/new`);
-      return;
-    }
-    setSelectedClientForNewInvoice(clients[0].id);
-    setClientSelectorOpen(true);
-  };
-
-  const handleClientSelectorConfirm = () => {
-    if (selectedClientForNewInvoice) {
-      router.push(`/clients/${selectedClientForNewInvoice}/invoices/new`);
-      setClientSelectorOpen(false);
-    }
-  };
-
   // Filter option labels resolution
   const statusOptions = isOutstandingDrilldown
     ? [
@@ -625,14 +602,14 @@ function InvoicesListContent() {
         </div>
 
         <div>
-          <button
-            type="button"
-            onClick={handleCreateInvoiceClick}
+          <Link
+            href={`/invoices/new?from=${encodeURIComponent(currentPathWithQuery)}`}
+            prefetch={false}
             className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white text-[13px] leading-none font-medium transition-colors tap-target"
           >
             <Plus className="h-4 w-4 shrink-0" strokeWidth={2} />
             <span>Create invoice</span>
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -656,14 +633,14 @@ function InvoicesListContent() {
             </p>
           </div>
           <div>
-            <button
-              type="button"
-              onClick={handleCreateInvoiceClick}
+            <Link
+              href={`/invoices/new?from=${encodeURIComponent(currentPathWithQuery)}`}
+              prefetch={false}
               className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors"
             >
               <Plus className="h-4 w-4" strokeWidth={2} />
               <span>Create invoice</span>
-            </button>
+            </Link>
           </div>
         </div>
       ) : (
@@ -1214,7 +1191,7 @@ function InvoicesListContent() {
 
               {/* Pagination Footer Bar */}
               {filteredInvoices.length > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200 dark:border-[#27272a] pt-4 mt-4">
+                <div className="-mx-4 sm:-mx-6 lg:-mx-8 border-t border-gray-200 dark:border-[#27272a] pt-4 mt-6 px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
                   {/* Left: Show rows per page */}
                   <div className="flex items-center gap-2 text-[13px] text-gray-600 dark:text-zinc-400">
                     <span>Show</span>
@@ -1405,60 +1382,6 @@ function InvoicesListContent() {
         </div>
       )}
 
-      {/* Client Selector Modal for New Invoice */}
-      {clientSelectorOpen && clients && clients.length > 0 && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-6 max-w-md w-full space-y-4 text-left">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Select Client for New Invoice
-              </h3>
-              <button
-                type="button"
-                onClick={() => setClientSelectorOpen(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors"
-              >
-                <X className="h-5 w-5" strokeWidth={2} />
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-500 dark:text-zinc-400">
-              Choose which client to issue this invoice to:
-            </p>
-
-            <div className="space-y-1.5">
-              <select
-                value={selectedClientForNewInvoice}
-                onChange={(e) => setSelectedClientForNewInvoice(e.target.value)}
-                className="w-full bg-white dark:bg-[#121215] border border-gray-200 dark:border-[#27272a] text-gray-900 dark:text-white rounded-xl h-10 px-3 text-sm focus:outline-none"
-              >
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.company ? `(${c.company})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="pt-2 flex justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setClientSelectorOpen(false)}
-                className="border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#121215] text-gray-700 dark:text-zinc-300 rounded-xl h-10 px-4 text-xs font-medium hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleClientSelectorConfirm}
-                className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-10 px-4 text-xs font-medium transition-colors"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

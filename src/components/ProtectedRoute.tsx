@@ -8,44 +8,47 @@ import { useRouter } from 'next/navigation';
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
-  const [showSpinner, setShowSpinner] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [showIndicator, setShowIndicator] = useState(false);
 
   useEffect(() => {
-    if (!isLoading) {
-      setShowSpinner(false);
-      return;
-    }
-    const timer = setTimeout(() => {
-      setShowSpinner(true);
-    }, 150);
+    setIsMounted(true);
+    const timer = setTimeout(() => setShowIndicator(true), 200);
     return () => clearTimeout(timer);
-  }, [isLoading]);
+  }, []);
 
   useEffect(() => {
-    // Only redirect when loading has completely settled and no authenticated user exists.
+    // Only redirect when mounted, loading has completely settled, and no authenticated user exists.
     // This prevents transient offline token validation states from triggering router.replace('/sign-in').
-    if (!isLoading && !user) {
+    if (isMounted && !isLoading && !user) {
       router.replace('/sign-in');
     }
-  }, [user, isLoading, router]);
+  }, [isMounted, user, isLoading, router]);
 
-  if (isLoading && !showSpinner) {
-    return <div className="min-h-screen bg-slate-950" />;
-  }
-
-  if (isLoading && showSpinner) {
+  if (!isMounted || isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <div className="relative flex flex-col items-center gap-4 text-slate-400">
-          <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-          <p className="text-sm font-medium">Checking credentials...</p>
-        </div>
+      <div className="min-h-screen bg-white dark:bg-[#09090b] flex flex-col items-center justify-center gap-3">
+        {showIndicator && (
+          <>
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600 dark:text-blue-500" />
+            <p className="text-[13px] text-gray-500 dark:text-zinc-400 font-medium">Loading Clario...</p>
+          </>
+        )}
       </div>
     );
   }
 
   if (!user) {
-    return null; // Will redirect in useEffect
+    return (
+      <div className="min-h-screen bg-white dark:bg-[#09090b] flex flex-col items-center justify-center gap-3">
+        {showIndicator && (
+          <>
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600 dark:text-blue-500" />
+            <p className="text-[13px] text-gray-500 dark:text-zinc-400 font-medium">Redirecting to sign in...</p>
+          </>
+        )}
+      </div>
+    );
   }
 
   return <>{children}</>;

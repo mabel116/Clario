@@ -3,6 +3,7 @@ const CORE_ROUTES = [
   '/',
   '/clients',
   '/invoices',
+  '/invoices/new',
   '/payments',
   '/settings',
   '/clients/_shell_/invoices/new',

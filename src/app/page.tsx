@@ -456,7 +456,7 @@ function DashboardView() {
 
             {/* Primary Action Button */}
             <Link
-              href="/invoices"
+              href="/invoices/new?from=/"
               prefetch={false}
               className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors tap-target"
             >

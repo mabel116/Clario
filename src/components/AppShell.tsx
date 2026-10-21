@@ -312,6 +312,54 @@ function HeaderTitle() {
   const pathname = usePathname() || '/';
   const searchParams = useSearchParams();
   const activeNav = resolveActiveNav(pathname, searchParams?.toString() || '');
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<boolean>;
+      setIsPreviewMode(Boolean(customEvent.detail));
+    };
+    window.addEventListener('clario:preview-mode', handler);
+    return () => window.removeEventListener('clario:preview-mode', handler);
+  }, []);
+
+  if (pathname === '/invoices/new') {
+    return (
+      <div className="flex items-center text-[13px] select-none">
+        <FileText
+          className="h-4 w-4 text-gray-500 dark:text-zinc-400 mr-2 shrink-0"
+          strokeWidth={2}
+        />
+        <Link
+          href="/invoices"
+          prefetch={false}
+          className="hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer font-normal text-gray-500 dark:text-zinc-400 no-underline"
+        >
+          Invoices
+        </Link>
+        <span className="text-gray-300 dark:text-zinc-600 mx-1.5">/</span>
+        {isPreviewMode ? (
+          <>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('clario:switch-to-form'))}
+              className="hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer font-normal text-gray-500 dark:text-zinc-400"
+            >
+              Create Invoice
+            </button>
+            <span className="text-gray-300 dark:text-zinc-600 mx-1.5">/</span>
+            <span className="font-semibold text-gray-900 dark:text-white">
+              Preview Invoice
+            </span>
+          </>
+        ) : (
+          <span className="font-semibold text-gray-900 dark:text-white">
+            Create Invoice
+          </span>
+        )}
+      </div>
+    );
+  }
 
   const titles: Record<NavItem, string> = {
     dashboard: 'Dashboard',
@@ -340,6 +388,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { resolvedTheme } = useTheme();
+  const pathname = usePathname() || '';
+  const isInvoiceNewRoute = pathname.startsWith('/invoices/new');
 
   // Sync theme-color meta tag with active theme for installed PWAs
   useEffect(() => {
@@ -370,9 +420,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [mobileMenuOpen]);
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col md:flex-row bg-white dark:bg-[#09090b] text-gray-900 dark:text-white">
+    <div className="h-dvh overflow-hidden flex flex-col md:flex-row bg-white dark:bg-[#09090b] text-gray-900 dark:text-white">
       {/* Desktop Sidebar */}
-      <aside className="w-64 border-r border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#121215] flex flex-col justify-between hidden md:flex shrink-0 sticky top-0 h-screen overflow-hidden p-4 select-none">
+      <aside className="w-64 border-r border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#121215] flex flex-col justify-between hidden md:flex shrink-0 sticky top-0 h-dvh overflow-hidden p-4 select-none">
         {/* Top Section */}
         <div className="space-y-6">
           {/* Brand Logo & Layout Toggle */}
@@ -441,7 +491,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content Column with Top Global Header */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-dvh overflow-hidden">
         {/* Top Global Header */}
         <header className="h-16 border-b border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#09090b] px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 transition-colors">
           {/* Left: Hamburger Menu (Mobile) & Breadcrumb Context */}
@@ -503,7 +553,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto bg-white dark:bg-[#09090b] p-4 sm:p-6 lg:p-8 text-gray-900 dark:text-white transition-colors">
+        <main
+          className={cn(
+            'flex-1 overflow-y-auto overflow-x-hidden bg-white dark:bg-[#09090b] text-gray-900 dark:text-white transition-colors',
+            isInvoiceNewRoute ? 'p-0' : 'p-4 sm:p-6 lg:p-8'
+          )}
+        >
           {children}
         </main>
       </div>
