@@ -361,6 +361,44 @@ function HeaderTitle() {
     );
   }
 
+  if (pathname.startsWith('/invoices/') && pathname !== '/invoices' && !pathname.startsWith('/invoices/new')) {
+    const parts = pathname.split('/').filter(Boolean);
+    const invoiceId = parts[1];
+    const isEditRoute = parts[2] === 'edit';
+
+    return (
+      <div className="flex items-center text-[13px] select-none">
+        <FileText
+          className="h-4 w-4 text-gray-500 dark:text-zinc-400 mr-2 shrink-0"
+          strokeWidth={2}
+        />
+        <Link
+          href="/invoices"
+          prefetch={false}
+          className="hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer font-normal text-gray-500 dark:text-zinc-400 no-underline"
+        >
+          Invoices
+        </Link>
+        <span className="text-gray-300 dark:text-zinc-600 mx-1.5 font-normal">/</span>
+        {!isEditRoute ? (
+          <span className="font-semibold text-gray-900 dark:text-white">View Invoice</span>
+        ) : (
+          <>
+            <Link
+              href={`/invoices/${invoiceId}`}
+              prefetch={false}
+              className="hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer font-normal text-gray-500 dark:text-zinc-400 no-underline"
+            >
+              View Invoice
+            </Link>
+            <span className="text-gray-300 dark:text-zinc-600 mx-1.5 font-normal">/</span>
+            <span className="font-semibold text-gray-900 dark:text-white">Edit Invoice</span>
+          </>
+        )}
+      </div>
+    );
+  }
+
   const titles: Record<NavItem, string> = {
     dashboard: 'Dashboard',
     invoices: 'Invoices',
@@ -389,7 +427,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { resolvedTheme } = useTheme();
   const pathname = usePathname() || '';
-  const isInvoiceNewRoute = pathname.startsWith('/invoices/new');
+  const isFlushInvoiceRoute = pathname.startsWith('/invoices/') && pathname !== '/invoices';
 
   // Sync theme-color meta tag with active theme for installed PWAs
   useEffect(() => {
@@ -556,7 +594,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main
           className={cn(
             'flex-1 overflow-y-auto overflow-x-hidden bg-white dark:bg-[#09090b] text-gray-900 dark:text-white transition-colors',
-            isInvoiceNewRoute ? 'p-0' : 'p-4 sm:p-6 lg:p-8'
+            isFlushInvoiceRoute ? 'p-0' : 'p-4 sm:p-6 lg:p-8'
           )}
         >
           {children}

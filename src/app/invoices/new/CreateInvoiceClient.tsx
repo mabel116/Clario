@@ -543,22 +543,59 @@ function calculateDueDate(
   return `${y}-${m}-${d}`;
 }
 
-function CreateInvoiceSkeleton() {
+function inferTermsFromDates(issueDateStr: string, dueDateStr: string): TermsType {
+  if (!issueDateStr || !dueDateStr) return 'custom';
+  const cleanIssue = issueDateStr.includes('T') ? issueDateStr.split('T')[0] : issueDateStr;
+  const cleanDue = dueDateStr.includes('T') ? dueDateStr.split('T')[0] : dueDateStr;
+  const partsIssue = cleanIssue.split('-');
+  const partsDue = cleanDue.split('-');
+  if (partsIssue.length !== 3 || partsDue.length !== 3) return 'custom';
+  const iy = parseInt(partsIssue[0], 10);
+  const im = parseInt(partsIssue[1], 10) - 1;
+  const id = parseInt(partsIssue[2], 10);
+  const dy = parseInt(partsDue[0], 10);
+  const dm = parseInt(partsDue[1], 10) - 1;
+  const dd = parseInt(partsDue[2], 10);
+  if (isNaN(iy) || isNaN(im) || isNaN(id) || isNaN(dy) || isNaN(dm) || isNaN(dd)) {
+    return 'custom';
+  }
+  const issue = new Date(iy, im - 1, id);
+  const due = new Date(dy, dm - 1, dd);
+  const diffDays = Math.round((due.getTime() - issue.getTime()) / 86400000);
+  if (diffDays === 0) return 'due_on_receipt';
+  if (diffDays === 7) return 'net_7';
+  if (diffDays === 14) return 'net_14';
+  if (diffDays === 30) return 'net_30';
+  return 'custom';
+}
+
+export function CreateInvoiceSkeleton() {
   return (
-    <div className="w-full space-y-6 pb-12 animate-pulse text-left font-sans">
-      <div className="h-7 w-20 bg-gray-200 dark:bg-[#27272a] rounded-lg" />
-      <div className="flex items-center justify-between pb-2">
-        <div className="space-y-2">
-          <div className="h-7 w-48 bg-gray-200 dark:bg-[#27272a] rounded" />
-          <div className="h-4 w-72 bg-gray-200 dark:bg-[#27272a] rounded" />
-        </div>
-        <div className="flex gap-2.5">
-          <div className="h-10 w-24 bg-gray-200 dark:bg-[#27272a] rounded-xl" />
-          <div className="h-10 w-32 bg-gray-200 dark:bg-[#27272a] rounded-xl" />
+    <div className="w-full pb-12 animate-pulse text-left font-sans">
+      <div className="sticky top-0 z-30 w-full px-4 sm:px-6 lg:px-8 pt-5 pb-3.5 bg-white dark:bg-[#09090b] border-b border-gray-200 dark:border-[#27272a]">
+        <div className="w-full">
+          <div className="h-7 w-20 bg-gray-200 dark:bg-[#27272a] rounded-lg" />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-2.5">
+            <div className="space-y-1.5">
+              <div className="h-7 w-48 bg-gray-200 dark:bg-[#27272a] rounded" />
+              <div className="h-4 w-72 bg-gray-200 dark:bg-[#27272a] rounded" />
+            </div>
+            {/* Desktop action buttons */}
+            <div className="hidden sm:flex items-center gap-2.5">
+              <div className="h-10 w-20 bg-gray-200 dark:bg-[#27272a] rounded-xl" />
+              <div className="h-10 w-28 bg-gray-200 dark:bg-[#27272a] rounded-xl" />
+              <div className="h-10 w-32 bg-gray-200 dark:bg-[#27272a] rounded-xl" />
+            </div>
+            {/* Mobile 2-column grid */}
+            <div className="grid grid-cols-2 gap-2.5 sm:hidden w-full mt-1">
+              <div className="h-10 w-full bg-gray-200 dark:bg-[#27272a] rounded-xl" />
+              <div className="h-10 w-full bg-gray-200 dark:bg-[#27272a] rounded-xl" />
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-[760px] space-y-6">
+      <div className="px-4 sm:px-6 lg:px-8 py-6 space-y-6 max-w-[760px]">
         <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-6 space-y-4">
           <div className="h-5 w-28 bg-gray-200 dark:bg-[#27272a] rounded" />
           <div className="h-10 bg-gray-100 dark:bg-[#121215] rounded-xl" />
@@ -641,6 +678,13 @@ export function CreateInvoiceClient() {
         new CustomEvent('clario:preview-mode', { detail: false })
       );
     };
+  }, [viewMode]);
+
+  // Immediate scroll reset when switching between 'form' and 'preview'
+  useEffect(() => {
+    const mainEl = document.querySelector('main');
+    if (mainEl) mainEl.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [viewMode]);
 
   // Listen for breadcrumb click in preview mode to switch back to form
@@ -774,6 +818,11 @@ export function CreateInvoiceClient() {
     if (terms !== 'custom') {
       setDueDate(calculateDueDate(newDate, terms, dueDate));
     }
+  };
+
+  const handleDueDateChange = (newDueDate: string) => {
+    setDueDate(newDueDate);
+    setTerms(inferTermsFromDates(issueDate, newDueDate));
   };
 
   const handleTermsChange = (newTerms: TermsType) => {
@@ -1176,15 +1225,71 @@ export function CreateInvoiceClient() {
         {/* 100% Solid Opaque Sticky Header at top-0 */}
         <div className="sticky top-0 z-30 w-full px-4 sm:px-6 lg:px-8 pt-5 pb-3.5 bg-white dark:bg-[#09090b] border-b border-gray-200 dark:border-[#27272a]">
           <div className="w-full">
-            <button
-              type="button"
-              onClick={() => setViewMode('form')}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#18181b] dark:hover:bg-[#222226] text-[12px] leading-none font-medium text-gray-700 dark:text-zinc-300 transition-colors no-underline w-fit"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2} /> Back
-            </button>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-2.5">
-              <div>
+            {/* Desktop Header Layout */}
+            <div className="hidden sm:block">
+              <button
+                type="button"
+                onClick={() => setViewMode('form')}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#18181b] dark:hover:bg-[#222226] text-[12px] leading-none font-medium text-gray-700 dark:text-zinc-300 transition-colors no-underline w-fit"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2} /> Back
+              </button>
+              <div className="flex items-center justify-between gap-3 mt-2.5">
+                <div>
+                  <h1 className="text-[22px] leading-[28px] font-semibold text-gray-900 dark:text-white tracking-tight">
+                    Preview Invoice
+                  </h1>
+                  <p className="text-[13px] leading-[18px] text-gray-500 dark:text-zinc-400 mt-0.5">
+                    Create, send, and track your invoices in one place.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('form')}
+                    className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors"
+                  >
+                    <Pencil className="h-4 w-4 shrink-0 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
+                    <span>Edit Invoice</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadPDF}
+                    disabled={isDownloadingPdf}
+                    className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors disabled:opacity-50"
+                  >
+                    <Download className="h-4 w-4 shrink-0 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
+                    <span>{isDownloadingPdf ? 'Downloading...' : 'Download PDF'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSaveInvoice('draft', true)}
+                    disabled={isSubmitting}
+                    className="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors disabled:opacity-50"
+                  >
+                    <span>{isSubmitting ? 'Saving...' : 'Save Invoice'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile Header Layout */}
+            <div className="sm:hidden w-full">
+              {/* Row 1: Back */}
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('form')}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#18181b] dark:hover:bg-[#222226] text-[12px] leading-none font-medium text-gray-700 dark:text-zinc-300 transition-colors"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2} /> Back
+                </button>
+              </div>
+              {/* Row 2: Title + Subtitle */}
+              <div className="mt-2.5">
                 <h1 className="text-[22px] leading-[28px] font-semibold text-gray-900 dark:text-white tracking-tight">
                   Preview Invoice
                 </h1>
@@ -1192,32 +1297,32 @@ export function CreateInvoiceClient() {
                   Create, send, and track your invoices in one place.
                 </p>
               </div>
-
-              <div className="grid grid-cols-3 sm:flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('form')}
-                  className="h-10 px-3 sm:px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors"
-                >
-                  <Pencil className="h-4 w-4 shrink-0 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
-                  <span>Edit Invoice</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleDownloadPDF}
-                  disabled={isDownloadingPdf}
-                  className="h-10 px-3 sm:px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors disabled:opacity-50"
-                >
-                  <Download className="h-4 w-4 shrink-0 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
-                  <span>{isDownloadingPdf ? 'Downloading...' : 'Download PDF'}</span>
-                </button>
-
+              {/* Row 3: Action Buttons */}
+              <div className="w-full space-y-2 mt-3">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('form')}
+                    className="h-10 w-full rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5"
+                  >
+                    <Pencil className="h-4 w-4 shrink-0 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
+                    <span>Edit Invoice</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadPDF}
+                    disabled={isDownloadingPdf}
+                    className="h-10 w-full rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Download className="h-4 w-4 shrink-0 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
+                    <span>{isDownloadingPdf ? 'Downloading...' : 'Download PDF'}</span>
+                  </button>
+                </div>
                 <button
                   type="button"
                   onClick={() => handleSaveInvoice('draft', true)}
                   disabled={isSubmitting}
-                  className="h-10 px-3 sm:px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors disabled:opacity-50"
+                  className="h-10 w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center disabled:opacity-50"
                 >
                   <span>{isSubmitting ? 'Saving...' : 'Save Invoice'}</span>
                 </button>
@@ -1230,8 +1335,34 @@ export function CreateInvoiceClient() {
         <div className="px-4 sm:px-6 lg:px-8 py-6">
           <div className="max-w-[780px] mx-auto rounded-[28px] bg-[#F8FAFC] dark:bg-[#121215] border border-gray-100 dark:border-[#27272a]/70 p-4 sm:p-7">
           <div className="rounded-2xl bg-white dark:bg-[#18181b] border border-gray-200/70 dark:border-[#27272a] p-6 sm:p-10 space-y-8">
-            {/* Top Section — NO circular initials badge, starts directly with Studio Name */}
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-2">
+            {/* Top Section — Option B Mobile Letterhead vs Desktop Side-by-Side */}
+            {/* Mobile Letterhead (sm:hidden) */}
+            <div className="sm:hidden space-y-4">
+              <div>
+                <span className="text-[22px] leading-[28px] font-bold text-gray-900 dark:text-white tracking-tight uppercase block">
+                  INVOICE
+                </span>
+                <span className="text-[13px] text-gray-500 dark:text-zinc-400 mt-1 block tabular-nums">
+                  Invoice Number: {invoiceNumber || '—'}
+                </span>
+              </div>
+              <div className="border-b border-gray-100 dark:border-[#27272a] pb-4 mb-4">
+                <p className="text-[12px] font-normal text-gray-400 dark:text-zinc-500 mb-1">
+                  From:
+                </p>
+                <h3 className="text-[14px] font-semibold text-gray-900 dark:text-white">
+                  {profile?.business_name || 'Studio'}
+                </h3>
+                {profile?.business_address && (
+                  <p className="text-[13px] leading-[20px] text-gray-500 dark:text-zinc-400 whitespace-pre-line mt-1">
+                    {profile.business_address}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Desktop Side-by-Side (hidden sm:flex) */}
+            <div className="hidden sm:flex sm:items-start sm:justify-between sm:gap-6 pb-2">
               <div className="space-y-1">
                 <h3 className="text-[16px] font-semibold text-gray-900 dark:text-white">
                   {profile?.business_name || 'Studio'}
@@ -1254,7 +1385,7 @@ export function CreateInvoiceClient() {
               </div>
             </div>
 
-            {/* Middle Section: Billed To & Dates (NO horizontal divider above) */}
+            {/* Middle Section: Billed To & Dates */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-1">
                 <span className="text-[12px] font-semibold text-gray-500 dark:text-zinc-400 block">
@@ -1296,8 +1427,9 @@ export function CreateInvoiceClient() {
               </div>
             </div>
 
-            {/* Line Items Table (Flat Rectangular Row with Bottom Stroke, matching image_44089d.png) */}
-            <div className="pt-2 overflow-x-auto">
+            {/* Line Items: Desktop Table + Mobile Stacked Rows (Zero horizontal scroll) */}
+            {/* Desktop Table (hidden sm:block) */}
+            <div className="hidden sm:block pt-2 overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[500px]">
                 <thead>
                   <tr className="bg-[#F8FAFC] dark:bg-[#121215] border-b border-gray-200 dark:border-[#27272a]">
@@ -1341,6 +1473,34 @@ export function CreateInvoiceClient() {
               </table>
             </div>
 
+            {/* Mobile Stacked Items (sm:hidden) */}
+            <div className="sm:hidden divide-y divide-gray-100 dark:divide-[#27272a] border-y border-gray-200 dark:border-[#27272a] my-4">
+              {lineItems.map((item) => {
+                let unitMinor = 0;
+                try {
+                  if (item.unitPrice.trim()) {
+                    unitMinor = parseMoneyInput(item.unitPrice, currency).amountMinor;
+                  }
+                } catch {}
+                const lineTotalMinor = multiplyMinor(unitMinor, item.quantity || 0);
+                return (
+                  <div key={item.id} className="py-3.5 space-y-1">
+                    <div className="text-[13px] font-semibold text-gray-900 dark:text-white">
+                      {item.description || '—'}
+                    </div>
+                    <div className="flex items-center justify-between text-[12px] text-gray-500 dark:text-zinc-400 tabular-nums">
+                      <span>
+                        Qty: {item.quantity} × <Money amountMinor={unitMinor} currency={currency} />
+                      </span>
+                      <span className="text-[13px] font-semibold text-gray-900 dark:text-white">
+                        <Money amountMinor={lineTotalMinor} currency={currency} />
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             {/* Right-Aligned Total (Single Total Amount row, matching image_374a9c.png) */}
             <div className="flex justify-end pt-2">
               <div className="w-full sm:w-[320px] py-3 flex items-center justify-between">
@@ -1380,15 +1540,74 @@ export function CreateInvoiceClient() {
     <div className="w-full pb-12 text-left font-sans">
       <div className="sticky top-0 z-30 w-full px-4 sm:px-6 lg:px-8 pt-5 pb-3.5 bg-white dark:bg-[#09090b] border-b border-gray-200 dark:border-[#27272a]">
         <div className="w-full">
-          <Link
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#18181b] dark:hover:bg-[#222226] text-[12px] leading-none font-medium text-gray-700 dark:text-zinc-300 transition-colors no-underline w-fit"
-            href={fromUrl}
-            prefetch={false}
-          >
-            <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2} /> Back
-          </Link>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-2.5">
-            <div>
+          {/* Desktop Header Layout */}
+          <div className="hidden sm:block">
+            <Link
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#18181b] dark:hover:bg-[#222226] text-[12px] leading-none font-medium text-gray-700 dark:text-zinc-300 transition-colors no-underline w-fit"
+              href={fromUrl}
+              prefetch={false}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2} /> Back
+            </Link>
+            <div className="flex items-center justify-between gap-3 mt-2.5">
+              <div>
+                <h1 className="text-[22px] leading-[28px] font-semibold text-gray-900 dark:text-white tracking-tight">
+                  Create Invoice
+                </h1>
+                <p className="text-[13px] leading-[18px] text-gray-500 dark:text-zinc-400 mt-0.5">
+                  Create, send, and track your invoices in one place.
+                </p>
+              </div>
+              <div className="flex items-center gap-2.5 shrink-0">
+                <Link
+                  href={fromUrl}
+                  prefetch={false}
+                  className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] inline-flex items-center justify-center no-underline transition-colors"
+                >
+                  Cancel
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => handleSaveInvoice('draft')}
+                  disabled={isSubmitting}
+                  className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] inline-flex items-center justify-center whitespace-nowrap transition-colors disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Saving...' : 'Save as Draft'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePreview}
+                  className="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center whitespace-nowrap transition-colors"
+                >
+                  Preview Invoice
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Header Layout */}
+          <div className="sm:hidden w-full">
+            {/* Row 1: Back + Cancel */}
+            <div className="flex items-center justify-between">
+              <Link
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#18181b] dark:hover:bg-[#222226] text-[12px] leading-none font-medium text-gray-700 dark:text-zinc-300 transition-colors no-underline"
+                href={fromUrl}
+                prefetch={false}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2} /> Back
+              </Link>
+              <Link
+                href={fromUrl}
+                prefetch={false}
+                className="text-[13px] font-medium text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white no-underline"
+              >
+                Cancel
+              </Link>
+            </div>
+            {/* Row 2: Title + Subtitle */}
+            <div className="mt-2.5">
               <h1 className="text-[22px] leading-[28px] font-semibold text-gray-900 dark:text-white tracking-tight">
                 Create Invoice
               </h1>
@@ -1396,28 +1615,20 @@ export function CreateInvoiceClient() {
                 Create, send, and track your invoices in one place.
               </p>
             </div>
-            <div className="grid grid-cols-3 sm:flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
-              <Link
-                href={fromUrl}
-                prefetch={false}
-                className="h-10 px-3 sm:px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] inline-flex items-center justify-center no-underline transition-colors"
-              >
-                Cancel
-              </Link>
-
+            {/* Row 3: Action Buttons */}
+            <div className="grid grid-cols-2 gap-2.5 w-full mt-3">
               <button
                 type="button"
                 onClick={() => handleSaveInvoice('draft')}
                 disabled={isSubmitting}
-                className="h-10 px-3 sm:px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] inline-flex items-center justify-center whitespace-nowrap transition-colors disabled:opacity-50"
+                className="h-10 w-full rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center transition-colors disabled:opacity-50"
               >
                 {isSubmitting ? 'Saving...' : 'Save as Draft'}
               </button>
-
               <button
                 type="button"
                 onClick={handlePreview}
-                className="h-10 px-3 sm:px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center whitespace-nowrap transition-colors"
+                className="h-10 w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center transition-colors"
               >
                 Preview Invoice
               </button>
@@ -1689,7 +1900,7 @@ export function CreateInvoiceClient() {
                 </label>
                 <DatePickerPopover
                   value={dueDate}
-                  onChange={(d) => setDueDate(d)}
+                  onChange={handleDueDateChange}
                 />
               </div>
             </div>
@@ -1969,7 +2180,7 @@ export function CreateInvoiceClient() {
 
       {/* Portal Add New Client Modal (Matching Add Clients_2.jpg 1:1, strictly max-w-[480px]) */}
       {isAddClientOpen && isMounted && createPortal(
-        <div className="fixed inset-0 z-50 m-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
+        <div className="fixed inset-0 z-50 w-full h-full m-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
           <div data-popover="true" className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 max-w-[480px] w-full space-y-3.5 my-auto overflow-hidden text-left shadow-none">
             <div className="flex items-center justify-between">
               <div>
@@ -2021,7 +2232,7 @@ export function CreateInvoiceClient() {
 
               {/* Row 1: Names (NO asterisk!) */}
               {modalClientType === 'individual' ? (
-                <div className="grid grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
                     <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300 mb-1">
                       First Name
@@ -2062,8 +2273,8 @@ export function CreateInvoiceClient() {
                 </div>
               )}
 
-              {/* Row 2: Contact (Side-by-Side 2-Column Grid) */}
-              <div className="grid grid-cols-2 gap-3.5">
+              {/* Row 2: Contact (Side-by-Side 2-Column Grid on sm, stacked on mobile) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300 mb-1">
                     Email Address

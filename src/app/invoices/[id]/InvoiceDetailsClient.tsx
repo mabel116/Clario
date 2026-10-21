@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter, useParams, useSearchParams, usePathname } from 'next/navigation';
 import { ProtectedRoute } from '../../../components/ProtectedRoute';
@@ -10,97 +11,438 @@ import { useEntityReady } from '../../../lib/data/readiness';
 import { InvoiceRepo } from '../../../lib/data/invoice';
 import { PaymentRepo } from '../../../lib/data/payment';
 import { RecordPaymentModal } from '../../../components/RecordPaymentModal';
-import { formatMoney } from '../../../lib/money';
+import { formatMoney, parseMoneyInput, multiplyMinor } from '../../../lib/money';
+import { Money } from '../../../components/ui/money';
+import { useToast } from '../../../components/Toast';
 import { 
-  ArrowLeft, Edit3, Send, Ban, Trash2, Calendar, FileText, 
-  User, Lock, AlertTriangle, Download, Undo2, Plus, Loader2
+  ChevronLeft, Pencil, Download, X, AlertTriangle, 
+  Trash2, Send, Ban, Calendar, ChevronRight, Check
 } from 'lucide-react';
-
 import { PaymentEventRow } from '../../../lib/sync/schema';
 import { resolveInvoiceBackLink, resolveRouteParam } from '../../../lib/navigation';
+import { cn } from '../../../lib/utils';
+
+type InvoiceVisualBadge =
+  | 'draft'
+  | 'void'
+  | 'paid'
+  | 'overdue'
+  | 'partially_paid'
+  | 'unpaid';
+
+function InvoiceStatusBadge({ status }: { status: InvoiceVisualBadge }) {
+  const configs: Record<InvoiceVisualBadge, { label: string; dot: string; pill: string }> = {
+    draft: {
+      label: 'Draft',
+      dot: 'bg-gray-400 dark:bg-zinc-500',
+      pill: 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-zinc-800/60 dark:text-zinc-300 dark:border-zinc-700',
+    },
+    void: {
+      label: 'Void',
+      dot: 'bg-gray-400 dark:bg-zinc-500',
+      pill: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-zinc-800/40 dark:text-zinc-400 dark:border-zinc-700/60',
+    },
+    paid: {
+      label: 'Paid',
+      dot: 'bg-emerald-500',
+      pill: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20',
+    },
+    overdue: {
+      label: 'Overdue',
+      dot: 'bg-rose-500',
+      pill: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20',
+    },
+    partially_paid: {
+      label: 'Partially paid',
+      dot: 'bg-blue-500',
+      pill: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20',
+    },
+    unpaid: {
+      label: 'Unpaid',
+      dot: 'bg-amber-500',
+      pill: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
+    },
+  };
+
+  const config = configs[status] || configs.unpaid;
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] leading-none font-medium border select-none shrink-0',
+        config.pill
+      )}
+      aria-label={`Status: ${config.label}`}
+    >
+      <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', config.dot)} aria-hidden="true" />
+      {config.label}
+    </span>
+  );
+}
+
+const StatusBadge = InvoiceStatusBadge;
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const SHORT_MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+];
+
+const YEARS = Array.from({ length: 16 }, (_, i) => 2020 + i);
+
+function formatDateDisplay(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
+  const clean = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+  const parts = clean.split('-');
+  if (parts.length !== 3) return dateStr;
+  const year = parts[0];
+  const monthIdx = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  if (monthIdx >= 0 && monthIdx < 12 && !isNaN(day)) {
+    return `${day} ${MONTH_NAMES[monthIdx]}, ${year}`;
+  }
+  return dateStr;
+}
+
+function InlineDatePicker({
+  value,
+  onChange,
+  id
+}: {
+  value: string;
+  onChange: (d: string) => void;
+  id?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [pickerView, setPickerView] = useState<'calendar' | 'months' | 'years'>('calendar');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const parsed = useMemo(() => {
+    if (value) {
+      const parts = value.split('-');
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+          return { year: y, month: m, day: d };
+        }
+      }
+    }
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth(), day: now.getDate() };
+  }, [value]);
+
+  const [viewYear, setViewYear] = useState(parsed.year);
+  const [viewMonth, setViewMonth] = useState(parsed.month);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setViewYear(parsed.year);
+      setViewMonth(parsed.month);
+      setPickerView('calendar');
+    }
+  }, [parsed, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const handlePrevMonth = () => {
+    if (pickerView === 'years') {
+      setViewYear((y) => Math.max(2020, y - 1));
+      return;
+    }
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear((y) => y - 1);
+    } else {
+      setViewMonth((m) => m - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (pickerView === 'years') {
+      setViewYear((y) => Math.min(2035, y + 1));
+      return;
+    }
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear((y) => y + 1);
+    } else {
+      setViewMonth((m) => m + 1);
+    }
+  };
+
+  const calendarDays = useMemo(() => {
+    const firstDayIndex = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
+    const daysInCurrent = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const daysInPrev = new Date(viewYear, viewMonth, 0).getDate();
+    const days: Array<{
+      dateStr: string;
+      dayNumber: number;
+      isCurrentMonth: boolean;
+      isSelected: boolean;
+      isToday: boolean;
+    }> = [];
+
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      const d = daysInPrev - i;
+      const prevM = viewMonth === 0 ? 12 : viewMonth;
+      const prevY = viewMonth === 0 ? viewYear - 1 : viewYear;
+      const dateStr = `${prevY}-${String(prevM).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      days.push({
+        dateStr,
+        dayNumber: d,
+        isCurrentMonth: false,
+        isSelected: dateStr === value,
+        isToday: dateStr === todayStr,
+      });
+    }
+
+    for (let d = 1; d <= daysInCurrent; d++) {
+      const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      days.push({
+        dateStr,
+        dayNumber: d,
+        isCurrentMonth: true,
+        isSelected: dateStr === value,
+        isToday: dateStr === todayStr,
+      });
+    }
+
+    const totalCells = days.length <= 35 ? 35 : 42;
+    const remaining = totalCells - days.length;
+    for (let d = 1; d <= remaining; d++) {
+      const nextM = viewMonth === 11 ? 1 : viewMonth + 2;
+      const nextY = viewMonth === 11 ? viewYear + 1 : viewYear;
+      const dateStr = `${nextY}-${String(nextM).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      days.push({
+        dateStr,
+        dayNumber: d,
+        isCurrentMonth: false,
+        isSelected: dateStr === value,
+        isToday: dateStr === todayStr,
+      });
+    }
+
+    return days;
+  }, [viewYear, viewMonth, value]);
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        id={id}
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className={cn(
+          'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] font-medium text-gray-900 dark:text-white flex items-center justify-between text-left transition-colors',
+          'focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20',
+          isOpen
+            ? 'border-gray-300 dark:border-zinc-700'
+            : 'border-gray-200/80 dark:border-[#27272a]'
+        )}
+      >
+        <span className={value ? 'text-gray-900 dark:text-white' : 'text-gray-400'}>
+          {formatDateDisplay(value) || 'Select date'}
+        </span>
+        <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
+      </button>
+
+      {isOpen && (
+        <div
+          data-popover="true"
+          className="absolute z-50 left-0 sm:left-auto sm:right-0 mt-1.5 w-[280px] rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-3 shadow-xl select-none"
+        >
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100 dark:border-[#27272a]">
+            <button
+              type="button"
+              onClick={handlePrevMonth}
+              className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
+              aria-label="Previous"
+            >
+              <ChevronLeft className="h-4 w-4" strokeWidth={2} />
+            </button>
+            <div className="flex items-center gap-1 text-[13px] font-semibold text-gray-900 dark:text-white">
+              <button
+                type="button"
+                onClick={() => setPickerView(pickerView === 'months' ? 'calendar' : 'months')}
+                className="px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors"
+              >
+                {MONTH_NAMES[viewMonth]}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPickerView(pickerView === 'years' ? 'calendar' : 'years')}
+                className="px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors"
+              >
+                {viewYear}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={handleNextMonth}
+              className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
+              aria-label="Next"
+            >
+              <ChevronRight className="h-4 w-4" strokeWidth={2} />
+            </button>
+          </div>
+
+          {pickerView === 'months' && (
+            <div className="grid grid-cols-3 gap-1.5 py-1">
+              {SHORT_MONTH_NAMES.map((name, idx) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => {
+                    setViewMonth(idx);
+                    setPickerView('calendar');
+                  }}
+                  className={cn(
+                    'py-2 rounded-lg text-[12px] font-medium transition-colors',
+                    viewMonth === idx
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-[#222226]'
+                  )}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {pickerView === 'years' && (
+            <div className="grid grid-cols-4 gap-1.5 py-1 max-h-[180px] overflow-y-auto">
+              {YEARS.map((y) => (
+                <button
+                  key={y}
+                  type="button"
+                  onClick={() => {
+                    setViewYear(y);
+                    setPickerView('calendar');
+                  }}
+                  className={cn(
+                    'py-2 rounded-lg text-[12px] font-medium transition-colors',
+                    viewYear === y
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-[#222226]'
+                  )}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {pickerView === 'calendar' && (
+            <div>
+              <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-gray-400 dark:text-zinc-500 mb-1">
+                <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {calendarDays.map((d) => (
+                  <button
+                    key={d.dateStr}
+                    type="button"
+                    onClick={() => {
+                      onChange(d.dateStr);
+                      setIsOpen(false);
+                    }}
+                    className={cn(
+                      'h-8 rounded-lg text-[12px] font-medium flex items-center justify-center transition-colors',
+                      d.isSelected
+                        ? 'bg-blue-600 text-white font-semibold'
+                        : d.isToday
+                        ? 'border border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
+                        : d.isCurrentMonth
+                        ? 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-[#222226]'
+                        : 'text-gray-300 dark:text-zinc-600 hover:bg-gray-50 dark:hover:bg-[#222226]'
+                    )}
+                  >
+                    {d.dayNumber}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function InvoiceDetailsSkeleton() {
   return (
-    <div className="space-y-6 font-sans animate-pulse transition-opacity duration-150">
-      {/* Header breadcrumb & quick actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="w-full sm:w-auto">
-          <div className="h-5 w-36 bg-slate-800/60 rounded" />
-        </div>
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          <div className="h-[34px] w-[72px] bg-slate-800/60 rounded-lg" />
-          <div className="h-[34px] w-[104px] bg-slate-800/60 rounded-lg" />
-          <div className="h-[34px] w-[120px] bg-slate-800/60 rounded-lg" />
+    <div className="w-full pb-12 animate-pulse text-left font-sans">
+      <div className="sticky top-0 z-30 w-full px-4 sm:px-6 lg:px-8 pt-5 pb-3.5 bg-white dark:bg-[#09090b] border-b border-gray-200 dark:border-[#27272a]">
+        <div className="w-full">
+          <div className="h-7 w-20 bg-gray-200 dark:bg-[#27272a] rounded-lg" />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-2.5">
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+              <div className="inline-flex items-baseline gap-1.5 sm:gap-2">
+                <div className="h-4 w-24 rounded-md bg-gray-200 dark:bg-zinc-800" />
+                <div className="h-3 w-4 rounded bg-gray-200 dark:bg-zinc-800" />
+                <div className="h-7 w-28 rounded-lg bg-gray-200 dark:bg-zinc-800" />
+              </div>
+              <div className="inline-flex items-center">
+                <div className="h-6 w-20 rounded-full bg-gray-200 dark:bg-zinc-800" />
+              </div>
+            </div>
+            <div className="hidden sm:flex items-center gap-2.5">
+              <div className="h-10 w-28 bg-gray-200 dark:bg-[#27272a] rounded-xl" />
+              <div className="h-10 w-28 bg-gray-200 dark:bg-[#27272a] rounded-xl" />
+              <div className="h-10 w-32 bg-gray-200 dark:bg-[#27272a] rounded-xl" />
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:hidden w-full mt-1">
+              <div className="h-10 w-full bg-gray-200 dark:bg-[#27272a] rounded-xl" />
+              <div className="h-10 w-full bg-gray-200 dark:bg-[#27272a] rounded-xl" />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Main Details Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Invoice Header Details & Line Items */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="rounded-3xl border border-slate-900 bg-slate-950/20 p-6 space-y-6 backdrop-blur-xl">
-            {/* Title & Metadata */}
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pb-6 border-b border-slate-900/60">
-              <div className="space-y-2">
-                <div className="h-3 w-24 bg-slate-800/60 rounded" />
-                <div className="h-8 w-40 bg-slate-800/60 rounded" />
-              </div>
-              <div className="h-6 w-16 bg-slate-800/60 rounded-lg" />
+      <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-[1040px] space-y-6">
+        <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-8 space-y-6">
+          <div className="h-5 w-32 bg-gray-200 dark:bg-[#27272a] rounded" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <div className="h-4 w-16 bg-gray-200 dark:bg-[#27272a] rounded" />
+              <div className="h-5 w-36 bg-gray-200 dark:bg-[#27272a] rounded" />
+              <div className="h-4 w-44 bg-gray-100 dark:bg-[#121215] rounded" />
             </div>
-
-            {/* Dates / Client */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <div className="h-3 w-16 bg-slate-800/60 rounded" />
-                <div className="h-5 w-36 bg-slate-800/60 rounded" />
-              </div>
-              <div className="space-y-3">
-                <div className="h-3 w-16 bg-slate-800/60 rounded" />
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="h-4 w-20 bg-slate-800/60 rounded" />
-                  <div className="h-4 w-20 bg-slate-800/60 rounded" />
-                </div>
-              </div>
+            <div className="space-y-2">
+              <div className="h-4 w-16 bg-gray-200 dark:bg-[#27272a] rounded" />
+              <div className="h-5 w-36 bg-gray-200 dark:bg-[#27272a] rounded" />
+              <div className="h-4 w-44 bg-gray-100 dark:bg-[#121215] rounded" />
             </div>
-
-            {/* Line Items */}
-            <div className="space-y-4 pt-4">
-              <div className="h-3 w-20 bg-slate-800/60 rounded" />
-              <div className="space-y-2">
-                <div className="h-16 w-full bg-slate-900/40 rounded-xl" />
-                <div className="h-16 w-full bg-slate-900/40 rounded-xl" />
-              </div>
-            </div>
-
-            {/* Invoices Notes section */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-slate-900/60">
-              <div className="space-y-2">
-                <div className="h-3 w-24 bg-slate-800/60 rounded" />
-                <div className="h-10 w-full bg-slate-900/40 rounded" />
-              </div>
-              <div className="space-y-2 bg-slate-950/40 p-4 rounded-2xl border border-slate-900">
-                <div className="h-3 w-24 bg-slate-800/60 rounded" />
-                <div className="h-10 w-full bg-slate-900/40 rounded" />
-              </div>
+            <div className="space-y-2">
+              <div className="h-4 w-24 bg-gray-200 dark:bg-[#27272a] rounded" />
+              <div className="h-4 w-32 bg-gray-100 dark:bg-[#121215] rounded" />
+              <div className="h-4 w-32 bg-gray-100 dark:bg-[#121215] rounded" />
             </div>
           </div>
-        </div>
-
-        {/* Right Column: Ledger Summary & Payments Shell */}
-        <div className="space-y-6">
-          <div className="rounded-3xl border border-slate-900 bg-slate-950/20 p-6 space-y-4 shadow-xl">
-            <div className="h-4 w-36 bg-slate-800/60 rounded" />
-            <div className="space-y-3 pt-2">
-              <div className="h-7 w-full bg-slate-900/40 rounded" />
-              <div className="h-7 w-full bg-slate-900/40 rounded" />
-              <div className="h-9 w-full bg-slate-900/40 rounded" />
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-slate-900 bg-slate-950/20 p-6 space-y-4 backdrop-blur-xl">
-            <div className="h-4 w-32 bg-slate-800/60 rounded" />
-            <div className="h-16 w-full bg-slate-900/40 rounded-xl" />
-          </div>
+          <div className="h-32 bg-gray-100 dark:bg-[#121215] rounded-xl" />
         </div>
       </div>
     </div>
@@ -123,6 +465,8 @@ export function InvoiceDetailsClient() {
   );
 }
 
+export const InvoiceDetailClient = InvoiceDetailsClient;
+
 function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
   const router = useRouter();
   const params = useParams();
@@ -130,6 +474,12 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
   const invoiceId = propInvoiceId || resolveRouteParam(params?.id as string | undefined, 'invoices', pathname);
   const searchParams = useSearchParams();
   const fromParam = searchParams?.get('from') || null;
+  const { showToast } = useToast();
+
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Queries
   const { data: invoice, isLoading: isInvoiceLoading } = useInvoice(invoiceId);
@@ -160,7 +510,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
       await generateInvoicePDF({ invoice, profile, client, mode: 'download' });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to generate PDF document.';
-      alert(message);
+      showToast(message, 'info');
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -170,10 +520,15 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
   const [showMarkSent, setShowMarkSent] = useState(false);
   const [sentIssueDate, setSentIssueDate] = useState('');
   const [sentDueDate, setSentDueDate] = useState('');
+  const [showVoidModal, setShowVoidModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [reversalTargetEvent, setReversalTargetEvent] = useState<PaymentEventRow | null>(null);
   const [reversalNote, setReversalNote] = useState('');
   const [isReversing, setIsReversing] = useState(false);
+  const [isMarkingSent, setIsMarkingSent] = useState(false);
+  const [isVoiding, setIsVoiding] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleReversePayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,15 +539,15 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
       await PaymentRepo.reverse(reversalTargetEvent.id, reversalNote.trim() || undefined);
       setReversalTargetEvent(null);
       setReversalNote('');
+      showToast('Payment reversed successfully');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to reverse payment.';
-      alert(message);
+      showToast(message, 'info');
     } finally {
       setIsReversing(false);
     }
   };
 
-  // Setup date defaults when Mark as Sent is opened
   const handleOpenMarkSent = () => {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
@@ -203,595 +558,859 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
     setShowMarkSent(true);
   };
 
-  const handleIssueDateChange = (val: string) => {
+  const handleSentIssueDateChange = (val: string) => {
     setSentIssueDate(val);
     if (val) {
-      const baseDate = new Date(val);
-      if (!isNaN(baseDate.getTime())) {
-        const nextDueDate = new Date(baseDate.getTime() + 14 * 24 * 60 * 60 * 1000);
-        setSentDueDate(nextDueDate.toISOString().split('T')[0]);
+      const parts = val.split('-');
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        const baseDate = new Date(y, m, d);
+        if (!isNaN(baseDate.getTime())) {
+          baseDate.setDate(baseDate.getDate() + 14);
+          const nextY = baseDate.getFullYear();
+          const nextM = String(baseDate.getMonth() + 1).padStart(2, '0');
+          const nextD = String(baseDate.getDate()).padStart(2, '0');
+          setSentDueDate(`${nextY}-${nextM}-${nextD}`);
+        }
       }
     }
   };
 
-  // Lifecycle actions
   const handleMarkSent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sentIssueDate || !sentDueDate) return;
+    if (!sentIssueDate || !sentDueDate || isMarkingSent) return;
 
     try {
+      setIsMarkingSent(true);
       await InvoiceRepo.markSent(invoiceId, sentIssueDate, sentDueDate);
       setShowMarkSent(false);
+      showToast('Invoice marked as sent');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to mark invoice as sent.';
-      alert(message);
+      showToast(message, 'info');
+    } finally {
+      setIsMarkingSent(false);
     }
   };
 
   const handleVoid = async () => {
-    const proceed = confirm('Are you sure you want to void this invoice? Voiding removes it from outstanding totals and earnings, but preserves the record for auditing. This cannot be undone.');
-    if (!proceed) return;
-
+    if (isVoiding) return;
     try {
+      setIsVoiding(true);
       await InvoiceRepo.void(invoiceId);
+      setShowVoidModal(false);
+      showToast('Invoice voided successfully');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to void invoice.';
-      alert(message);
+      showToast(message, 'info');
+    } finally {
+      setIsVoiding(false);
     }
   };
 
   const handleDelete = async () => {
-    const proceed = confirm('Are you sure you want to delete this draft invoice? This action is soft and preserves historical data.');
-    if (!proceed) return;
-
+    if (isDeleting) return;
     try {
+      setIsDeleting(true);
       await InvoiceRepo.softDelete(invoiceId);
-      router.push('/clients');
+      setShowDeleteModal(false);
+      showToast('Draft invoice deleted');
+      router.push('/invoices');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to delete invoice.';
-      alert(message);
+      showToast(message, 'info');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  // Synchronously derive financial editability with secondary fallback
-  const isFinancialsLocked = useMemo(() => {
-    if (invoice?.payments && invoice.payments.length > 0) return true;
-    if (invoice?.status === 'void') return true;
-    if (canEditFinancials === false) return true;
-    return false;
-  }, [invoice?.payments, invoice?.status, canEditFinancials]);
+  const derivedStatus: InvoiceVisualBadge = useMemo(() => {
+    if (!invoice) return 'unpaid';
+    if (invoice.status === 'draft') return 'draft';
+    if (invoice.status === 'void') return 'void';
+    if (invoice.balanceDueMinor <= 0 || invoice.displayStatus === 'paid') return 'paid';
+    if (invoice.displayStatus === 'overdue') return 'overdue';
+    if (invoice.amountPaidMinor > 0) return 'partially_paid';
+    return 'unpaid';
+  }, [invoice]);
 
-  const isDetailsLoading = !isNotFound && (
-    !invoiceId ||
-    invoiceId === '_shell_' ||
-    isEntityLoading ||
-    isInvoiceLoading ||
-    !invoice
-  );
+  const currencyLabel = useMemo(() => {
+    if (!invoice?.currency) return 'USD';
+    const c = invoice.currency.toUpperCase();
+    const map: Record<string, string> = {
+      USD: 'USD - US Dollar',
+      EUR: 'EUR - Euro',
+      GBP: 'GBP - British Pound',
+      NGN: 'NGN - Nigerian Naira',
+      CAD: 'CAD - Canadian Dollar',
+      AUD: 'AUD - Australian Dollar',
+      ZAR: 'ZAR - South African Rand',
+      GHS: 'GHS - Ghanaian Cedi',
+      KES: 'KES - Kenyan Shilling',
+      INR: 'INR - Indian Rupee',
+      JPY: 'JPY - Japanese Yen',
+      KRW: 'KRW - South Korean Won',
+    };
+    return map[c] || `${c} - ${c}`;
+  }, [invoice?.currency]);
 
-  const [showSkeleton, setShowSkeleton] = useState(false);
+  const clientAddress = useMemo(() => {
+    if (!client?.notes) return '';
+    const lines = client.notes.split('\n');
+    const addressLine = lines.find((l) => l.startsWith('Address: '));
+    if (addressLine) return addressLine.replace('Address: ', '').trim();
+    return '';
+  }, [client?.notes]);
 
-  useEffect(() => {
-    if (!isDetailsLoading) {
-      setShowSkeleton(false);
-      return;
+  const editHref = useMemo(() => {
+    const base = `/invoices/${invoiceId}/edit`;
+    if (fromParam) {
+      return `${base}?from=${encodeURIComponent(fromParam)}`;
     }
-    const timer = setTimeout(() => {
-      setShowSkeleton(true);
-    }, 75);
-    return () => clearTimeout(timer);
-  }, [isDetailsLoading]);
+    return base;
+  }, [invoiceId, fromParam]);
 
-  if (isDetailsLoading) {
-    if (!showSkeleton) {
-      return <div className="min-h-[600px] opacity-0" aria-busy="true" />;
-    }
+  const reversedIds = useMemo(() => {
+    return new Set(
+      (payments || [])
+        .map((p) => p.reverses_id)
+        .filter((id): id is string => Boolean(id))
+    );
+  }, [payments]);
+
+  // Loading state
+  if (isEntityLoading) {
     return <InvoiceDetailsSkeleton />;
   }
 
+  // Not Found State
   if (isNotFound || !invoice) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[300px] text-center space-y-4">
-        <div className="text-red-400 font-semibold">Invoice record not found.</div>
-        <Link href={backLinkHref} prefetch={false} className="text-sm text-indigo-400 hover:underline">
-          {backLinkLabel}
-        </Link>
+      <div className="px-4 sm:px-6 lg:px-8 py-12 max-w-[1040px] text-center font-sans space-y-4">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500">
+          <AlertTriangle className="h-6 w-6" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-[18px] font-semibold text-gray-900 dark:text-white">Invoice Not Found</h2>
+          <p className="text-[13px] text-gray-500 dark:text-zinc-400">
+            This invoice may have been deleted or has not synced to your device yet.
+          </p>
+        </div>
+        <div className="pt-2">
+          <Link
+            href="/invoices"
+            prefetch={false}
+            className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] inline-flex items-center justify-center no-underline transition-colors"
+          >
+            Back to Invoices
+          </Link>
+        </div>
       </div>
     );
   }
 
-  const statusColors: Record<string, string> = {
-    draft: 'bg-slate-900 border-slate-800 text-slate-400',
-    sent: 'bg-indigo-950/40 border-indigo-900/40 text-indigo-400',
-    paid: 'bg-green-950/40 border-green-900/40 text-green-400',
-    partially_paid: 'bg-yellow-950/40 border-yellow-900/40 text-yellow-400',
-    overdue: 'bg-red-950/40 border-red-900/40 text-red-400',
-    void: 'bg-slate-950 border-slate-900/60 text-slate-600 line-through'
-  };
-
-  const badgeText: Record<string, string> = {
-    draft: 'Draft',
-    sent: 'Sent',
-    paid: 'Paid',
-    overdue: 'Overdue',
-    void: 'Void'
-  };
-
-  const isDraft = invoice.displayStatus === 'draft';
-  const isVoid = invoice.displayStatus === 'void';
-  const isSent = invoice.displayStatus !== 'draft' && invoice.displayStatus !== 'void';
+  const totalMinor = invoice.total_minor;
+  const amountPaidMinor = invoice.amountPaidMinor;
+  const balanceDueMinor = invoice.balanceDueMinor;
+  const recordedPayments = payments || [];
 
   return (
-    <div className="space-y-6 font-sans transition-opacity duration-150">
-      {/* Header breadcrumb & quick actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <Link
-          href={backLinkHref}
-          prefetch={false}
-          className="inline-flex items-center gap-1 text-slate-400 hover:text-white transition text-sm"
-        >
-          <ArrowLeft className="h-4 w-4" /> {backLinkLabel.replace(/^←\s*/, '')}
-        </Link>
-
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          {!isVoid && (
-            <button
-              onClick={() => {
-                const editUrl = fromParam
-                  ? `/invoices/${invoiceId}/edit?from=${encodeURIComponent(fromParam)}`
-                  : `/invoices/${invoiceId}/edit`;
-                router.push(editUrl);
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/40 hover:bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition"
-            >
-              <Edit3 className="h-3.5 w-3.5" /> Edit
-            </button>
-          )}
-
-          {isDraft && (
-            <>
-              <button
-                onClick={handleOpenMarkSent}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 px-3.5 py-2 text-xs font-semibold text-white transition shadow-lg shadow-indigo-600/20"
-              >
-                <Send className="h-3.5 w-3.5" /> Mark as Sent
-              </button>
-              <button
-                onClick={handleDelete}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-red-950/20 border border-red-900/40 hover:border-red-800 text-red-400 px-3.5 py-2 text-xs font-semibold transition"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Delete
-              </button>
-            </>
-          )}
-
-          {isSent && !isVoid && invoice.displayStatus !== 'paid' && (
-            <button
-              onClick={handleVoid}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 hover:text-white text-slate-400 px-3.5 py-2 text-xs font-semibold transition"
-            >
-              <Ban className="h-3.5 w-3.5" /> Void Invoice
-            </button>
-          )}
-
-          {invoice && profile && client && (
-            <button
-              onClick={handleDownloadPDF}
-              disabled={isGeneratingPDF}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/40 hover:bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition disabled:opacity-50"
-            >
-              <Download className={`h-3.5 w-3.5 ${isGeneratingPDF ? 'animate-pulse' : ''}`} />
-              {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Editing Lock Banner */}
-      {isFinancialsLocked && (
+    <div className="w-full pb-12 text-left font-sans">
+      {/* Flush Sticky Header */}
+      <div className="sticky top-0 z-30 w-full px-4 sm:px-6 lg:px-8 pt-5 pb-3.5 bg-white dark:bg-[#09090b] border-b border-gray-200 dark:border-[#27272a]">
         <div className="w-full">
-          <div className="rounded-2xl border border-yellow-900/30 bg-yellow-950/10 p-4 flex gap-3 items-start backdrop-blur-xl">
-            <Lock className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <h4 className="text-xs font-bold text-yellow-500 uppercase tracking-wider">Financial Editing Locked</h4>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Payments have been recorded against this invoice. In order to preserve ledger integrity, numbers, dates, and line item prices are locked. Correction entries should be made via payment reversals or voiding and reissuing.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+          {/* Row 1: Back Link */}
+          <Link
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#18181b] dark:hover:bg-[#222226] text-[12px] leading-none font-medium text-gray-700 dark:text-zinc-300 transition-colors no-underline w-fit"
+            href={backLinkHref}
+            prefetch={false}
+            title={backLinkLabel}
+          >
+            <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2} /> Back
+          </Link>
 
-      {/* Main Details Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column: Invoice Header Details & Line Items */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="rounded-3xl border border-slate-900 bg-slate-950/20 p-6 space-y-6 backdrop-blur-xl">
-            {/* Title & Metadata */}
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pb-6 border-b border-slate-900/60">
-              <div className="space-y-1">
-                <span className="text-xs text-slate-500 font-bold uppercase tracking-widest block">Invoice Number</span>
-                <h1 className="text-2xl font-extrabold text-white font-mono">{invoice.invoice_number}</h1>
-              </div>
-
-              <div className="flex flex-col sm:items-end gap-1.5">
-                <span className="text-xs text-slate-500 font-bold uppercase tracking-widest block">Status</span>
-                <span className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-bold border ${statusColors[invoice.displayStatus]}`}>
-                  {badgeText[invoice.displayStatus]}
+          {/* Row 2: Title + Action Buttons */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-2.5">
+            {/* Left Title Group: Amount commands primary visual weight; StatusBadge optically centered */}
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+              <div className="inline-flex items-baseline gap-1.5 sm:gap-2">
+                <span className="text-[14px] sm:text-[15px] font-medium text-gray-500 dark:text-zinc-400 tabular-nums">
+                  {invoice.invoice_number}
                 </span>
-              </div>
-            </div>
-
-            {/* Dates / Client */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                  <User className="h-4 w-4 text-indigo-400" />
-                  Billed To
-                </h4>
-                <div>
-                  <span className="block text-white font-bold text-base">{invoice.client_name}</span>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                  <Calendar className="h-4 w-4 text-indigo-400" />
-                  Timeline
-                </h4>
-                <div className="grid grid-cols-2 gap-4 text-xs text-slate-400">
-                  <div>
-                    <span className="block font-semibold text-slate-500 uppercase">Issue Date</span>
-                    <span className="text-white font-medium text-sm mt-0.5 block">{invoice.issue_date || 'Draft (Unissued)'}</span>
-                  </div>
-                  <div>
-                    <span className="block font-semibold text-slate-500 uppercase">Due Date</span>
-                    <span className="text-white font-medium text-sm mt-0.5 block">{invoice.due_date || 'None'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Line Items List */}
-            <div className="space-y-4 pt-4">
-              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                <FileText className="h-4 w-4 text-indigo-400" />
-                Line Items
-              </h4>
-
-              <div className="space-y-2">
-                {invoice.lineItems && invoice.lineItems.length > 0 ? (
-                  invoice.lineItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="rounded-xl border border-slate-900 bg-slate-950/20 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-sm text-white block">{item.description}</span>
-                        <span className="text-xs text-slate-500 mt-1 block">
-                          {item.quantity} × {formatMoney({ amountMinor: item.unit_price_minor, currency: invoice.currency })}
-                        </span>
-                      </div>
-                      <span className="font-extrabold text-sm text-slate-300">
-                        {formatMoney({ amountMinor: item.line_total_minor, currency: invoice.currency })}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-500 italic">No line items added yet.</p>
-                )}
-              </div>
-            </div>
-
-            {/* Invoices Notes section */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-slate-900/60">
-              <div className="space-y-2">
-                <h5 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Public Terms</h5>
-                <p className="text-sm text-slate-400 whitespace-pre-line leading-relaxed">
-                  {invoice.notes || 'No terms or public memos.'}
-                </p>
-              </div>
-
-              <div className="space-y-2 bg-slate-950/40 p-4 rounded-2xl border border-slate-900">
-                <h5 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                  <span>Private Notes</span>
-                  <span className="inline-flex rounded bg-slate-900 border border-slate-800 px-1 py-0.2 text-[8px] font-bold text-slate-500 uppercase tracking-normal">Private</span>
-                </h5>
-                <p className="text-sm text-slate-400 whitespace-pre-line leading-relaxed">
-                  {invoice.internal_note || 'No internal negotiations logged.'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Ledger Summary & Payments Shell */}
-        <div className="space-y-6">
-          {/* Ledger calculations summary card */}
-          <div className="rounded-3xl border border-slate-900 bg-gradient-to-br from-slate-900/40 to-slate-950/40 p-6 space-y-4 shadow-xl">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-indigo-400">Statement Summary</h3>
-            
-            <div className="space-y-3 pt-2">
-              <div className="flex justify-between items-baseline border-b border-slate-900/40 pb-2.5">
-                <span className="text-xs text-slate-400 font-semibold uppercase">Total Amount</span>
-                <span className="text-lg font-bold text-white">
-                  {formatMoney({ amountMinor: invoice.total_minor, currency: invoice.currency })}
+                <span className="text-[13px] font-normal text-gray-400 dark:text-zinc-500">
+                  for
                 </span>
+                <h1 className="leading-none tracking-tight">
+                  <Money
+                    amountMinor={totalMinor}
+                    currency={invoice.currency}
+                    className="text-[22px] sm:text-[24px] font-semibold text-gray-900 dark:text-white tabular-nums leading-none tracking-tight"
+                  />
+                </h1>
               </div>
-
-              <div className="flex justify-between items-baseline border-b border-slate-900/40 pb-2.5">
-                <span className="text-xs text-slate-400 font-semibold uppercase">Paid to Date</span>
-                <span className="text-lg font-bold text-green-400">
-                  {formatMoney({ amountMinor: invoice.amountPaidMinor, currency: invoice.currency })}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-baseline">
-                <span className="text-xs text-slate-400 font-semibold uppercase">Balance Due</span>
-                <span className="text-xl font-extrabold text-white">
-                  {formatMoney({ amountMinor: invoice.balanceDueMinor, currency: invoice.currency })}
-                </span>
+              <div className="inline-flex items-center">
+                <StatusBadge status={derivedStatus} />
               </div>
             </div>
-          </div>
 
-          {/* Payments ledger section (Prompt 8) */}
-          <div className="rounded-3xl border border-slate-900 bg-slate-950/20 p-6 space-y-4 backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400">Payments Ledger</h3>
-              {invoice.displayStatus !== 'draft' && invoice.displayStatus !== 'void' && (
-                <button
-                  onClick={() => setShowRecordPayment(true)}
-                  className="inline-flex items-center gap-1 rounded bg-indigo-600 hover:bg-indigo-500 px-2.5 py-1.5 text-xs font-semibold text-white transition shadow shadow-indigo-600/10"
+            {/* Desktop Action Group */}
+            <div className="hidden sm:flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleDownloadPDF}
+                disabled={isGeneratingPDF}
+                className="h-10 px-3.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-gray-50 dark:hover:bg-[#222226] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 transition-colors no-underline disabled:opacity-50"
+              >
+                <Download className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
+                <span>{isGeneratingPDF ? 'Downloading...' : 'Download PDF'}</span>
+              </button>
+
+              {invoice.status !== 'void' && (
+                <Link
+                  href={editHref}
+                  prefetch={false}
+                  className="h-10 px-3.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-gray-50 dark:hover:bg-[#222226] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 transition-colors no-underline"
                 >
-                  <Plus className="h-3 w-3" /> Record
-                </button>
+                  <Pencil className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
+                  <span>Edit Invoice</span>
+                </Link>
+              )}
+
+              {invoice.status === 'draft' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(true)}
+                    className="h-10 px-3.5 rounded-xl border border-rose-200 dark:border-rose-500/20 bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-[13px] font-medium text-rose-700 dark:text-rose-400 inline-flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" strokeWidth={2} />
+                    <span>Delete Draft</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleOpenMarkSent}
+                    className="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Send className="h-4 w-4" strokeWidth={2} />
+                    <span>Mark as Sent</span>
+                  </button>
+                </>
+              )}
+
+              {invoice.status === 'sent' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowVoidModal(true)}
+                    className="h-10 px-3.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] hover:bg-gray-50 dark:hover:bg-[#222226] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Ban className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
+                    <span>Void Invoice</span>
+                  </button>
+                  {balanceDueMinor > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowRecordPayment(true)}
+                      className="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <span>Record Payment</span>
+                    </button>
+                  )}
+                </>
               )}
             </div>
 
-            {/* List of Payments */}
-            {payments && payments.length > 0 ? (
-              <div className="space-y-3">
-                {(() => {
-                  const reversedIds = new Set(payments.map(p => p.reverses_id).filter(Boolean) as string[]);
-                  return payments.map((pmt) => {
-                    const isReversal = !!pmt.reverses_id || pmt.amount_minor < 0;
-                    const isReversed = reversedIds.has(pmt.id);
+            {/* Mobile Action Group */}
+            <div className="sm:hidden w-full space-y-2 mt-1">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadPDF}
+                  disabled={isGeneratingPDF}
+                  className="h-10 w-full rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Download className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
+                  <span>PDF</span>
+                </button>
 
-                    return (
-                      <div
-                        key={pmt.id}
-                        className={`rounded-2xl border p-3.5 space-y-2 text-left transition ${
-                          isReversal
-                            ? 'border-red-950/40 bg-red-950/5'
-                            : isReversed
-                            ? 'border-slate-900 bg-slate-950/40 opacity-60'
-                            : 'border-slate-900/60 bg-slate-950/20'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className={`text-sm font-extrabold ${isReversal ? 'text-red-400' : 'text-white'}`}>
-                                {isReversal ? '-' : ''}
-                                {formatMoney({ amountMinor: Math.abs(pmt.amount_minor), currency: invoice.currency })}
-                              </span>
-                              {isReversal && (
-                                <span className="inline-flex items-center gap-0.5 rounded bg-red-950 border border-red-900/50 px-1 py-0.2 text-[8px] font-bold text-red-400 uppercase">
-                                  Reversal
-                                </span>
-                              )}
-                              {isReversed && (
-                                <span className="inline-flex items-center gap-0.5 rounded bg-slate-900 border border-slate-800 px-1 py-0.2 text-[8px] font-bold text-slate-500 uppercase">
-                                  Reversed
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[10px] text-slate-500 mt-0.5">
-                              {pmt.occurred_at} · {pmt.method ? pmt.method.replace('_', ' ') : 'other'}
-                            </div>
-                          </div>
-
-                          {/* Reversal action button */}
-                          {!isReversal && !isReversed && invoice.displayStatus !== 'void' && (
-                            <button
-                              onClick={() => setReversalTargetEvent(pmt)}
-                              className="inline-flex items-center gap-1 rounded bg-slate-900 border border-slate-800 hover:border-slate-700 hover:text-white px-2 py-1 text-[10px] font-bold text-slate-400 transition"
-                            >
-                              <Undo2 className="h-3 w-3" /> Reverse
-                            </button>
-                          )}
-                        </div>
-
-                        {pmt.note && (
-                          <p className={`text-xs text-slate-400 bg-slate-950/30 p-2 rounded-lg border border-slate-900/30 ${isReversed ? 'line-through' : ''}`}>
-                            {pmt.note}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-slate-900 p-6 text-center space-y-3">
-                <p className="text-xs text-slate-500">No payment events recorded against this invoice.</p>
-                {invoice.displayStatus !== 'draft' && invoice.displayStatus !== 'void' ? (
-                  <button
-                    onClick={() => setShowRecordPayment(true)}
-                    className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-400 hover:underline"
+                {invoice.status !== 'void' && (
+                  <Link
+                    href={editHref}
+                    prefetch={false}
+                    className="h-10 w-full rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 no-underline"
                   >
-                    Record first payment
+                    <Pencil className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
+                    <span>Edit</span>
+                  </Link>
+                )}
+
+                {invoice.status === 'draft' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(true)}
+                    className="h-10 w-full rounded-xl border border-rose-200 dark:border-rose-500/20 bg-rose-50 text-[13px] font-medium text-rose-700 dark:text-rose-400 inline-flex items-center justify-center gap-1.5"
+                  >
+                    <Trash2 className="h-4 w-4" strokeWidth={2} />
+                    <span>Delete</span>
                   </button>
-                ) : (
-                  <p className="text-[10px] text-slate-600 italic">Invoice is in {invoice.displayStatus} state.</p>
+                )}
+
+                {invoice.status === 'sent' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowVoidModal(true)}
+                    className="h-10 w-full rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5"
+                  >
+                    <Ban className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
+                    <span>Void</span>
+                  </button>
                 )}
               </div>
-            )}
+
+              {invoice.status === 'draft' && (
+                <button
+                  type="button"
+                  onClick={handleOpenMarkSent}
+                  className="h-10 w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Send className="h-4 w-4" strokeWidth={2} />
+                  <span>Mark as Sent</span>
+                </button>
+              )}
+
+              {invoice.status === 'sent' && balanceDueMinor > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowRecordPayment(true)}
+                  className="h-10 w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <span>Record Payment</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Mark as Sent Dialog Modal */}
-      {showMarkSent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl border border-slate-900 bg-slate-950 p-6 shadow-2xl space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">Mark Invoice as Sent</h3>
-              <button onClick={() => setShowMarkSent(false)} className="p-1 rounded-lg text-slate-500 hover:text-white transition">
-                <X className="h-5 w-5" />
-              </button>
+      {/* Main Content Area */}
+      <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-[1040px] space-y-6">
+        {/* Single-Sheet Document Card matching Invoice Detailz.jpg */}
+        <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-8">
+          {/* Full-Bleed Card Heading Divider */}
+          <div className="-mx-5 sm:-mx-8 px-5 sm:px-8 pb-4 mb-6 border-b border-gray-100 dark:border-[#27272a]">
+            <h2 className="text-[16px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+              Invoice Details
+            </h2>
+          </div>
+
+          {/* 3-Column Metadata Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 mb-8">
+            {/* Col 1 (From) */}
+            <div>
+              <p className="text-[12px] font-normal text-gray-400 dark:text-zinc-500 mb-2.5">
+                From
+              </p>
+              <p className="text-[14px] font-semibold text-gray-900 dark:text-white mb-1">
+                {profile?.business_name || 'Your Studio'}
+              </p>
+              <div className="text-[13px] leading-[22px] text-gray-500 dark:text-zinc-400 whitespace-pre-line space-y-0.5">
+                {profile?.business_address && <p>{profile.business_address}</p>}
+              </div>
             </div>
 
-            <form onSubmit={handleMarkSent} className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="issueDateSent" className="text-xs font-semibold text-slate-400">Issue Date *</label>
-                <input
-                  id="issueDateSent"
-                  type="date"
-                  required
-                  value={sentIssueDate}
-                  onChange={(e) => handleIssueDateChange(e.target.value)}
-                  className="block w-full rounded-lg border border-slate-800 bg-slate-900/40 py-2.5 px-3.5 text-sm text-white focus:border-indigo-500 focus:outline-none transition"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="dueDateSent" className="text-xs font-semibold text-slate-400">Due Date *</label>
-                <input
-                  id="dueDateSent"
-                  type="date"
-                  required
-                  value={sentDueDate}
-                  onChange={(e) => setSentDueDate(e.target.value)}
-                  className="block w-full rounded-lg border border-slate-800 bg-slate-900/40 py-2.5 px-3.5 text-sm text-white focus:border-indigo-500 focus:outline-none transition"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowMarkSent(false)}
-                  className="px-4 py-2.5 rounded-lg border border-slate-800 text-sm font-semibold text-slate-400 hover:text-white transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2.5 rounded-lg bg-indigo-600 text-sm font-semibold text-white hover:bg-indigo-500 transition"
-                >
-                  Confirm Sent
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Record Payment Dialog Modal */}
-      {showRecordPayment && (
-        <RecordPaymentModal
-          clientId={invoice.client_id}
-          invoiceId={invoiceId}
-          onClose={() => setShowRecordPayment(false)}
-        />
-      )}
-
-      {/* Reversal Confirmation Dialog Modal */}
-      {reversalTargetEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl border border-slate-900 bg-slate-950 p-6 shadow-2xl space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-red-400" />
-                <h3 className="text-lg font-bold text-white">Confirm Reversal</h3>
-              </div>
-              <button
-                onClick={() => {
-                  setReversalTargetEvent(null);
-                  setReversalNote('');
-                }}
-                className="p-1 rounded-lg text-slate-500 hover:text-white transition"
+            {/* Col 2 (Billed To) */}
+            <div>
+              <p className="text-[12px] font-normal text-gray-400 dark:text-zinc-500 mb-2.5">
+                Billed To
+              </p>
+              <Link
+                href={`/clients/${invoice.client_id}`}
+                prefetch={false}
+                className="text-[14px] font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors no-underline block mb-1"
               >
-                <X className="h-5 w-5" />
-              </button>
+                {invoice.client_name || client?.name || 'Client'}
+              </Link>
+              <div className="text-[13px] leading-[22px] text-gray-500 dark:text-zinc-400 whitespace-pre-line space-y-0.5">
+                {client?.company && <p>{client.company}</p>}
+                {client?.phone && <p>{client.phone}</p>}
+                {client?.email && <p>{client.email}</p>}
+                {clientAddress && <p>{clientAddress}</p>}
+              </div>
             </div>
 
-            <form onSubmit={handleReversePayment} className="space-y-4 text-left">
-              <div className="rounded-2xl border border-red-950/20 bg-red-950/5 p-4 text-xs text-slate-400 space-y-2">
-                <p>
-                  You are about to reverse the payment of{' '}
-                  <span className="font-extrabold text-white">
-                    {formatMoney({ amountMinor: reversalTargetEvent.amount_minor, currency: invoice.currency })}
-                  </span>{' '}
-                  recorded on <span className="font-semibold text-white">{reversalTargetEvent.occurred_at}</span>.
-                </p>
-                <p>
-                  The original payment record remains immutable in the ledger. A correcting entry with negative amount{' '}
-                  <span className="font-extrabold text-red-400">
-                    -{formatMoney({ amountMinor: reversalTargetEvent.amount_minor, currency: invoice.currency })}
-                  </span>{' '}
-                  will be appended to offset the balance. This cannot be undone.
-                </p>
+            {/* Col 3 (Invoice Details) */}
+            <div>
+              <p className="text-[12px] font-normal text-gray-400 dark:text-zinc-500 mb-2.5">
+                Invoice Details
+              </p>
+              <div className="space-y-1.5 text-[13px] leading-[22px]">
+                <div className="grid grid-cols-[115px_1fr] items-baseline gap-2">
+                  <span className="text-gray-500 dark:text-zinc-400">Invoice Number:</span>
+                  <span className="font-semibold text-gray-900 dark:text-white tabular-nums">
+                    {invoice.invoice_number}
+                  </span>
+                </div>
+                <div className="grid grid-cols-[115px_1fr] items-baseline gap-2">
+                  <span className="text-gray-500 dark:text-zinc-400">Issue Date:</span>
+                  <span className="font-semibold text-gray-900 dark:text-white tabular-nums">
+                    {formatDateDisplay(invoice.issue_date)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-[115px_1fr] items-baseline gap-2">
+                  <span className="text-gray-500 dark:text-zinc-400">Due Date:</span>
+                  <span className="font-semibold text-gray-900 dark:text-white tabular-nums">
+                    {formatDateDisplay(invoice.due_date)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-[115px_1fr] items-baseline gap-2">
+                  <span className="text-gray-500 dark:text-zinc-400">Currency:</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {currencyLabel}
+                  </span>
+                </div>
               </div>
+            </div>
+          </div>
 
-              <div className="space-y-1.5">
-                <label htmlFor="revNote" className="text-xs font-semibold text-slate-400">Reason for Reversal (Optional)</label>
-                <textarea
-                  id="revNote"
-                  rows={3}
-                  value={reversalNote}
-                  onChange={(e) => setReversalNote(e.target.value)}
-                  placeholder="e.g. Correcting double entry, check bounced, data entry mistake..."
-                  className="block w-full rounded-lg border border-slate-800 bg-slate-900/40 py-2 px-3 text-sm text-white focus:border-indigo-500 focus:outline-none transition resize-none"
+          {/* Line Items Section: Desktop Table + Mobile Stacked Rows */}
+          {/* Desktop Table (hidden sm:block) */}
+          <div className="hidden sm:block pt-2 overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[500px]">
+              <thead>
+                <tr className="bg-[#F8FAFC] dark:bg-[#121215] border-b border-gray-200 dark:border-[#27272a]">
+                  <th className="py-3 px-4 text-[12px] font-medium text-gray-500 dark:text-zinc-400 w-[50%] text-left">
+                    Item Description
+                  </th>
+                  <th className="py-3 px-4 text-[12px] font-medium text-gray-500 dark:text-zinc-400 w-[16%] text-left">
+                    Quantity
+                  </th>
+                  <th className="py-3 px-4 text-[12px] font-medium text-gray-500 dark:text-zinc-400 w-[17%] text-left">
+                    Unit Price
+                  </th>
+                  <th className="py-3 px-4 text-[12px] font-medium text-gray-500 dark:text-zinc-400 w-[17%] text-left">
+                    Total
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-[#27272a]">
+                {(invoice.lineItems || []).map((item) => {
+                  const lineTotalMinor = multiplyMinor(item.unit_price_minor, item.quantity);
+                  return (
+                    <tr key={item.id} className="text-[13px] font-semibold text-gray-900 dark:text-white">
+                      <td className="py-4 px-4 font-normal text-gray-800 dark:text-zinc-200">
+                        {item.description || '—'}
+                      </td>
+                      <td className="py-4 px-4 tabular-nums text-left">{item.quantity}</td>
+                      <td className="py-4 px-4 tabular-nums text-left">
+                        <Money amountMinor={item.unit_price_minor} currency={invoice.currency} />
+                      </td>
+                      <td className="py-4 px-4 tabular-nums text-left">
+                        <Money amountMinor={lineTotalMinor} currency={invoice.currency} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Stacked Items (sm:hidden) */}
+          <div className="sm:hidden divide-y divide-gray-100 dark:divide-[#27272a] border-y border-gray-200 dark:border-[#27272a] my-4">
+            {(invoice.lineItems || []).map((item) => {
+              const lineTotalMinor = multiplyMinor(item.unit_price_minor, item.quantity);
+              return (
+                <div key={item.id} className="py-3.5 space-y-1">
+                  <div className="text-[13px] font-semibold text-gray-900 dark:text-white">
+                    {item.description || '—'}
+                  </div>
+                  <div className="flex items-center justify-between text-[12px] text-gray-500 dark:text-zinc-400 tabular-nums">
+                    <span>
+                      Qty: {item.quantity} × <Money amountMinor={item.unit_price_minor} currency={invoice.currency} />
+                    </span>
+                    <span className="text-[13px] font-semibold text-gray-900 dark:text-white">
+                      <Money amountMinor={lineTotalMinor} currency={invoice.currency} />
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Right-Aligned Totals Block (Folded Statement Summary) */}
+          <div className="flex justify-end pt-5">
+            {recordedPayments.length === 0 && amountPaidMinor === 0 ? (
+              <div className="w-full sm:w-[320px] flex items-center justify-between">
+                <span className="text-[15px] font-semibold text-gray-900 dark:text-white">Total Amount</span>
+                <Money
+                  amountMinor={totalMinor}
+                  currency={invoice.currency}
+                  className="text-[22px] font-semibold text-gray-900 dark:text-white tabular-nums"
                 />
               </div>
-
-              <div className="pt-2 flex justify-end gap-3 border-t border-slate-900">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setReversalTargetEvent(null);
-                    setReversalNote('');
-                  }}
-                  className="px-4 py-2.5 rounded-lg border border-slate-800 text-sm font-semibold text-slate-400 hover:text-white transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isReversing}
-                  className="px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 text-sm font-semibold text-white transition shadow-lg shadow-red-600/20"
-                >
-                  {isReversing ? 'Reversing...' : 'Confirm Reversal'}
-                </button>
+            ) : (
+              <div className="w-full sm:w-[320px] space-y-2.5">
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="text-gray-500 dark:text-zinc-400 font-medium">Total Amount</span>
+                  <Money
+                    amountMinor={totalMinor}
+                    currency={invoice.currency}
+                    className="text-[14px] font-semibold text-gray-900 dark:text-white tabular-nums"
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="text-gray-500 dark:text-zinc-400 font-medium">Amount Paid</span>
+                  <span className="text-[14px] font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                    -<Money amountMinor={amountPaidMinor} currency={invoice.currency} />
+                  </span>
+                </div>
+                <div className="border-t border-gray-100 dark:border-[#27272a] pt-3 flex items-center justify-between">
+                  <span className="text-[15px] font-semibold text-gray-900 dark:text-white">Balance Due</span>
+                  <Money
+                    amountMinor={balanceDueMinor}
+                    currency={invoice.currency}
+                    className="text-[22px] font-semibold text-gray-900 dark:text-white tabular-nums"
+                  />
+                </div>
               </div>
-            </form>
+            )}
           </div>
+
+          {/* Bottom Notes Section */}
+          {(invoice.notes || invoice.internal_note) && (
+            <div className="border-t border-gray-100 dark:border-[#27272a] mt-6 pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              {invoice.notes && (
+                <div className="space-y-1">
+                  <span className="text-[12px] font-semibold text-gray-600 dark:text-zinc-400 block">
+                    Notes:
+                  </span>
+                  <p className="text-[13px] leading-relaxed text-gray-500 dark:text-zinc-400 whitespace-pre-line">
+                    {invoice.notes}
+                  </p>
+                </div>
+              )}
+              {invoice.internal_note && (
+                <div className="space-y-1">
+                  <span className="text-[12px] font-semibold text-gray-600 dark:text-zinc-400 block">
+                    Internal Note:
+                  </span>
+                  <p className="text-[13px] leading-relaxed text-gray-500 dark:text-zinc-400 whitespace-pre-line">
+                    {invoice.internal_note}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
+
+        {/* Conditional Payments Recorded Card */}
+        {recordedPayments.length > 0 && (
+          <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-8 space-y-4">
+            <div className="-mx-5 sm:-mx-8 px-5 sm:px-8 pb-4 mb-4 border-b border-gray-100 dark:border-[#27272a]">
+              <h2 className="text-[16px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+                Payments Recorded
+              </h2>
+            </div>
+            <div className="divide-y divide-gray-100 dark:divide-[#27272a]">
+              {recordedPayments.map((p) => {
+                const isReversed = reversedIds.has(p.id) || p.amount_minor < 0 || Boolean(p.reverses_id);
+                const isReversible = !isReversed && p.amount_minor > 0 && invoice.status !== 'void';
+                return (
+                  <div key={p.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-semibold text-gray-900 dark:text-white tabular-nums">
+                          {formatDateDisplay(p.occurred_at || p.created_at)}
+                        </span>
+                        <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 capitalize">
+                          {p.method?.replace('_', ' ') || 'payment'}
+                        </span>
+                        {isReversed && (
+                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">
+                            Reversed
+                          </span>
+                        )}
+                      </div>
+                      {p.note && (
+                        <p className="text-[12px] text-gray-500 dark:text-zinc-400">
+                          {p.note}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={cn('text-[14px] font-semibold tabular-nums', isReversed ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white')}>
+                        <Money amountMinor={p.amount_minor} currency={p.currency || invoice.currency} />
+                      </span>
+                      {isReversible && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReversalTargetEvent(p);
+                            setReversalNote('');
+                          }}
+                          className="h-8 px-2.5 rounded-lg border border-gray-200 dark:border-[#27272a] text-[12px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+                        >
+                          Reverse
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Portal Action Modals */}
+      {isMounted && (
+        <>
+          {/* Mark as Sent Modal */}
+          {showMarkSent && createPortal(
+            <div className="fixed inset-0 z-50 w-full h-full m-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
+              <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 max-w-[480px] w-full space-y-4 my-auto overflow-hidden text-left shadow-none">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Send className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400" />
+                    <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+                      Mark as Sent
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowMarkSent(false)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg transition-colors"
+                    aria-label="Close"
+                  >
+                    <X className="h-5 w-5" strokeWidth={2} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleMarkSent} className="space-y-4">
+                  <p className="text-[13px] text-gray-500 dark:text-zinc-400">
+                    Marking this invoice as sent confirms it has been delivered to your client. Confirm the issue date and due date below:
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="space-y-1.5">
+                      <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
+                        Issue Date
+                      </label>
+                      <InlineDatePicker
+                        value={sentIssueDate}
+                        onChange={handleSentIssueDateChange}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
+                        Due Date
+                      </label>
+                      <InlineDatePicker
+                        value={sentDueDate}
+                        onChange={(d) => setSentDueDate(d)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-3 flex items-center justify-end gap-2.5 border-t border-gray-100 dark:border-[#27272a]">
+                    <button
+                      type="button"
+                      onClick={() => setShowMarkSent(false)}
+                      className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isMarkingSent}
+                      className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50"
+                    >
+                      {isMarkingSent ? 'Marking...' : 'Mark as Sent'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>,
+            document.body
+          )}
+
+          {/* Void Invoice Confirmation Modal */}
+          {showVoidModal && createPortal(
+            <div className="fixed inset-0 z-50 w-full h-full m-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
+              <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 max-w-[440px] w-full space-y-4 my-auto overflow-hidden text-left shadow-none">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Ban className="h-4.5 w-4.5 text-gray-500" />
+                    <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+                      Void Invoice
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowVoidModal(false)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg transition-colors"
+                    aria-label="Close"
+                  >
+                    <X className="h-5 w-5" strokeWidth={2} />
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 p-3.5 text-[13px] text-gray-700 dark:text-zinc-300 space-y-1.5">
+                    <p className="font-semibold text-gray-900 dark:text-white">Are you sure you want to void this invoice?</p>
+                    <p className="text-[12px] text-gray-600 dark:text-zinc-400">
+                      Voiding removes it from outstanding balances and earnings, but preserves the record for auditing. This cannot be undone.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-gray-100 dark:border-[#27272a]">
+                  <button
+                    type="button"
+                    onClick={() => setShowVoidModal(false)}
+                    className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleVoid}
+                    disabled={isVoiding}
+                    className="h-10 px-5 rounded-xl border border-rose-200 dark:border-rose-500/20 bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-[13px] font-medium text-rose-700 dark:text-rose-400 transition-colors disabled:opacity-50"
+                  >
+                    {isVoiding ? 'Voiding...' : 'Void Invoice'}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
+
+          {/* Delete Draft Modal */}
+          {showDeleteModal && createPortal(
+            <div className="fixed inset-0 z-50 w-full h-full m-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
+              <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 max-w-[440px] w-full space-y-4 my-auto overflow-hidden text-left shadow-none">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Trash2 className="h-4.5 w-4.5 text-rose-600 dark:text-rose-400" />
+                    <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+                      Delete Draft Invoice
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(false)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg transition-colors"
+                    aria-label="Close"
+                  >
+                    <X className="h-5 w-5" strokeWidth={2} />
+                  </button>
+                </div>
+
+                <p className="text-[13px] text-gray-500 dark:text-zinc-400">
+                  Are you sure you want to delete this draft invoice? This action is soft and preserves historical data.
+                </p>
+
+                <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-gray-100 dark:border-[#27272a]">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(false)}
+                    className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="h-10 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50"
+                  >
+                    {isDeleting ? 'Deleting...' : 'Delete Draft'}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
+
+          {/* Reverse Payment Modal */}
+          {reversalTargetEvent && createPortal(
+            <div className="fixed inset-0 z-50 w-full h-full m-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
+              <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 max-w-[440px] w-full space-y-4 my-auto overflow-hidden text-left shadow-none">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4.5 w-4.5 text-amber-500" />
+                    <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+                      Reverse Payment
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReversalTargetEvent(null)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg transition-colors"
+                    aria-label="Close"
+                  >
+                    <X className="h-5 w-5" strokeWidth={2} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleReversePayment} className="space-y-4">
+                  <p className="text-[13px] text-gray-600 dark:text-zinc-300">
+                    You are reversing payment of{' '}
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      <Money amountMinor={reversalTargetEvent.amount_minor} currency={reversalTargetEvent.currency || invoice.currency} />
+                    </span>{' '}
+                    recorded on {formatDateDisplay(reversalTargetEvent.occurred_at || reversalTargetEvent.created_at)}. This will create an offsetting reversal entry in the ledger.
+                  </p>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
+                      Reversal Reason (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Bounced check, Client request..."
+                      value={reversalNote}
+                      onChange={(e) => setReversalNote(e.target.value)}
+                      className="w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-900 dark:text-white placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20 transition-colors"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-gray-100 dark:border-[#27272a]">
+                    <button
+                      type="button"
+                      onClick={() => setReversalTargetEvent(null)}
+                      className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isReversing}
+                      className="h-10 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50"
+                    >
+                      {isReversing ? 'Reversing...' : 'Reverse Payment'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>,
+            document.body
+          )}
+
+          {/* Record Payment Modal */}
+          {showRecordPayment && (
+            <RecordPaymentModal
+              clientId={invoice.client_id}
+              invoiceId={invoiceId}
+              onClose={() => setShowRecordPayment(false)}
+            />
+          )}
+        </>
       )}
     </div>
   );
 }
 
-// Inline fallback X close icon since lucide might not export it or imports differ
-function X(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M18 6 6 18" />
-      <path d="m6 6 12 12" />
-    </svg>
-  );
-}
+export default InvoiceDetailsClient;
