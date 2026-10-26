@@ -325,38 +325,49 @@ function HeaderTitle() {
 
   if (pathname === '/invoices/new') {
     return (
-      <div className="flex items-center text-[13px] select-none">
+      <div className="flex items-center text-[13px] select-none min-w-0">
         <FileText
           className="h-4 w-4 text-gray-500 dark:text-zinc-400 mr-2 shrink-0"
           strokeWidth={2}
         />
+        {/* Mobile: Option 7B clean module link */}
         <Link
+          className="sm:hidden font-semibold text-gray-900 dark:text-white no-underline truncate"
           href="/invoices"
           prefetch={false}
-          className="hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer font-normal text-gray-500 dark:text-zinc-400 no-underline"
         >
           Invoices
         </Link>
-        <span className="text-gray-300 dark:text-zinc-600 mx-1.5">/</span>
-        {isPreviewMode ? (
-          <>
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent('clario:switch-to-form'))}
-              className="hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer font-normal text-gray-500 dark:text-zinc-400"
-            >
-              Create Invoice
-            </button>
-            <span className="text-gray-300 dark:text-zinc-600 mx-1.5">/</span>
+        {/* Desktop: Full interactive breadcrumbs */}
+        <div className="hidden sm:flex sm:items-center">
+          <Link
+            href="/invoices"
+            prefetch={false}
+            className="hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer font-normal text-gray-500 dark:text-zinc-400 no-underline"
+          >
+            Invoices
+          </Link>
+          <span className="text-gray-300 dark:text-zinc-600 mx-1.5">/</span>
+          {isPreviewMode ? (
+            <>
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('clario:switch-to-form'))}
+                className="hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer font-normal text-gray-500 dark:text-zinc-400"
+              >
+                Create Invoice
+              </button>
+              <span className="text-gray-300 dark:text-zinc-600 mx-1.5">/</span>
+              <span className="font-semibold text-gray-900 dark:text-white">
+                Preview Invoice
+              </span>
+            </>
+          ) : (
             <span className="font-semibold text-gray-900 dark:text-white">
-              Preview Invoice
+              Create Invoice
             </span>
-          </>
-        ) : (
-          <span className="font-semibold text-gray-900 dark:text-white">
-            Create Invoice
-          </span>
-        )}
+          )}
+        </div>
       </div>
     );
   }
@@ -367,34 +378,45 @@ function HeaderTitle() {
     const isEditRoute = parts[2] === 'edit';
 
     return (
-      <div className="flex items-center text-[13px] select-none">
+      <div className="flex items-center text-[13px] select-none min-w-0">
         <FileText
           className="h-4 w-4 text-gray-500 dark:text-zinc-400 mr-2 shrink-0"
           strokeWidth={2}
         />
+        {/* Mobile: Option 7B clean module link */}
         <Link
+          className="sm:hidden font-semibold text-gray-900 dark:text-white no-underline truncate"
           href="/invoices"
           prefetch={false}
-          className="hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer font-normal text-gray-500 dark:text-zinc-400 no-underline"
         >
           Invoices
         </Link>
-        <span className="text-gray-300 dark:text-zinc-600 mx-1.5 font-normal">/</span>
-        {!isEditRoute ? (
-          <span className="font-semibold text-gray-900 dark:text-white">View Invoice</span>
-        ) : (
-          <>
-            <Link
-              href={`/invoices/${invoiceId}`}
-              prefetch={false}
-              className="hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer font-normal text-gray-500 dark:text-zinc-400 no-underline"
-            >
-              View Invoice
-            </Link>
-            <span className="text-gray-300 dark:text-zinc-600 mx-1.5 font-normal">/</span>
-            <span className="font-semibold text-gray-900 dark:text-white">Edit Invoice</span>
-          </>
-        )}
+        {/* Desktop: Full interactive breadcrumbs */}
+        <div className="hidden sm:flex sm:items-center">
+          <Link
+            href="/invoices"
+            prefetch={false}
+            className="hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer font-normal text-gray-500 dark:text-zinc-400 no-underline"
+          >
+            Invoices
+          </Link>
+          <span className="text-gray-300 dark:text-zinc-600 mx-1.5 font-normal">/</span>
+          {!isEditRoute ? (
+            <span className="font-semibold text-gray-900 dark:text-white">View Invoice</span>
+          ) : (
+            <>
+              <Link
+                href={`/invoices/${invoiceId}`}
+                prefetch={false}
+                className="hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer font-normal text-gray-500 dark:text-zinc-400 no-underline"
+              >
+                View Invoice
+              </Link>
+              <span className="text-gray-300 dark:text-zinc-600 mx-1.5 font-normal">/</span>
+              <span className="font-semibold text-gray-900 dark:text-white">Edit Invoice</span>
+            </>
+          )}
+        </div>
       </div>
     );
   }

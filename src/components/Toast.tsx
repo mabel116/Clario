@@ -9,10 +9,11 @@ export interface ToastItem {
   id: string;
   message: string;
   type: ToastType;
+  description?: string;
 }
 
 interface ToastContextValue {
-  showToast: (message: string, type?: ToastType) => void;
+  showToast: (message: string, type?: ToastType, description?: string) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -35,9 +36,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const showToast = useCallback((message: string, type: ToastType = 'success') => {
+  const showToast = useCallback((message: string, type: ToastType = 'success', description?: string) => {
     const id = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => [...prev, { id, message, type, description }]);
   }, []);
 
   return (
@@ -90,7 +91,7 @@ function ToastCard({
       role="status"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="pointer-events-auto w-fit max-w-[calc(100vw-2rem)] sm:max-w-md inline-flex items-center gap-3.5 px-4 py-3 rounded-2xl border border-gray-200/90 dark:border-[#27272a] bg-white dark:bg-[#18181b] shadow-[0_10px_30px_-5px_rgba(0,0,0,0.06),0_4px_12px_-2px_rgba(0,0,0,0.03)] dark:shadow-[0_12px_32px_-4px_rgba(0,0,0,0.6)] transition-all duration-200 animate-in fade-in slide-in-from-top-3"
+      className="pointer-events-auto w-fit max-w-[calc(100vw-2rem)] sm:max-w-md flex items-center gap-3 px-4 py-3 rounded-2xl bg-white dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] shadow-lg transition-all duration-200 animate-in fade-in slide-in-from-top-3"
     >
       {/* Left Status Pill Badge */}
       {toast.type === 'info' ? (
@@ -103,14 +104,16 @@ function ToastCard({
         </div>
       )}
 
-      {/* Center Typography (2-Line Stack) */}
-      <div className="flex-1 min-w-0 break-words">
-        <p className="text-[13px] leading-snug font-semibold text-gray-900 dark:text-white break-words">
+      {/* Center Typography (Single-line intentional) */}
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] leading-[18px] font-semibold text-gray-900 dark:text-white">
           {toast.message}
         </p>
-        <p className="text-[11px] leading-tight font-normal text-gray-500 dark:text-zinc-400 mt-0.5 break-words">
-          {toast.type === 'info' ? 'Notification update' : 'Action completed successfully'}
-        </p>
+        {toast.description && (
+          <p className="text-[11px] leading-tight font-normal text-gray-500 dark:text-zinc-400 mt-0.5">
+            {toast.description}
+          </p>
+        )}
       </div>
 
       {/* Right Close Button */}

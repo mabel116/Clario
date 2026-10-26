@@ -13,6 +13,7 @@ export interface ClientSummary {
   id: string;
   name: string;
   email?: string | null;
+  phone?: string | null;
   company?: string | null;
   default_currency?: string | null;
   created_at: string;

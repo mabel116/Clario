@@ -28,6 +28,7 @@ import { useToast } from '../../../components/Toast';
 import { ClientDetail, InvoiceDetail } from '../../../lib/data/types';
 import { ProfileRow } from '../../../lib/sync/schema';
 import { cn } from '../../../lib/utils';
+import { DatePickerPopover, formatDateDisplay } from '../../../components/ui/DatePickerPopover';
 
 interface CurrencyItem {
   code: string;
@@ -61,454 +62,7 @@ const TERMS_OPTIONS: Array<{ value: TermsType; label: string }> = [
   { value: 'custom', label: 'Custom' },
 ];
 
-const MONTH_NAMES = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
-const SHORT_MONTH_NAMES = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-
-const YEARS = Array.from({ length: 16 }, (_, i) => 2020 + i);
-
-function formatDateDisplay(dateStr: string | null | undefined): string {
-  if (!dateStr) return '';
-  const clean = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
-  const parts = clean.split('-');
-  if (parts.length !== 3) return dateStr;
-  const year = parts[0];
-  const monthIdx = parseInt(parts[1], 10) - 1;
-  const day = parseInt(parts[2], 10);
-  if (monthIdx >= 0 && monthIdx < 12 && !isNaN(day)) {
-    return `${day} ${MONTH_NAMES[monthIdx]}, ${year}`;
-  }
-  return dateStr;
-}
-
-interface DatePickerPopoverProps {
-  value: string; // 'YYYY-MM-DD'
-  onChange: (dateStr: string) => void;
-  className?: string;
-  hasError?: boolean;
-}
-
-function DatePickerPopover({
-  value,
-  onChange,
-  className,
-  hasError,
-}: DatePickerPopoverProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [pickerView, setPickerView] = useState<'calendar' | 'months' | 'years'>('calendar');
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const parsed = useMemo(() => {
-    if (value) {
-      const parts = value.split('-');
-      if (parts.length === 3) {
-        const y = parseInt(parts[0], 10);
-        const m = parseInt(parts[1], 10) - 1;
-        const d = parseInt(parts[2], 10);
-        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
-          return { year: y, month: m, day: d };
-        }
-      }
-    }
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth(), day: now.getDate() };
-  }, [value]);
-
-  const [viewYear, setViewYear] = useState(parsed.year);
-  const [viewMonth, setViewMonth] = useState(parsed.month);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setViewYear(parsed.year);
-      setViewMonth(parsed.month);
-      setPickerView('calendar');
-    }
-  }, [parsed, isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen]);
-
-  const handlePrevMonth = () => {
-    if (pickerView === 'years') {
-      setViewYear((y) => Math.max(2020, y - 1));
-      return;
-    }
-    if (viewMonth === 0) {
-      setViewMonth(11);
-      setViewYear((y) => y - 1);
-    } else {
-      setViewMonth((m) => m - 1);
-    }
-  };
-
-  const handleNextMonth = () => {
-    if (pickerView === 'years') {
-      setViewYear((y) => Math.min(2035, y + 1));
-      return;
-    }
-    if (viewMonth === 11) {
-      setViewMonth(0);
-      setViewYear((y) => y + 1);
-    } else {
-      setViewMonth((m) => m + 1);
-    }
-  };
-
-  const calendarDays = useMemo(() => {
-    const firstDayIndex = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7; // Monday-first
-    const daysInCurrent = new Date(viewYear, viewMonth + 1, 0).getDate();
-    const daysInPrev = new Date(viewYear, viewMonth, 0).getDate();
-
-    const days: Array<{
-      dateStr: string;
-      dayNumber: number;
-      isCurrentMonth: boolean;
-      isSelected: boolean;
-      isToday: boolean;
-    }> = [];
-
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-    // Prev month trailing days
-    for (let i = firstDayIndex - 1; i >= 0; i--) {
-      const d = daysInPrev - i;
-      const prevM = viewMonth === 0 ? 12 : viewMonth;
-      const prevY = viewMonth === 0 ? viewYear - 1 : viewYear;
-      const dateStr = `${prevY}-${String(prevM).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      days.push({
-        dateStr,
-        dayNumber: d,
-        isCurrentMonth: false,
-        isSelected: dateStr === value,
-        isToday: dateStr === todayStr,
-      });
-    }
-
-    // Current month days
-    for (let d = 1; d <= daysInCurrent; d++) {
-      const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      days.push({
-        dateStr,
-        dayNumber: d,
-        isCurrentMonth: true,
-        isSelected: dateStr === value,
-        isToday: dateStr === todayStr,
-      });
-    }
-
-    // Next month leading days (fill up to 35 or 42 cells)
-    const totalCells = days.length <= 35 ? 35 : 42;
-    const remaining = totalCells - days.length;
-    for (let d = 1; d <= remaining; d++) {
-      const nextM = viewMonth === 11 ? 1 : viewMonth + 2;
-      const nextY = viewMonth === 11 ? viewYear + 1 : viewYear;
-      const dateStr = `${nextY}-${String(nextM).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      days.push({
-        dateStr,
-        dayNumber: d,
-        isCurrentMonth: false,
-        isSelected: dateStr === value,
-        isToday: dateStr === todayStr,
-      });
-    }
-
-    return days;
-  }, [viewYear, viewMonth, value]);
-
-  const selectDate = (dateStr: string) => {
-    onChange(dateStr);
-    setIsOpen(false);
-  };
-
-  const handleSelectToday = () => {
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    selectDate(todayStr);
-  };
-
-  return (
-    <div className={cn('relative w-full', className)} ref={containerRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className={cn(
-          'h-11 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border w-full flex items-center gap-2.5 text-left transition-colors',
-          'focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20',
-          isOpen
-            ? 'border-gray-300 dark:border-zinc-700 bg-[#F9FAFB] dark:bg-[#121215]'
-            : hasError
-            ? 'border-rose-400 dark:border-rose-500/50'
-            : 'border-gray-200/80 dark:border-[#27272a]'
-        )}
-      >
-        <Calendar
-          className="h-4 w-4 text-gray-400 dark:text-zinc-500 shrink-0"
-          strokeWidth={2}
-        />
-        {value ? (
-          <span className="text-[13px] font-medium text-gray-900 dark:text-white tabular-nums">
-            {formatDateDisplay(value)}
-          </span>
-        ) : (
-          <span className="text-[13px] font-normal text-gray-400 dark:text-zinc-500">
-            Select date
-          </span>
-        )}
-      </button>
-
-      {isOpen && (
-        <div
-          data-popover="true"
-          className="absolute left-0 top-full mt-1.5 z-20 w-[304px] max-w-[calc(100vw-2rem)] rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-4 space-y-3 shadow-none"
-        >
-          {/* Top Month/Year Bar with Custom Popover Selectors */}
-          <div className="flex items-center justify-between pb-1">
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setPickerView(pickerView === 'months' ? 'calendar' : 'months')}
-                className={cn(
-                  'px-2 py-1 rounded-lg text-[13px] font-semibold text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors flex items-center gap-1',
-                  pickerView === 'months' && 'bg-gray-100 dark:bg-[#222226]'
-                )}
-              >
-                {MONTH_NAMES[viewMonth]}
-                <ChevronDown className="h-3 w-3 text-gray-400" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setPickerView(pickerView === 'years' ? 'calendar' : 'years')}
-                className={cn(
-                  'px-2 py-1 rounded-lg text-[13px] font-semibold text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors flex items-center gap-1',
-                  pickerView === 'years' && 'bg-gray-100 dark:bg-[#222226]'
-                )}
-              >
-                {viewYear}
-                <ChevronDown className="h-3 w-3 text-gray-400" />
-              </button>
-            </div>
-
-            {/* Prev / Next Month Arrow Steppers */}
-            <div className="flex items-center gap-1 pr-1">
-              <button
-                type="button"
-                onClick={handlePrevMonth}
-                aria-label="Previous month"
-                className="h-7 w-7 inline-flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-[#222226] text-gray-600 dark:text-zinc-400 transition-colors"
-              >
-                <ChevronLeft className="h-4 w-4" strokeWidth={2} />
-              </button>
-              <button
-                type="button"
-                onClick={handleNextMonth}
-                aria-label="Next month"
-                className="h-7 w-7 inline-flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-[#222226] text-gray-600 dark:text-zinc-400 transition-colors"
-              >
-                <ChevronRight className="h-4 w-4" strokeWidth={2} />
-              </button>
-            </div>
-          </div>
-
-          {/* Month Selector Grid */}
-          {pickerView === 'months' && (
-            <div className="grid grid-cols-3 gap-1.5 py-1">
-              {SHORT_MONTH_NAMES.map((m, idx) => {
-                const isSelected = idx === viewMonth;
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => {
-                      setViewMonth(idx);
-                      setPickerView('calendar');
-                    }}
-                    className={cn(
-                      'h-8 rounded-lg text-[12px] font-medium transition-colors flex items-center justify-center',
-                      isSelected
-                        ? 'bg-blue-600 text-white font-semibold'
-                        : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-[#222226]'
-                    )}
-                  >
-                    {m}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Year Selector Grid */}
-          {pickerView === 'years' && (
-            <div className="grid grid-cols-3 gap-1.5 max-h-[190px] overflow-y-auto pr-0.5 py-1">
-              {YEARS.map((y) => {
-                const isSelected = y === viewYear;
-                return (
-                  <button
-                    key={y}
-                    type="button"
-                    onClick={() => {
-                      setViewYear(y);
-                      setPickerView('calendar');
-                    }}
-                    className={cn(
-                      'h-8 rounded-lg text-[12px] font-medium transition-colors flex items-center justify-center',
-                      isSelected
-                        ? 'bg-blue-600 text-white font-semibold'
-                        : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-[#222226]'
-                    )}
-                  >
-                    {y}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Calendar View */}
-          {pickerView === 'calendar' && (
-            <>
-              {/* Weekday Header Grid */}
-              <div className="grid grid-cols-7 text-center text-[11px] font-medium text-gray-400 dark:text-zinc-500">
-                <span>Mo</span>
-                <span>Tu</span>
-                <span>We</span>
-                <span>Th</span>
-                <span>Fr</span>
-                <span>Sa</span>
-                <span>Su</span>
-              </div>
-
-              {/* Days Grid */}
-              <div className="grid grid-cols-7 gap-1">
-                {calendarDays.map((cell, idx) => {
-                  if (cell.isSelected) {
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => selectDate(cell.dateStr)}
-                        className="bg-blue-600 text-white font-semibold rounded-lg h-8 w-8 mx-auto flex items-center justify-center text-[12px] tabular-nums"
-                      >
-                        {cell.dayNumber}
-                      </button>
-                    );
-                  }
-
-                  if (cell.isToday) {
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => selectDate(cell.dateStr)}
-                        className="border border-blue-600/40 text-blue-600 dark:text-blue-400 font-medium rounded-lg h-8 w-8 mx-auto flex items-center justify-center text-[12px] tabular-nums hover:bg-blue-50 dark:hover:bg-blue-950/30"
-                      >
-                        {cell.dayNumber}
-                      </button>
-                    );
-                  }
-
-                  if (!cell.isCurrentMonth) {
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => selectDate(cell.dateStr)}
-                        className="text-gray-300 dark:text-zinc-600 h-8 w-8 mx-auto flex items-center justify-center text-[12px] tabular-nums hover:bg-gray-50 dark:hover:bg-[#222226]/50 rounded-lg"
-                      >
-                        {cell.dayNumber}
-                      </button>
-                    );
-                  }
-
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => selectDate(cell.dateStr)}
-                      className="text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-[#222226] rounded-lg h-8 w-8 mx-auto flex items-center justify-center text-[12px] font-medium tabular-nums transition-colors"
-                    >
-                      {cell.dayNumber}
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          {/* Bottom Footer */}
-          <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-[#27272a]">
-            <button
-              type="button"
-              onClick={() => {
-                handleSelectToday();
-                setPickerView('calendar');
-              }}
-              className="text-[12px] font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
-            >
-              Today
-            </button>
-            {pickerView !== 'calendar' && (
-              <button
-                type="button"
-                onClick={() => setPickerView('calendar')}
-                className="text-[12px] font-medium text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-              >
-                Calendar
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
+// DatePickerPopover imported from shared ui component
 interface LineItemRow {
   id: string;
   description: string;
@@ -1659,7 +1213,7 @@ export function CreateInvoiceClient() {
                   type="button"
                   onClick={() => setIsClientDropdownOpen((prev) => !prev)}
                   className={cn(
-                    'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] flex items-center justify-between text-left transition-colors',
+                    'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] flex items-center justify-between gap-2 overflow-hidden text-left transition-colors',
                     'focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20',
                     isClientDropdownOpen
                       ? 'border-gray-300 dark:border-zinc-700 bg-[#F9FAFB] dark:bg-[#121215]'
@@ -1669,11 +1223,12 @@ export function CreateInvoiceClient() {
                   )}
                 >
                   <span
-                    className={
+                    className={cn(
+                      'truncate min-w-0 flex-1 text-left',
                       clientId
                         ? 'font-medium text-gray-900 dark:text-white'
                         : 'font-normal text-gray-400 dark:text-zinc-500'
-                    }
+                    )}
                   >
                     {selectedClient
                       ? `${selectedClient.name}${selectedClient.company ? ` (${selectedClient.company})` : ''}`
@@ -1718,10 +1273,10 @@ export function CreateInvoiceClient() {
                                   : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226]'
                               )}
                             >
-                              <div>
-                                <div className="font-medium text-gray-900 dark:text-white">{c.name}</div>
+                              <div className="min-w-0 flex-1 pr-2">
+                                <div className="font-medium text-gray-900 dark:text-white line-clamp-2 break-words text-[13px]">{c.name}</div>
                                 {(c.company || c.email) && (
-                                  <div className="text-[11px] text-gray-400 dark:text-zinc-500">
+                                  <div className="text-[11px] text-gray-400 dark:text-zinc-500 line-clamp-1 break-words mt-0.5">
                                     {[c.company, c.email].filter(Boolean).join(' • ')}
                                   </div>
                                 )}
@@ -1774,7 +1329,7 @@ export function CreateInvoiceClient() {
                   type="button"
                   onClick={() => setIsCurrencyDropdownOpen((prev) => !prev)}
                   className={cn(
-                    'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] font-medium text-gray-900 dark:text-white flex items-center justify-between text-left transition-colors',
+                    'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] font-medium text-gray-900 dark:text-white flex items-center justify-between gap-2 overflow-hidden text-left transition-colors',
                     'focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20',
                     isCurrencyDropdownOpen
                       ? 'border-gray-300 dark:border-zinc-700 bg-[#F9FAFB] dark:bg-[#121215]'
@@ -2180,9 +1735,11 @@ export function CreateInvoiceClient() {
 
       {/* Portal Add New Client Modal (Matching Add Clients_2.jpg 1:1, strictly max-w-[480px]) */}
       {isAddClientOpen && isMounted && createPortal(
-        <div className="fixed inset-0 z-50 w-full h-full m-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-          <div data-popover="true" className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 max-w-[480px] w-full space-y-3.5 my-auto overflow-hidden text-left shadow-none">
-            <div className="flex items-center justify-between">
+        <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div data-popover="true" className="w-full sm:max-w-[480px] max-h-[88dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+            {/* Mobile Drag Handle */}
+            <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto mt-2.5 mb-1 shrink-0" />
+            <div className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] flex items-start justify-between gap-3 shrink-0">
               <div>
                 <h3 className="text-[18px] leading-[24px] font-semibold text-gray-900 dark:text-white">
                   Add New Client
@@ -2201,7 +1758,8 @@ export function CreateInvoiceClient() {
               </button>
             </div>
 
-            <form onSubmit={handleModalSaveClient} className="space-y-4">
+            <form onSubmit={handleModalSaveClient} className="flex flex-col flex-1 min-h-0 font-sans text-left">
+              <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-4">
               {/* Client Type Radio Toggle */}
               <div className="space-y-1">
                 <div className="flex items-center gap-6 pt-1">
@@ -2385,19 +1943,20 @@ export function CreateInvoiceClient() {
                 />
               </div>
 
-              {/* Actions Bar */}
-              <div className="flex items-center justify-end gap-2.5 pt-3">
+              </div>
+              {/* Pinned Footer Actions */}
+              <div className="shrink-0 px-5 py-3.5 sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setIsAddClientOpen(false)}
-                  className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+                  className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSavingClient}
-                  className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50"
+                  className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {isSavingClient ? 'Adding...' : 'Add New Client'}
                 </button>

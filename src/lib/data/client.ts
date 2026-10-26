@@ -6,7 +6,7 @@ import { deriveInvoice } from '../derive/invoice';
 export const ClientRepo = {
   list(): LiveQuery<ClientSummary[]> {
     return createLiveQuery<any, ClientSummary[]>(
-      `SELECT id, name, email, company, default_currency, created_at
+      `SELECT id, name, email, phone, company, default_currency, created_at
        FROM clients
        WHERE deleted_at IS NULL
        ORDER BY created_at DESC`,
@@ -15,6 +15,7 @@ export const ClientRepo = {
         id: r.id,
         name: r.name,
         email: r.email,
+        phone: r.phone,
         company: r.company,
         default_currency: r.default_currency,
         created_at: r.created_at

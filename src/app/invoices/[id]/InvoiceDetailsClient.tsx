@@ -16,11 +16,12 @@ import { Money } from '../../../components/ui/money';
 import { useToast } from '../../../components/Toast';
 import { 
   ChevronLeft, Pencil, Download, X, AlertTriangle, 
-  Trash2, Send, Ban, Calendar, ChevronRight, Check
+  Trash2, Send, Ban, Calendar, ChevronRight, Check, MoreHorizontal
 } from 'lucide-react';
 import { PaymentEventRow } from '../../../lib/sync/schema';
 import { resolveInvoiceBackLink, resolveRouteParam } from '../../../lib/navigation';
 import { cn } from '../../../lib/utils';
+import { DatePickerPopover, formatDateDisplay } from '../../../components/ui/DatePickerPopover';
 
 type InvoiceVisualBadge =
   | 'draft'
@@ -81,317 +82,7 @@ function InvoiceStatusBadge({ status }: { status: InvoiceVisualBadge }) {
 
 const StatusBadge = InvoiceStatusBadge;
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
-
-const SHORT_MONTH_NAMES = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-];
-
-const YEARS = Array.from({ length: 16 }, (_, i) => 2020 + i);
-
-function formatDateDisplay(dateStr: string | null | undefined): string {
-  if (!dateStr) return '';
-  const clean = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
-  const parts = clean.split('-');
-  if (parts.length !== 3) return dateStr;
-  const year = parts[0];
-  const monthIdx = parseInt(parts[1], 10) - 1;
-  const day = parseInt(parts[2], 10);
-  if (monthIdx >= 0 && monthIdx < 12 && !isNaN(day)) {
-    return `${day} ${MONTH_NAMES[monthIdx]}, ${year}`;
-  }
-  return dateStr;
-}
-
-function InlineDatePicker({
-  value,
-  onChange,
-  id
-}: {
-  value: string;
-  onChange: (d: string) => void;
-  id?: string;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [pickerView, setPickerView] = useState<'calendar' | 'months' | 'years'>('calendar');
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const parsed = useMemo(() => {
-    if (value) {
-      const parts = value.split('-');
-      if (parts.length === 3) {
-        const y = parseInt(parts[0], 10);
-        const m = parseInt(parts[1], 10) - 1;
-        const d = parseInt(parts[2], 10);
-        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
-          return { year: y, month: m, day: d };
-        }
-      }
-    }
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth(), day: now.getDate() };
-  }, [value]);
-
-  const [viewYear, setViewYear] = useState(parsed.year);
-  const [viewMonth, setViewMonth] = useState(parsed.month);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setViewYear(parsed.year);
-      setViewMonth(parsed.month);
-      setPickerView('calendar');
-    }
-  }, [parsed, isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setIsOpen(false);
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen]);
-
-  const handlePrevMonth = () => {
-    if (pickerView === 'years') {
-      setViewYear((y) => Math.max(2020, y - 1));
-      return;
-    }
-    if (viewMonth === 0) {
-      setViewMonth(11);
-      setViewYear((y) => y - 1);
-    } else {
-      setViewMonth((m) => m - 1);
-    }
-  };
-
-  const handleNextMonth = () => {
-    if (pickerView === 'years') {
-      setViewYear((y) => Math.min(2035, y + 1));
-      return;
-    }
-    if (viewMonth === 11) {
-      setViewMonth(0);
-      setViewYear((y) => y + 1);
-    } else {
-      setViewMonth((m) => m + 1);
-    }
-  };
-
-  const calendarDays = useMemo(() => {
-    const firstDayIndex = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
-    const daysInCurrent = new Date(viewYear, viewMonth + 1, 0).getDate();
-    const daysInPrev = new Date(viewYear, viewMonth, 0).getDate();
-    const days: Array<{
-      dateStr: string;
-      dayNumber: number;
-      isCurrentMonth: boolean;
-      isSelected: boolean;
-      isToday: boolean;
-    }> = [];
-
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-    for (let i = firstDayIndex - 1; i >= 0; i--) {
-      const d = daysInPrev - i;
-      const prevM = viewMonth === 0 ? 12 : viewMonth;
-      const prevY = viewMonth === 0 ? viewYear - 1 : viewYear;
-      const dateStr = `${prevY}-${String(prevM).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      days.push({
-        dateStr,
-        dayNumber: d,
-        isCurrentMonth: false,
-        isSelected: dateStr === value,
-        isToday: dateStr === todayStr,
-      });
-    }
-
-    for (let d = 1; d <= daysInCurrent; d++) {
-      const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      days.push({
-        dateStr,
-        dayNumber: d,
-        isCurrentMonth: true,
-        isSelected: dateStr === value,
-        isToday: dateStr === todayStr,
-      });
-    }
-
-    const totalCells = days.length <= 35 ? 35 : 42;
-    const remaining = totalCells - days.length;
-    for (let d = 1; d <= remaining; d++) {
-      const nextM = viewMonth === 11 ? 1 : viewMonth + 2;
-      const nextY = viewMonth === 11 ? viewYear + 1 : viewYear;
-      const dateStr = `${nextY}-${String(nextM).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      days.push({
-        dateStr,
-        dayNumber: d,
-        isCurrentMonth: false,
-        isSelected: dateStr === value,
-        isToday: dateStr === todayStr,
-      });
-    }
-
-    return days;
-  }, [viewYear, viewMonth, value]);
-
-  return (
-    <div className="relative" ref={containerRef}>
-      <button
-        id={id}
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className={cn(
-          'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] font-medium text-gray-900 dark:text-white flex items-center justify-between text-left transition-colors',
-          'focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20',
-          isOpen
-            ? 'border-gray-300 dark:border-zinc-700'
-            : 'border-gray-200/80 dark:border-[#27272a]'
-        )}
-      >
-        <span className={value ? 'text-gray-900 dark:text-white' : 'text-gray-400'}>
-          {formatDateDisplay(value) || 'Select date'}
-        </span>
-        <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
-      </button>
-
-      {isOpen && (
-        <div
-          data-popover="true"
-          className="absolute z-50 left-0 sm:left-auto sm:right-0 mt-1.5 w-[280px] rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-3 shadow-xl select-none"
-        >
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100 dark:border-[#27272a]">
-            <button
-              type="button"
-              onClick={handlePrevMonth}
-              className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
-              aria-label="Previous"
-            >
-              <ChevronLeft className="h-4 w-4" strokeWidth={2} />
-            </button>
-            <div className="flex items-center gap-1 text-[13px] font-semibold text-gray-900 dark:text-white">
-              <button
-                type="button"
-                onClick={() => setPickerView(pickerView === 'months' ? 'calendar' : 'months')}
-                className="px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors"
-              >
-                {MONTH_NAMES[viewMonth]}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPickerView(pickerView === 'years' ? 'calendar' : 'years')}
-                className="px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors"
-              >
-                {viewYear}
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={handleNextMonth}
-              className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
-              aria-label="Next"
-            >
-              <ChevronRight className="h-4 w-4" strokeWidth={2} />
-            </button>
-          </div>
-
-          {pickerView === 'months' && (
-            <div className="grid grid-cols-3 gap-1.5 py-1">
-              {SHORT_MONTH_NAMES.map((name, idx) => (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => {
-                    setViewMonth(idx);
-                    setPickerView('calendar');
-                  }}
-                  className={cn(
-                    'py-2 rounded-lg text-[12px] font-medium transition-colors',
-                    viewMonth === idx
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-[#222226]'
-                  )}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {pickerView === 'years' && (
-            <div className="grid grid-cols-4 gap-1.5 py-1 max-h-[180px] overflow-y-auto">
-              {YEARS.map((y) => (
-                <button
-                  key={y}
-                  type="button"
-                  onClick={() => {
-                    setViewYear(y);
-                    setPickerView('calendar');
-                  }}
-                  className={cn(
-                    'py-2 rounded-lg text-[12px] font-medium transition-colors',
-                    viewYear === y
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-[#222226]'
-                  )}
-                >
-                  {y}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {pickerView === 'calendar' && (
-            <div>
-              <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-gray-400 dark:text-zinc-500 mb-1">
-                <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
-              </div>
-              <div className="grid grid-cols-7 gap-1">
-                {calendarDays.map((d) => (
-                  <button
-                    key={d.dateStr}
-                    type="button"
-                    onClick={() => {
-                      onChange(d.dateStr);
-                      setIsOpen(false);
-                    }}
-                    className={cn(
-                      'h-8 rounded-lg text-[12px] font-medium flex items-center justify-center transition-colors',
-                      d.isSelected
-                        ? 'bg-blue-600 text-white font-semibold'
-                        : d.isToday
-                        ? 'border border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
-                        : d.isCurrentMonth
-                        ? 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-[#222226]'
-                        : 'text-gray-300 dark:text-zinc-600 hover:bg-gray-50 dark:hover:bg-[#222226]'
-                    )}
-                  >
-                    {d.dayNumber}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
+// DatePickerPopover imported from shared ui component
 export function InvoiceDetailsSkeleton() {
   return (
     <div className="w-full pb-12 animate-pulse text-left font-sans">
@@ -529,6 +220,26 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
   const [isMarkingSent, setIsMarkingSent] = useState(false);
   const [isVoiding, setIsVoiding] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const mobileMoreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!mobileMoreOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (mobileMoreRef.current && !mobileMoreRef.current.contains(e.target as Node)) {
+        setMobileMoreOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileMoreOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileMoreOpen]);
 
   const handleReversePayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -822,73 +533,182 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
               )}
             </div>
 
-            {/* Mobile Action Group */}
-            <div className="sm:hidden w-full space-y-2 mt-1">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={handleDownloadPDF}
-                  disabled={isGeneratingPDF}
-                  className="h-10 w-full rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
-                >
-                  <Download className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
-                  <span>PDF</span>
-                </button>
-
-                {invoice.status !== 'void' && (
+            {/* Mobile Action Group (Option A: Single-Row with ⋯ Menu) */}
+            <div className="sm:hidden w-full mt-3">
+              {invoice.status === 'sent' && balanceDueMinor > 0n ? (
+                <div className="flex items-center gap-2 w-full relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowRecordPayment(true)}
+                    className="flex-1 h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    Record Payment
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadPDF}
+                    disabled={isGeneratingPDF}
+                    className="h-10 px-3.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 transition-colors cursor-pointer"
+                  >
+                    <Download className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
+                    <span>PDF</span>
+                  </button>
+                  <div className="relative" ref={mobileMoreRef}>
+                    <button
+                      type="button"
+                      onClick={() => setMobileMoreOpen((prev) => !prev)}
+                      className="h-10 w-10 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] inline-flex items-center justify-center text-gray-700 dark:text-zinc-300 shrink-0 transition-colors cursor-pointer"
+                      aria-label="More actions"
+                    >
+                      <MoreHorizontal className="h-4 w-4 text-gray-700 dark:text-zinc-300" strokeWidth={2} />
+                    </button>
+                    {mobileMoreOpen && (
+                      <div
+                        data-popover="true"
+                        className="absolute right-0 top-full mt-1.5 w-44 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] shadow-xl py-1.5 z-40"
+                      >
+                        <Link
+                          href={editHref}
+                          prefetch={false}
+                          onClick={() => setMobileMoreOpen(false)}
+                          className="flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors no-underline"
+                        >
+                          <Pencil className="h-4 w-4 text-gray-400" />
+                          <span>Edit Invoice</span>
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMobileMoreOpen(false);
+                            setShowVoidModal(true);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors text-left cursor-pointer"
+                        >
+                          <Ban className="h-4 w-4 text-gray-400" />
+                          <span>Void Invoice</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : invoice.status === 'sent' && balanceDueMinor <= 0n ? (
+                <div className="flex items-center gap-2 w-full relative">
+                  <button
+                    type="button"
+                    onClick={handleDownloadPDF}
+                    disabled={isGeneratingPDF}
+                    className="flex-1 h-10 px-3.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 disabled:opacity-50 transition-colors cursor-pointer"
+                  >
+                    <Download className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
+                    <span>Download PDF</span>
+                  </button>
                   <Link
                     href={editHref}
                     prefetch={false}
-                    className="h-10 w-full rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 no-underline"
+                    className="flex-1 h-10 px-3.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 no-underline transition-colors cursor-pointer"
+                  >
+                    <Pencil className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
+                    <span>Edit Invoice</span>
+                  </Link>
+                  <div className="relative" ref={mobileMoreRef}>
+                    <button
+                      type="button"
+                      onClick={() => setMobileMoreOpen((prev) => !prev)}
+                      className="h-10 w-10 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] inline-flex items-center justify-center text-gray-700 dark:text-zinc-300 shrink-0 transition-colors cursor-pointer"
+                      aria-label="More actions"
+                    >
+                      <MoreHorizontal className="h-4 w-4 text-gray-700 dark:text-zinc-300" strokeWidth={2} />
+                    </button>
+                    {mobileMoreOpen && (
+                      <div
+                        data-popover="true"
+                        className="absolute right-0 top-full mt-1.5 w-44 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] shadow-xl py-1.5 z-40"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMobileMoreOpen(false);
+                            setShowVoidModal(true);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors text-left cursor-pointer"
+                        >
+                          <Ban className="h-4 w-4 text-gray-400" />
+                          <span>Void Invoice</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : invoice.status === 'draft' ? (
+                <div className="flex items-center gap-2 w-full relative">
+                  <button
+                    type="button"
+                    onClick={handleOpenMarkSent}
+                    className="flex-1 h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Send className="h-4 w-4" strokeWidth={2} />
+                    <span>Mark as Sent</span>
+                  </button>
+                  <Link
+                    href={editHref}
+                    prefetch={false}
+                    className="h-10 px-3.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 no-underline transition-colors cursor-pointer"
                   >
                     <Pencil className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
                     <span>Edit</span>
                   </Link>
-                )}
-
-                {invoice.status === 'draft' && (
-                  <button
-                    type="button"
-                    onClick={() => setShowDeleteModal(true)}
-                    className="h-10 w-full rounded-xl border border-rose-200 dark:border-rose-500/20 bg-rose-50 text-[13px] font-medium text-rose-700 dark:text-rose-400 inline-flex items-center justify-center gap-1.5"
-                  >
-                    <Trash2 className="h-4 w-4" strokeWidth={2} />
-                    <span>Delete</span>
-                  </button>
-                )}
-
-                {invoice.status === 'sent' && (
-                  <button
-                    type="button"
-                    onClick={() => setShowVoidModal(true)}
-                    className="h-10 w-full rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5"
-                  >
-                    <Ban className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
-                    <span>Void</span>
-                  </button>
-                )}
-              </div>
-
-              {invoice.status === 'draft' && (
+                  <div className="relative" ref={mobileMoreRef}>
+                    <button
+                      type="button"
+                      onClick={() => setMobileMoreOpen((prev) => !prev)}
+                      className="h-10 w-10 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] inline-flex items-center justify-center text-gray-700 dark:text-zinc-300 shrink-0 transition-colors cursor-pointer"
+                      aria-label="More actions"
+                    >
+                      <MoreHorizontal className="h-4 w-4 text-gray-700 dark:text-zinc-300" strokeWidth={2} />
+                    </button>
+                    {mobileMoreOpen && (
+                      <div
+                        data-popover="true"
+                        className="absolute right-0 top-full mt-1.5 w-44 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] shadow-xl py-1.5 z-40"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMobileMoreOpen(false);
+                            handleDownloadPDF();
+                          }}
+                          disabled={isGeneratingPDF}
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors text-left cursor-pointer disabled:opacity-50"
+                        >
+                          <Download className="h-4 w-4 text-gray-400" />
+                          <span>Download PDF</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMobileMoreOpen(false);
+                            setShowDeleteModal(true);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors text-left cursor-pointer"
+                        >
+                          <Trash2 className="h-4 w-4 text-rose-500" />
+                          <span>Delete Draft</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : invoice.status === 'void' ? (
                 <button
                   type="button"
-                  onClick={handleOpenMarkSent}
-                  className="h-10 w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors"
+                  onClick={handleDownloadPDF}
+                  disabled={isGeneratingPDF}
+                  className="w-full h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 disabled:opacity-50 transition-colors cursor-pointer"
                 >
-                  <Send className="h-4 w-4" strokeWidth={2} />
-                  <span>Mark as Sent</span>
+                  <Download className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
+                  <span>Download PDF</span>
                 </button>
-              )}
-
-              {invoice.status === 'sent' && balanceDueMinor > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowRecordPayment(true)}
-                  className="h-10 w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <span>Record Payment</span>
-                </button>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
@@ -1168,9 +988,11 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
         <>
           {/* Mark as Sent Modal */}
           {showMarkSent && createPortal(
-            <div className="fixed inset-0 z-50 w-full h-full m-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-              <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 max-w-[480px] w-full space-y-4 my-auto overflow-hidden text-left shadow-none">
-                <div className="flex items-center justify-between">
+            <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+              <div className="w-full sm:max-w-[480px] max-h-[88dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+                {/* Mobile Drag Handle */}
+                <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto mt-2.5 mb-1 shrink-0" />
+                <div className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] flex items-center justify-between gap-3 shrink-0">
                   <div className="flex items-center gap-2">
                     <Send className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400" />
                     <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
@@ -1180,14 +1002,15 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                   <button
                     type="button"
                     onClick={() => setShowMarkSent(false)}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg transition-colors"
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg transition-colors cursor-pointer"
                     aria-label="Close"
                   >
                     <X className="h-5 w-5" strokeWidth={2} />
                   </button>
                 </div>
 
-                <form onSubmit={handleMarkSent} className="space-y-4">
+                <form onSubmit={handleMarkSent} className="flex flex-col flex-1 min-h-0 font-sans text-left">
+                  <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-4">
                   <p className="text-[13px] text-gray-500 dark:text-zinc-400">
                     Marking this invoice as sent confirms it has been delivered to your client. Confirm the issue date and due date below:
                   </p>
@@ -1197,34 +1020,37 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                       <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
                         Issue Date
                       </label>
-                      <InlineDatePicker
+                      <DatePickerPopover
                         value={sentIssueDate}
                         onChange={handleSentIssueDateChange}
+                        placement="top"
                       />
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
                         Due Date
                       </label>
-                      <InlineDatePicker
+                      <DatePickerPopover
                         value={sentDueDate}
                         onChange={(d) => setSentDueDate(d)}
+                        placement="top"
                       />
                     </div>
                   </div>
 
-                  <div className="pt-3 flex items-center justify-end gap-2.5 border-t border-gray-100 dark:border-[#27272a]">
+                  </div>
+                  <div className="shrink-0 px-5 py-3.5 sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center justify-end gap-2.5">
                     <button
                       type="button"
                       onClick={() => setShowMarkSent(false)}
-                      className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+                      className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isMarkingSent}
-                      className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50"
+                      className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer"
                     >
                       {isMarkingSent ? 'Marking...' : 'Mark as Sent'}
                     </button>
@@ -1237,8 +1063,9 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
 
           {/* Void Invoice Confirmation Modal */}
           {showVoidModal && createPortal(
-            <div className="fixed inset-0 z-50 w-full h-full m-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-              <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 max-w-[440px] w-full space-y-4 my-auto overflow-hidden text-left shadow-none">
+            <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+              <div className="w-full sm:max-w-[440px] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 space-y-4 my-auto overflow-hidden text-left shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+                <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto -mt-1 mb-1 shrink-0" />
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Ban className="h-4.5 w-4.5 text-gray-500" />
@@ -1289,8 +1116,9 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
 
           {/* Delete Draft Modal */}
           {showDeleteModal && createPortal(
-            <div className="fixed inset-0 z-50 w-full h-full m-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-              <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 max-w-[440px] w-full space-y-4 my-auto overflow-hidden text-left shadow-none">
+            <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+              <div className="w-full sm:max-w-[440px] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 space-y-4 my-auto overflow-hidden text-left shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+                <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto -mt-1 mb-1 shrink-0" />
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Trash2 className="h-4.5 w-4.5 text-rose-600 dark:text-rose-400" />
@@ -1336,8 +1164,9 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
 
           {/* Reverse Payment Modal */}
           {reversalTargetEvent && createPortal(
-            <div className="fixed inset-0 z-50 w-full h-full m-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-              <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 max-w-[440px] w-full space-y-4 my-auto overflow-hidden text-left shadow-none">
+            <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+              <div className="w-full sm:max-w-[440px] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 space-y-4 my-auto overflow-hidden text-left shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+                <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto -mt-1 mb-1 shrink-0" />
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="h-4.5 w-4.5 text-amber-500" />

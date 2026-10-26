@@ -5,9 +5,11 @@ import { createPortal } from 'react-dom';
 import { useInvoicesForClient, useInvoice } from '../lib/data/hooks';
 import { PaymentRepo } from '../lib/data/payment';
 import { formatMoney, parseMoneyInput, CURRENCIES } from '../lib/money';
-import { X, CreditCard, AlertTriangle, ChevronDown, Check, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, CreditCard, AlertTriangle, ChevronDown, Check } from 'lucide-react';
 import { useToast } from './Toast';
 import { cn } from '../lib/utils';
+import { DatePickerPopover } from './ui/DatePickerPopover';
+import { Money } from './ui/money';
 
 interface RecordPaymentModalProps {
   clientId: string;
@@ -68,317 +70,6 @@ export function resolvePaymentModalState({
   return 'ready';
 }
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
-
-const SHORT_MONTH_NAMES = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-];
-
-const YEARS = Array.from({ length: 16 }, (_, i) => 2020 + i);
-
-function formatDateDisplay(dateStr: string | null | undefined): string {
-  if (!dateStr) return '';
-  const clean = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
-  const parts = clean.split('-');
-  if (parts.length !== 3) return dateStr;
-  const year = parts[0];
-  const monthIdx = parseInt(parts[1], 10) - 1;
-  const day = parseInt(parts[2], 10);
-  if (monthIdx >= 0 && monthIdx < 12 && !isNaN(day)) {
-    return `${day} ${MONTH_NAMES[monthIdx]}, ${year}`;
-  }
-  return dateStr;
-}
-
-function ModalDatePicker({
-  value,
-  onChange,
-  id
-}: {
-  value: string;
-  onChange: (d: string) => void;
-  id?: string;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [pickerView, setPickerView] = useState<'calendar' | 'months' | 'years'>('calendar');
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const parsed = useMemo(() => {
-    if (value) {
-      const parts = value.split('-');
-      if (parts.length === 3) {
-        const y = parseInt(parts[0], 10);
-        const m = parseInt(parts[1], 10) - 1;
-        const d = parseInt(parts[2], 10);
-        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
-          return { year: y, month: m, day: d };
-        }
-      }
-    }
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth(), day: now.getDate() };
-  }, [value]);
-
-  const [viewYear, setViewYear] = useState(parsed.year);
-  const [viewMonth, setViewMonth] = useState(parsed.month);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setViewYear(parsed.year);
-      setViewMonth(parsed.month);
-      setPickerView('calendar');
-    }
-  }, [parsed, isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setIsOpen(false);
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen]);
-
-  const handlePrevMonth = () => {
-    if (pickerView === 'years') {
-      setViewYear((y) => Math.max(2020, y - 1));
-      return;
-    }
-    if (viewMonth === 0) {
-      setViewMonth(11);
-      setViewYear((y) => y - 1);
-    } else {
-      setViewMonth((m) => m - 1);
-    }
-  };
-
-  const handleNextMonth = () => {
-    if (pickerView === 'years') {
-      setViewYear((y) => Math.min(2035, y + 1));
-      return;
-    }
-    if (viewMonth === 11) {
-      setViewMonth(0);
-      setViewYear((y) => y + 1);
-    } else {
-      setViewMonth((m) => m + 1);
-    }
-  };
-
-  const calendarDays = useMemo(() => {
-    const firstDayIndex = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
-    const daysInCurrent = new Date(viewYear, viewMonth + 1, 0).getDate();
-    const daysInPrev = new Date(viewYear, viewMonth, 0).getDate();
-    const days: Array<{
-      dateStr: string;
-      dayNumber: number;
-      isCurrentMonth: boolean;
-      isSelected: boolean;
-      isToday: boolean;
-    }> = [];
-
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-    for (let i = firstDayIndex - 1; i >= 0; i--) {
-      const d = daysInPrev - i;
-      const prevM = viewMonth === 0 ? 12 : viewMonth;
-      const prevY = viewMonth === 0 ? viewYear - 1 : viewYear;
-      const dateStr = `${prevY}-${String(prevM).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      days.push({
-        dateStr,
-        dayNumber: d,
-        isCurrentMonth: false,
-        isSelected: dateStr === value,
-        isToday: dateStr === todayStr,
-      });
-    }
-
-    for (let d = 1; d <= daysInCurrent; d++) {
-      const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      days.push({
-        dateStr,
-        dayNumber: d,
-        isCurrentMonth: true,
-        isSelected: dateStr === value,
-        isToday: dateStr === todayStr,
-      });
-    }
-
-    const totalCells = days.length <= 35 ? 35 : 42;
-    const remaining = totalCells - days.length;
-    for (let d = 1; d <= remaining; d++) {
-      const nextM = viewMonth === 11 ? 1 : viewMonth + 2;
-      const nextY = viewMonth === 11 ? viewYear + 1 : viewYear;
-      const dateStr = `${nextY}-${String(nextM).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      days.push({
-        dateStr,
-        dayNumber: d,
-        isCurrentMonth: false,
-        isSelected: dateStr === value,
-        isToday: dateStr === todayStr,
-      });
-    }
-
-    return days;
-  }, [viewYear, viewMonth, value]);
-
-  return (
-    <div className="relative" ref={containerRef}>
-      <button
-        id={id}
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className={cn(
-          'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] font-medium text-gray-900 dark:text-white flex items-center justify-between text-left transition-colors',
-          'focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20',
-          isOpen
-            ? 'border-gray-300 dark:border-zinc-700'
-            : 'border-gray-200/80 dark:border-[#27272a]'
-        )}
-      >
-        <span className={value ? 'text-gray-900 dark:text-white' : 'text-gray-400'}>
-          {formatDateDisplay(value) || 'Select date'}
-        </span>
-        <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
-      </button>
-
-      {isOpen && (
-        <div
-          data-popover="true"
-          className="absolute z-50 left-0 sm:left-auto sm:right-0 mt-1.5 w-[280px] rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-3 shadow-xl select-none"
-        >
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100 dark:border-[#27272a]">
-            <button
-              type="button"
-              onClick={handlePrevMonth}
-              className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
-              aria-label="Previous"
-            >
-              <ChevronLeft className="h-4 w-4" strokeWidth={2} />
-            </button>
-            <div className="flex items-center gap-1 text-[13px] font-semibold text-gray-900 dark:text-white">
-              <button
-                type="button"
-                onClick={() => setPickerView(pickerView === 'months' ? 'calendar' : 'months')}
-                className="px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors"
-              >
-                {MONTH_NAMES[viewMonth]}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPickerView(pickerView === 'years' ? 'calendar' : 'years')}
-                className="px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors"
-              >
-                {viewYear}
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={handleNextMonth}
-              className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
-              aria-label="Next"
-            >
-              <ChevronRight className="h-4 w-4" strokeWidth={2} />
-            </button>
-          </div>
-
-          {pickerView === 'months' && (
-            <div className="grid grid-cols-3 gap-1.5 py-1">
-              {SHORT_MONTH_NAMES.map((name, idx) => (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => {
-                    setViewMonth(idx);
-                    setPickerView('calendar');
-                  }}
-                  className={cn(
-                    'py-2 rounded-lg text-[12px] font-medium transition-colors',
-                    viewMonth === idx
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-[#222226]'
-                  )}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {pickerView === 'years' && (
-            <div className="grid grid-cols-4 gap-1.5 py-1 max-h-[180px] overflow-y-auto">
-              {YEARS.map((y) => (
-                <button
-                  key={y}
-                  type="button"
-                  onClick={() => {
-                    setViewYear(y);
-                    setPickerView('calendar');
-                  }}
-                  className={cn(
-                    'py-2 rounded-lg text-[12px] font-medium transition-colors',
-                    viewYear === y
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-[#222226]'
-                  )}
-                >
-                  {y}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {pickerView === 'calendar' && (
-            <div>
-              <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-gray-400 dark:text-zinc-500 mb-1">
-                <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
-              </div>
-              <div className="grid grid-cols-7 gap-1">
-                {calendarDays.map((d) => (
-                  <button
-                    key={d.dateStr}
-                    type="button"
-                    onClick={() => {
-                      onChange(d.dateStr);
-                      setIsOpen(false);
-                    }}
-                    className={cn(
-                      'h-8 rounded-lg text-[12px] font-medium flex items-center justify-center transition-colors',
-                      d.isSelected
-                        ? 'bg-blue-600 text-white font-semibold'
-                        : d.isToday
-                        ? 'border border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
-                        : d.isCurrentMonth
-                        ? 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-[#222226]'
-                        : 'text-gray-300 dark:text-zinc-600 hover:bg-gray-50 dark:hover:bg-[#222226]'
-                    )}
-                  >
-                    {d.dayNumber}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 const PAYMENT_METHODS = [
   { value: 'cash', label: 'Cash' },
   { value: 'bank_transfer', label: 'Bank Transfer' },
@@ -390,6 +81,7 @@ const PAYMENT_METHODS = [
 export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: RecordPaymentModalProps) {
   const { showToast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
+  const touchStartY = useRef<number | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -408,12 +100,38 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [overpaymentWarning, setOverpaymentWarning] = useState<{ amountMinor: number; formattedDiff: string } | null>(null);
 
-  // Popover open states
+  // Dropdown States
   const [isInvoiceDropdownOpen, setIsInvoiceDropdownOpen] = useState(false);
   const [isMethodDropdownOpen, setIsMethodDropdownOpen] = useState(false);
+
   const invoiceDropdownRef = useRef<HTMLDivElement>(null);
   const methodDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Filter valid invoices for payment (sent, overdue, partially_paid, paid - not void or draft)
+  const activeInvoices = useMemo(() => {
+    return (clientInvoices || []).filter(
+      (inv) => inv.status !== 'void' && inv.status !== 'draft'
+    );
+  }, [clientInvoices]);
+
+  // Synchronous derivation of effective invoice ID to prevent Frame-1 pop-in
+  const effectiveInvoiceId = deriveEffectiveInvoiceId({
+    invoiceId,
+    selectedInvoiceId,
+    activeInvoices
+  });
+
+  // Target Invoice
+  const activeInvoice = useMemo(() => {
+    if (invoiceId && singleInvoice) {
+      return singleInvoice;
+    }
+    return activeInvoices.find((inv) => inv.id === effectiveInvoiceId) || null;
+  }, [invoiceId, singleInvoice, activeInvoices, effectiveInvoiceId]);
+
+  const currency = activeInvoice?.currency || 'USD';
+
+  // Handle outside click for dropdowns
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (invoiceDropdownRef.current && !invoiceDropdownRef.current.contains(event.target as Node)) {
@@ -427,47 +145,22 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filter invoices to active ones (non-draft, non-void)
-  const activeInvoices = useMemo(() => {
-    if (!clientInvoices) return [];
-    return clientInvoices.filter(
-      (inv) => inv.displayStatus !== 'draft' && inv.displayStatus !== 'void'
-    );
-  }, [clientInvoices]);
-
-  // Synchronously derive effective target invoice ID
-  const effectiveInvoiceId = useMemo(() => {
-    return deriveEffectiveInvoiceId({ invoiceId, selectedInvoiceId, activeInvoices });
-  }, [invoiceId, selectedInvoiceId, activeInvoices]);
-
-  // Resolve currently active target invoice (from hook or dropdown)
-  const activeInvoice = useMemo(() => {
-    if (invoiceId) {
-      return singleInvoice || null;
-    }
-    return activeInvoices.find((inv) => inv.id === effectiveInvoiceId) || null;
-  }, [invoiceId, singleInvoice, activeInvoices, effectiveInvoiceId]);
-
-  const currency = useMemo(() => {
-    return activeInvoice?.currency?.toUpperCase() || 'USD';
-  }, [activeInvoice]);
-
-  // Handler for setting full outstanding balance using canonical currency exponent
   const handlePayFullBalance = () => {
     if (!activeInvoice) return;
-    setAmount(formatFullBalance(activeInvoice.balanceDueMinor, currency));
+    const balanceDue = activeInvoice.balanceDueMinor;
+    setAmount(formatFullBalance(balanceDue, currency));
   };
 
   const executeRecordPayment = async (amountMinor: number) => {
     if (!activeInvoice) return;
     await PaymentRepo.record({
       invoice_id: activeInvoice.id,
-      client_id: clientId,
+      client_id: activeInvoice.client_id,
       amount_minor: amountMinor,
       currency,
       method: method || 'cash',
-      note: note.trim() || null,
-      occurred_at: occurredAt || undefined
+      note: note ? note.trim() : null,
+      occurred_at: occurredAt || undefined,
     });
     if (onSuccess) {
       onSuccess();
@@ -478,9 +171,9 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
   };
 
   const handleConfirmOverpayment = async () => {
-    if (!overpaymentWarning) return;
+    if (!overpaymentWarning || !activeInvoice) return;
+    setIsSubmitting(true);
     try {
-      setIsSubmitting(true);
       await executeRecordPayment(overpaymentWarning.amountMinor);
       setOverpaymentWarning(null);
     } catch (err: unknown) {
@@ -491,7 +184,6 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
     }
   };
 
-  // Submit payment event handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeInvoice) return;
@@ -505,17 +197,14 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
     try {
       setIsSubmitting(true);
       const parsedMoney = parseMoneyInput(amount, currency);
-      
-      // Warn on overpayment
-      if (parsedMoney.amountMinor > activeInvoice.balanceDueMinor) {
-        const formattedDiff = formatMoney({
-          amountMinor: parsedMoney.amountMinor - activeInvoice.balanceDueMinor,
-          currency
-        });
 
+      // Check for overpayment warning
+      if (parsedMoney.amountMinor > activeInvoice.balanceDueMinor && !overpaymentWarning) {
+        const diffMinor = parsedMoney.amountMinor - activeInvoice.balanceDueMinor;
+        const formattedDiff = formatMoney({ amountMinor: diffMinor, currency });
         setOverpaymentWarning({
           amountMinor: parsedMoney.amountMinor,
-          formattedDiff
+          formattedDiff,
         });
         setIsSubmitting(false);
         return;
@@ -540,11 +229,25 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
   if (!isMounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 w-full h-full m-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-      <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 max-w-[480px] w-full space-y-4 my-auto overflow-hidden text-left shadow-none">
+    <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="w-full sm:max-w-[480px] max-h-[88dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
         
-        {/* Header */}
-        <div className="flex items-center justify-between">
+        {/* Mobile Drag Handle */}
+        <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto mt-2.5 mb-1 shrink-0" />
+
+        {/* Pinned Header with Touch Swipe-Down Dismiss */}
+        <div
+          onTouchStart={(e) => {
+            touchStartY.current = e.touches[0].clientY;
+          }}
+          onTouchEnd={(e) => {
+            if (touchStartY.current !== null) {
+              const delta = e.changedTouches[0].clientY - touchStartY.current;
+              if (delta > 60) onClose();
+            }
+          }}
+          className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] flex items-center justify-between gap-3 shrink-0"
+        >
           <div className="flex items-center gap-2">
             <CreditCard className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400 shrink-0" />
             <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
@@ -554,30 +257,25 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg transition-colors"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg transition-colors cursor-pointer"
             aria-label="Close"
           >
             <X className="h-5 w-5" strokeWidth={2} />
           </button>
         </div>
 
-        {/* Body Content */}
+        {/* Modal Content */}
         {modalState === 'loading' ? (
-          <div className="space-y-4 font-sans text-left animate-pulse" aria-busy="true" aria-label="Loading invoice details">
+          <div className="p-5 sm:p-6 space-y-4 font-sans text-left animate-pulse" aria-busy="true" aria-label="Loading invoice details">
             <div className="space-y-1.5">
               <div className="h-3.5 w-24 rounded bg-gray-200 dark:bg-[#27272a]" />
               <div className="h-10 w-full rounded-xl bg-gray-100 dark:bg-[#121215]" />
             </div>
 
-            <div className="rounded-xl border border-gray-100 dark:border-[#27272a] bg-gray-50 dark:bg-[#121215] p-3.5 grid grid-cols-3 gap-2">
-              <div className="h-8 bg-gray-200 dark:bg-[#27272a] rounded" />
-              <div className="h-8 bg-gray-200 dark:bg-[#27272a] rounded" />
-              <div className="h-8 bg-gray-200 dark:bg-[#27272a] rounded" />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div className="h-10 rounded-xl bg-gray-100 dark:bg-[#121215]" />
-              <div className="h-10 rounded-xl bg-gray-100 dark:bg-[#121215]" />
+            <div className="rounded-xl border border-gray-100 dark:border-[#27272a] bg-gray-50 dark:bg-[#121215] p-3.5 space-y-2">
+              <div className="h-5 bg-gray-200 dark:bg-[#27272a] rounded" />
+              <div className="h-5 bg-gray-200 dark:bg-[#27272a] rounded" />
+              <div className="h-6 bg-gray-200 dark:bg-[#27272a] rounded" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -591,7 +289,7 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
             </div>
           </div>
         ) : modalState === 'invoice_not_found' ? (
-          <div className="space-y-4 text-center py-4">
+          <div className="p-6 space-y-4 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500">
               <AlertTriangle className="h-6 w-6" />
             </div>
@@ -612,7 +310,7 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
             </div>
           </div>
         ) : modalState === 'no_active_invoices' ? (
-          <div className="space-y-4 text-center py-4">
+          <div className="p-6 space-y-4 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 dark:bg-[#222226] text-gray-400 dark:text-zinc-500">
               <CreditCard className="h-6 w-6" />
             </div>
@@ -633,216 +331,218 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
             </div>
           </div>
         ) : activeInvoice ? (
-          <form onSubmit={handleSubmit} className="space-y-4 font-sans text-left">
-            {/* Invoice Selector (if client-triggered) */}
-            {!invoiceId && (
-              <div className="space-y-1.5" ref={invoiceDropdownRef}>
-                <label htmlFor="invoiceSelect" className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
-                  Select Invoice *
-                </label>
-                <div className="relative">
-                  <button
-                    id="invoiceSelect"
-                    type="button"
-                    onClick={() => setIsInvoiceDropdownOpen((prev) => !prev)}
-                    className={cn(
-                      'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] font-medium text-gray-900 dark:text-white flex items-center justify-between text-left transition-colors',
-                      'focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20',
-                      isInvoiceDropdownOpen
-                        ? 'border-gray-300 dark:border-zinc-700'
-                        : 'border-gray-200/80 dark:border-[#27272a]'
-                    )}
-                  >
-                    <span className="truncate">
-                      {activeInvoice
-                        ? `${activeInvoice.invoice_number} (${formatMoney({ amountMinor: activeInvoice.total_minor, currency: activeInvoice.currency })})`
-                        : 'Select Invoice'}
-                    </span>
-                    <ChevronDown className="h-4 w-4 text-gray-400 shrink-0 ml-2" />
-                  </button>
-
-                  {isInvoiceDropdownOpen && (
-                    <div data-popover="true" className="absolute z-30 left-0 right-0 mt-1 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-none max-h-[180px] overflow-y-auto space-y-0.5">
-                      {activeInvoices.map((inv) => {
-                        const isSelected = inv.id === effectiveInvoiceId;
-                        return (
-                          <button
-                            key={inv.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedInvoiceId(inv.id);
-                              setIsInvoiceDropdownOpen(false);
-                            }}
-                            className={cn(
-                              'w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center justify-between transition-colors',
-                              isSelected
-                                ? 'bg-gray-100 dark:bg-[#222226] text-gray-900 dark:text-white font-medium'
-                                : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226]'
-                            )}
-                          >
-                            <span className="truncate">
-                              {inv.invoice_number} ({formatMoney({ amountMinor: inv.total_minor, currency: inv.currency })})
-                            </span>
-                            {isSelected && (
-                              <Check className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 ml-2" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Context Panel */}
-            <div className="rounded-xl border border-gray-200/80 dark:border-[#27272a] bg-[#F9FAFB] dark:bg-[#121215] p-3.5 grid grid-cols-3 gap-2 text-center text-xs">
-              <div>
-                <span className="block text-gray-500 dark:text-zinc-400 uppercase font-semibold text-[10px]">Invoice Total</span>
-                <span className="block text-gray-900 dark:text-white font-semibold mt-0.5 tabular-nums">
-                  {formatMoney({ amountMinor: activeInvoice.total_minor, currency })}
-                </span>
-              </div>
-              <div>
-                <span className="block text-gray-500 dark:text-zinc-400 uppercase font-semibold text-[10px]">Paid to Date</span>
-                <span className="block text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5 tabular-nums">
-                  {formatMoney({ amountMinor: activeInvoice.amountPaidMinor, currency })}
-                </span>
-              </div>
-              <div>
-                <span className="block text-gray-500 dark:text-zinc-400 uppercase font-semibold text-[10px]">Balance Due</span>
-                <span className="block text-gray-900 dark:text-white font-semibold mt-0.5 tabular-nums">
-                  {formatMoney({ amountMinor: activeInvoice.balanceDueMinor, currency })}
-                </span>
-              </div>
-            </div>
-
-            {/* Payment Fields: Single column on mobile, 2 columns on sm+ */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {/* Amount Field */}
-              <div className="space-y-1.5">
-                <label htmlFor="pmtAmount" className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
-                  Payment Amount *
-                </label>
-                <div className="relative">
-                  <input
-                    id="pmtAmount"
-                    type="text"
-                    required
-                    placeholder="0.00"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="w-full h-10 pl-3.5 pr-20 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-900 dark:text-white placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20 transition-colors"
-                  />
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-2 gap-1.5">
-                    <span className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400 uppercase">{currency}</span>
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 font-sans text-left">
+            {/* Scrollable Form Body */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-4">
+              {/* Invoice Selector (if client-triggered) */}
+              {!invoiceId && (
+                <div className="space-y-1.5" ref={invoiceDropdownRef}>
+                  <label htmlFor="invoiceSelect" className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
+                    Select Invoice *
+                  </label>
+                  <div className="relative">
                     <button
+                      id="invoiceSelect"
                       type="button"
-                      onClick={handlePayFullBalance}
-                      className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 px-2 py-0.5 rounded-lg text-[11px] font-medium transition-colors"
+                      onClick={() => setIsInvoiceDropdownOpen((prev) => !prev)}
+                      className={cn(
+                        'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] font-medium text-gray-900 dark:text-white flex items-center justify-between gap-2 overflow-hidden text-left transition-colors',
+                        'focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20',
+                        isInvoiceDropdownOpen
+                          ? 'border-gray-300 dark:border-zinc-700'
+                          : 'border-gray-200/80 dark:border-[#27272a]'
+                      )}
                     >
-                      Full
+                      <span className="truncate min-w-0 flex-1 text-left">
+                        {activeInvoice
+                          ? `${activeInvoice.invoice_number} (${formatMoney({ amountMinor: activeInvoice.total_minor, currency: activeInvoice.currency })})`
+                          : 'Select Invoice'}
+                      </span>
+                      <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
                     </button>
+
+                    {isInvoiceDropdownOpen && (
+                      <div data-popover="true" className="absolute z-30 left-0 right-0 mt-1 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-xl max-h-[180px] overflow-y-auto space-y-0.5">
+                        {activeInvoices.map((inv) => {
+                          const isSelected = inv.id === effectiveInvoiceId;
+                          return (
+                            <button
+                              key={inv.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedInvoiceId(inv.id);
+                                setIsInvoiceDropdownOpen(false);
+                              }}
+                              className={cn(
+                                'w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center justify-between gap-2 transition-colors',
+                                isSelected
+                                  ? 'bg-gray-100 dark:bg-[#222226] text-gray-900 dark:text-white font-medium'
+                                  : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226]'
+                              )}
+                            >
+                              <span className="truncate min-w-0 flex-1">
+                                {inv.invoice_number} ({formatMoney({ amountMinor: inv.total_minor, currency: inv.currency })})
+                              </span>
+                              {isSelected && (
+                                <Check className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Date Field with Custom DatePicker */}
-              <div className="space-y-1.5">
-                <label htmlFor="pmtDate" className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
-                  Payment Date
-                </label>
-                <ModalDatePicker
-                  id="pmtDate"
-                  value={occurredAt}
-                  onChange={(d) => setOccurredAt(d)}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {/* Method Field */}
-              <div className="space-y-1.5" ref={methodDropdownRef}>
-                <label htmlFor="pmtMethod" className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
-                  Payment Method *
-                </label>
-                <div className="relative">
-                  <button
-                    id="pmtMethod"
-                    type="button"
-                    onClick={() => setIsMethodDropdownOpen((prev) => !prev)}
-                    className={cn(
-                      'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] font-medium text-gray-900 dark:text-white flex items-center justify-between text-left transition-colors',
-                      'focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20',
-                      isMethodDropdownOpen
-                        ? 'border-gray-300 dark:border-zinc-700'
-                        : 'border-gray-200/80 dark:border-[#27272a]'
-                    )}
-                  >
-                    <span>{PAYMENT_METHODS.find((m) => m.value === method)?.label || 'Cash'}</span>
-                    <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
-                  </button>
-
-                  {isMethodDropdownOpen && (
-                    <div data-popover="true" className="absolute z-30 left-0 right-0 mt-1 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-none max-h-[180px] overflow-y-auto space-y-0.5">
-                      {PAYMENT_METHODS.map((m) => {
-                        const isSelected = m.value === method;
-                        return (
-                          <button
-                            key={m.value}
-                            type="button"
-                            onClick={() => {
-                              setMethod(m.value);
-                              setIsMethodDropdownOpen(false);
-                            }}
-                            className={cn(
-                              'w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center justify-between transition-colors',
-                              isSelected
-                                ? 'bg-gray-100 dark:bg-[#222226] text-gray-900 dark:text-white font-medium'
-                                : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226]'
-                            )}
-                          >
-                            <span>{m.label}</span>
-                            {isSelected && (
-                              <Check className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+              {/* 3-Row Horizontal Financial Summary */}
+              <div className="rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] p-3.5 space-y-2 text-left">
+                <div className="flex items-center justify-between text-[12px]">
+                  <span className="text-gray-500 dark:text-zinc-400">Invoice Total</span>
+                  <Money amountMinor={activeInvoice.total_minor} className="font-semibold text-gray-900 dark:text-white tabular-nums" currency={currency} />
+                </div>
+                <div className="flex items-center justify-between text-[12px]">
+                  <span className="text-gray-500 dark:text-zinc-400">Paid to Date</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                    -<Money amountMinor={activeInvoice.amountPaidMinor} currency={currency} />
+                  </span>
+                </div>
+                <div className="border-t border-gray-200/80 dark:border-[#27272a] pt-2 flex items-center justify-between text-[13px]">
+                  <span className="font-semibold text-gray-900 dark:text-white">Balance Due</span>
+                  <Money amountMinor={activeInvoice.balanceDueMinor} className="font-bold text-gray-900 dark:text-white tabular-nums" currency={currency} />
                 </div>
               </div>
 
-              {/* Note Field */}
-              <div className="space-y-1.5">
-                <label htmlFor="pmtNote" className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
-                  Reference / Note (Optional)
-                </label>
-                <input
-                  id="pmtNote"
-                  type="text"
-                  placeholder="e.g. Check #450, Bank ref..."
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  className="w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-900 dark:text-white placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20 transition-colors"
-                />
+              {/* Payment Fields: Single column on mobile, 2 columns on sm+ */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Amount Field */}
+                <div className="space-y-1.5">
+                  <label htmlFor="pmtAmount" className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
+                    Payment Amount *
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="pmtAmount"
+                      type="text"
+                      required
+                      placeholder="0.00"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="w-full h-10 pl-3.5 pr-20 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-900 dark:text-white placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20 transition-colors"
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-2 gap-1.5">
+                      <span className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400 uppercase">{currency}</span>
+                      <button
+                        type="button"
+                        onClick={handlePayFullBalance}
+                        className="bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 px-2 py-0.5 rounded-lg text-[11px] font-medium transition-colors cursor-pointer"
+                      >
+                        Full
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Date Field with Shared DatePickerPopover */}
+                <div className="space-y-1.5">
+                  <label htmlFor="pmtDate" className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
+                    Payment Date
+                  </label>
+                  <DatePickerPopover
+                    id="pmtDate"
+                    value={occurredAt}
+                    onChange={(d) => setOccurredAt(d)}
+                    placement="top"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Method Field (Unclipped placement) */}
+                <div className="space-y-1.5" ref={methodDropdownRef}>
+                  <label htmlFor="pmtMethod" className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
+                    Payment Method *
+                  </label>
+                  <div className="relative">
+                    <button
+                      id="pmtMethod"
+                      type="button"
+                      onClick={() => setIsMethodDropdownOpen((prev) => !prev)}
+                      className={cn(
+                        'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] font-medium text-gray-900 dark:text-white flex items-center justify-between gap-2 overflow-hidden text-left transition-colors',
+                        'focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20',
+                        isMethodDropdownOpen
+                          ? 'border-gray-300 dark:border-zinc-700'
+                          : 'border-gray-200/80 dark:border-[#27272a]'
+                      )}
+                    >
+                      <span className="truncate min-w-0 flex-1 text-left">
+                        {PAYMENT_METHODS.find((m) => m.value === method)?.label || 'Cash'}
+                      </span>
+                      <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
+                    </button>
+
+                    {isMethodDropdownOpen && (
+                      <div data-popover="true" className="absolute z-30 left-0 right-0 bottom-full mb-1 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-xl max-h-[180px] overflow-y-auto space-y-0.5">
+                        {PAYMENT_METHODS.map((m) => {
+                          const isSelected = m.value === method;
+                          return (
+                            <button
+                              key={m.value}
+                              type="button"
+                              onClick={() => {
+                                setMethod(m.value);
+                                setIsMethodDropdownOpen(false);
+                              }}
+                              className={cn(
+                                'w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center justify-between gap-2 transition-colors',
+                                isSelected
+                                  ? 'bg-gray-100 dark:bg-[#222226] text-gray-900 dark:text-white font-medium'
+                                  : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226]'
+                              )}
+                            >
+                              <span className="truncate min-w-0 flex-1">{m.label}</span>
+                              {isSelected && (
+                                <Check className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Note Field */}
+                <div className="space-y-1.5">
+                  <label htmlFor="pmtNote" className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
+                    Reference / Note (Optional)
+                  </label>
+                  <input
+                    id="pmtNote"
+                    type="text"
+                    placeholder="e.g. Check #450, Bank ref..."
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    className="w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-900 dark:text-white placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20 transition-colors"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Footer Buttons */}
-            <div className="pt-3 flex items-center justify-end gap-2.5 border-t border-gray-100 dark:border-[#27272a]">
+            {/* Pinned Footer Buttons */}
+            <div className="shrink-0 px-5 py-3.5 sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={onClose}
-                className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+                className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50"
+                className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? 'Recording...' : 'Record Payment'}
               </button>
@@ -853,8 +553,8 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
 
       {/* Overpayment Warning Dialog Modal */}
       {overpaymentWarning && createPortal(
-        <div className="fixed inset-0 z-[60] w-full h-full m-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-          <div className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 space-y-4 my-auto overflow-hidden text-left shadow-none">
+        <div className="fixed inset-0 z-[110] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 space-y-4 my-auto overflow-hidden text-left shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-4.5 w-4.5 text-amber-500 shrink-0" />
@@ -865,7 +565,7 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
               <button
                 type="button"
                 onClick={() => setOverpaymentWarning(null)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg transition-colors"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg transition-colors cursor-pointer"
                 aria-label="Close"
               >
                 <X className="h-5 w-5" strokeWidth={2} />
@@ -893,7 +593,7 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
                 <button
                   type="button"
                   onClick={() => setOverpaymentWarning(null)}
-                  className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+                  className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -901,7 +601,7 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
                   type="button"
                   onClick={handleConfirmOverpayment}
                   disabled={isSubmitting}
-                  className="h-10 px-5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50"
+                  className="h-10 px-5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmitting ? 'Recording...' : 'Confirm Overpayment'}
                 </button>

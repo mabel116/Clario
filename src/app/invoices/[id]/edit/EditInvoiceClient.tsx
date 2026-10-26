@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../../../components/Toast';
 import { cn } from '../../../../lib/utils';
+import { DatePickerPopover } from '../../../../components/ui/DatePickerPopover';
 
 interface CurrencyItem {
   code: string;
@@ -128,293 +129,7 @@ function inferTermsFromDates(issueDateStr: string, dueDateStr: string): TermsTyp
   return 'custom';
 }
 
-function DatePickerPopover({
-  value,
-  onChange,
-  disabled
-}: {
-  value: string;
-  onChange: (dateStr: string) => void;
-  disabled?: boolean;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [pickerView, setPickerView] = useState<'calendar' | 'months' | 'years'>('calendar');
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const parsed = useMemo(() => {
-    if (value) {
-      const parts = value.split('-');
-      if (parts.length === 3) {
-        const y = parseInt(parts[0], 10);
-        const m = parseInt(parts[1], 10) - 1;
-        const d = parseInt(parts[2], 10);
-        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
-          return { year: y, month: m, day: d };
-        }
-      }
-    }
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth(), day: now.getDate() };
-  }, [value]);
-
-  const [viewYear, setViewYear] = useState(parsed.year);
-  const [viewMonth, setViewMonth] = useState(parsed.month);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setViewYear(parsed.year);
-      setViewMonth(parsed.month);
-      setPickerView('calendar');
-    }
-  }, [parsed, isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setIsOpen(false);
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen]);
-
-  const handlePrevMonth = () => {
-    if (pickerView === 'years') {
-      setViewYear((y) => Math.max(2020, y - 1));
-      return;
-    }
-    if (viewMonth === 0) {
-      setViewMonth(11);
-      setViewYear((y) => y - 1);
-    } else {
-      setViewMonth((m) => m - 1);
-    }
-  };
-
-  const handleNextMonth = () => {
-    if (pickerView === 'years') {
-      setViewYear((y) => Math.min(2035, y + 1));
-      return;
-    }
-    if (viewMonth === 11) {
-      setViewMonth(0);
-      setViewYear((y) => y + 1);
-    } else {
-      setViewMonth((m) => m + 1);
-    }
-  };
-
-  const calendarDays = useMemo(() => {
-    const firstDayIndex = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
-    const daysInCurrent = new Date(viewYear, viewMonth + 1, 0).getDate();
-    const daysInPrev = new Date(viewYear, viewMonth, 0).getDate();
-    const days: Array<{
-      dateStr: string;
-      dayNumber: number;
-      isCurrentMonth: boolean;
-      isSelected: boolean;
-      isToday: boolean;
-    }> = [];
-
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-    for (let i = firstDayIndex - 1; i >= 0; i--) {
-      const d = daysInPrev - i;
-      const prevM = viewMonth === 0 ? 12 : viewMonth;
-      const prevY = viewMonth === 0 ? viewYear - 1 : viewYear;
-      const dateStr = `${prevY}-${String(prevM).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      days.push({
-        dateStr,
-        dayNumber: d,
-        isCurrentMonth: false,
-        isSelected: dateStr === value,
-        isToday: dateStr === todayStr,
-      });
-    }
-
-    for (let d = 1; d <= daysInCurrent; d++) {
-      const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      days.push({
-        dateStr,
-        dayNumber: d,
-        isCurrentMonth: true,
-        isSelected: dateStr === value,
-        isToday: dateStr === todayStr,
-      });
-    }
-
-    const totalCells = days.length <= 35 ? 35 : 42;
-    const remaining = totalCells - days.length;
-    for (let d = 1; d <= remaining; d++) {
-      const nextM = viewMonth === 11 ? 1 : viewMonth + 2;
-      const nextY = viewMonth === 11 ? viewYear + 1 : viewYear;
-      const dateStr = `${nextY}-${String(nextM).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      days.push({
-        dateStr,
-        dayNumber: d,
-        isCurrentMonth: false,
-        isSelected: dateStr === value,
-        isToday: dateStr === todayStr,
-      });
-    }
-
-    return days;
-  }, [viewYear, viewMonth, value]);
-
-  return (
-    <div className="relative" ref={containerRef}>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => !disabled && setIsOpen((prev) => !prev)}
-        className={cn(
-          'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] font-medium text-gray-900 dark:text-white flex items-center justify-between text-left transition-colors',
-          disabled
-            ? 'opacity-60 cursor-not-allowed border-gray-200/80 dark:border-[#27272a]'
-            : 'focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20',
-          isOpen
-            ? 'border-gray-300 dark:border-zinc-700'
-            : 'border-gray-200/80 dark:border-[#27272a]'
-        )}
-      >
-        <span className={value ? 'text-gray-900 dark:text-white' : 'text-gray-400'}>
-          {formatDateDisplay(value) || 'Select date'}
-        </span>
-        <Calendar className="h-4 w-4 text-gray-400 shrink-0" />
-      </button>
-
-      {isOpen && !disabled && (
-        <div
-          data-popover="true"
-          className="absolute z-50 left-0 sm:left-auto sm:right-0 mt-1.5 w-[280px] rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-3 shadow-xl select-none"
-        >
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100 dark:border-[#27272a]">
-            <button
-              type="button"
-              onClick={handlePrevMonth}
-              className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
-              aria-label="Previous"
-            >
-              <ChevronLeft className="h-4 w-4" strokeWidth={2} />
-            </button>
-            <div className="flex items-center gap-1 text-[13px] font-semibold text-gray-900 dark:text-white">
-              <button
-                type="button"
-                onClick={() => setPickerView(pickerView === 'months' ? 'calendar' : 'months')}
-                className="px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors"
-              >
-                {MONTH_NAMES[viewMonth]}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPickerView(pickerView === 'years' ? 'calendar' : 'years')}
-                className="px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors"
-              >
-                {viewYear}
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={handleNextMonth}
-              className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 transition-colors"
-              aria-label="Next"
-            >
-              <ChevronRight className="h-4 w-4" strokeWidth={2} />
-            </button>
-          </div>
-
-          {pickerView === 'months' && (
-            <div className="grid grid-cols-3 gap-1.5 py-1">
-              {SHORT_MONTH_NAMES.map((name, idx) => (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => {
-                    setViewMonth(idx);
-                    setPickerView('calendar');
-                  }}
-                  className={cn(
-                    'py-2 rounded-lg text-[12px] font-medium transition-colors',
-                    viewMonth === idx
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-[#222226]'
-                  )}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {pickerView === 'years' && (
-            <div className="grid grid-cols-4 gap-1.5 py-1 max-h-[180px] overflow-y-auto">
-              {YEARS.map((y) => (
-                <button
-                  key={y}
-                  type="button"
-                  onClick={() => {
-                    setViewYear(y);
-                    setPickerView('calendar');
-                  }}
-                  className={cn(
-                    'py-2 rounded-lg text-[12px] font-medium transition-colors',
-                    viewYear === y
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-[#222226]'
-                  )}
-                >
-                  {y}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {pickerView === 'calendar' && (
-            <div>
-              <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-gray-400 dark:text-zinc-500 mb-1">
-                <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
-              </div>
-              <div className="grid grid-cols-7 gap-1">
-                {calendarDays.map((d) => (
-                  <button
-                    key={d.dateStr}
-                    type="button"
-                    onClick={() => {
-                      onChange(d.dateStr);
-                      setIsOpen(false);
-                    }}
-                    className={cn(
-                      'h-8 rounded-lg text-[12px] font-medium flex items-center justify-center transition-colors',
-                      d.isSelected
-                        ? 'bg-blue-600 text-white font-semibold'
-                        : d.isToday
-                        ? 'border border-blue-600 text-blue-600 dark:text-blue-400 font-semibold'
-                        : d.isCurrentMonth
-                        ? 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-[#222226]'
-                        : 'text-gray-300 dark:text-zinc-600 hover:bg-gray-50 dark:hover:bg-[#222226]'
-                    )}
-                  >
-                    {d.dayNumber}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
+// DatePickerPopover imported from shared ui component
 export function EditInvoiceSkeleton() {
   return (
     <div className="w-full pb-12 animate-pulse text-left font-sans">
@@ -1362,9 +1077,9 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
               </label>
 
               {isLocked ? (
-                <div className="w-full h-10 px-3.5 rounded-xl bg-gray-50 dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-500 dark:text-zinc-400 flex items-center justify-between cursor-not-allowed">
-                  <span>{selectedClient?.name || invoice.client_name || 'Selected Client'}</span>
-                  <Lock className="h-3.5 w-3.5 text-gray-400" />
+                <div className="w-full h-10 px-3.5 rounded-xl bg-gray-50 dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-500 dark:text-zinc-400 flex items-center justify-between gap-2 overflow-hidden cursor-not-allowed">
+                  <span className="truncate min-w-0 flex-1 text-left">{selectedClient?.name || invoice.client_name || 'Selected Client'}</span>
+                  <Lock className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                 </div>
               ) : (
                 <div className="relative">
@@ -1372,14 +1087,14 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                     type="button"
                     onClick={() => setIsClientDropdownOpen((prev) => !prev)}
                     className={cn(
-                      'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] flex items-center justify-between text-left transition-colors',
+                      'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] flex items-center justify-between gap-2 overflow-hidden text-left transition-colors',
                       'focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20',
                       isClientDropdownOpen
                         ? 'border-gray-300 dark:border-zinc-700'
                         : 'border-gray-200/80 dark:border-[#27272a]'
                     )}
                   >
-                    <span className={clientId ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-400 font-normal'}>
+                    <span className={cn('truncate min-w-0 flex-1 text-left', clientId ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-400 font-normal')}>
                       {selectedClient ? selectedClient.name : 'Select Client'}
                     </span>
                     <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
@@ -1414,10 +1129,10 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                                   : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226]'
                               )}
                             >
-                              <div className="truncate">
-                                <span className="block font-medium">{c.name}</span>
+                              <div className="min-w-0 flex-1 pr-2">
+                                <span className="block font-medium line-clamp-2 break-words text-[13px]">{c.name}</span>
                                 {c.company && (
-                                  <span className="block text-[11px] text-gray-400 dark:text-zinc-500 truncate">
+                                  <span className="block text-[11px] text-gray-400 dark:text-zinc-500 line-clamp-1 break-words mt-0.5">
                                     {c.company}
                                   </span>
                                 )}
@@ -1443,9 +1158,9 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                   Currency
                 </label>
                 {isLocked ? (
-                  <div className="w-full h-10 px-3.5 rounded-xl bg-gray-50 dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-500 dark:text-zinc-400 flex items-center justify-between cursor-not-allowed">
-                    <span>{currency}</span>
-                    <Lock className="h-3.5 w-3.5 text-gray-400" />
+                  <div className="w-full h-10 px-3.5 rounded-xl bg-gray-50 dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-500 dark:text-zinc-400 flex items-center justify-between gap-2 overflow-hidden cursor-not-allowed">
+                    <span className="truncate min-w-0 flex-1 text-left">{currency}</span>
+                    <Lock className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                   </div>
                 ) : (
                   <div className="relative">
@@ -1453,14 +1168,14 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                       type="button"
                       onClick={() => setIsCurrencyDropdownOpen((prev) => !prev)}
                       className={cn(
-                        'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] font-medium text-gray-900 dark:text-white flex items-center justify-between text-left transition-colors',
+                        'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] font-medium text-gray-900 dark:text-white flex items-center justify-between gap-2 overflow-hidden text-left transition-colors',
                         'focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20',
                         isCurrencyDropdownOpen
                           ? 'border-gray-300 dark:border-zinc-700'
                           : 'border-gray-200/80 dark:border-[#27272a]'
                       )}
                     >
-                      <span>
+                      <span className="truncate min-w-0 flex-1 text-left">
                         {CURRENCIES_LIST.find((c) => c.code === currency)?.label || currency}
                       </span>
                       <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
@@ -1549,9 +1264,9 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                   Terms
                 </label>
                 {isLocked ? (
-                  <div className="w-full h-10 px-3.5 rounded-xl bg-gray-50 dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-500 dark:text-zinc-400 flex items-center justify-between cursor-not-allowed">
-                    <span>{TERMS_OPTIONS.find((t) => t.value === terms)?.label || 'Custom'}</span>
-                    <Lock className="h-3.5 w-3.5 text-gray-400" />
+                  <div className="w-full h-10 px-3.5 rounded-xl bg-gray-50 dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-500 dark:text-zinc-400 flex items-center justify-between gap-2 overflow-hidden cursor-not-allowed">
+                    <span className="truncate min-w-0 flex-1 text-left">{TERMS_OPTIONS.find((t) => t.value === terms)?.label || 'Custom'}</span>
+                    <Lock className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                   </div>
                 ) : (
                   <div className="relative">
@@ -1559,14 +1274,14 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                       type="button"
                       onClick={() => setIsTermsDropdownOpen((prev) => !prev)}
                       className={cn(
-                        'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] font-medium text-gray-900 dark:text-white flex items-center justify-between text-left transition-colors',
+                        'w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border text-[13px] font-medium text-gray-900 dark:text-white flex items-center justify-between gap-2 overflow-hidden text-left transition-colors',
                         'focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20',
                         isTermsDropdownOpen
                           ? 'border-gray-300 dark:border-zinc-700'
                           : 'border-gray-200/80 dark:border-[#27272a]'
                       )}
                     >
-                      <span>
+                      <span className="truncate min-w-0 flex-1 text-left">
                         {TERMS_OPTIONS.find((t) => t.value === terms)?.label || 'Custom'}
                       </span>
                       <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
