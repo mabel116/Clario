@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useInvoicesForClient, useInvoice } from '../lib/data/hooks';
+import { useInvoicesForClient, useInvoice, useClient } from '../lib/data/hooks';
 import { PaymentRepo } from '../lib/data/payment';
 import { formatMoney, parseMoneyInput, CURRENCIES } from '../lib/money';
 import { DatePickerPopover } from './ui/DatePickerPopover';
 import { Money } from './ui/money';
 import { X, AlertTriangle, ChevronDown, Check } from 'lucide-react';
 import { useToast } from './Toast';
+import { useModalScrollLock } from '../lib/modal-lock';
 import { cn } from '../lib/utils';
 
 export interface RecordPaymentModalProps {
@@ -82,6 +83,13 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
   const { showToast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
 
+  // Lock background scroll when modal is open
+  useModalScrollLock(true);
+
+  // Client info for contextual header
+  const { data: client } = useClient(clientId);
+  const clientName = client?.name || 'Client';
+
   // Drag-to-dismiss state on mobile
   const dragStartY = useRef<number | null>(null);
   const [dragOffsetY, setDragOffsetY] = useState(0);
@@ -103,16 +111,11 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
     formattedDiff: string;
   } | null>(null);
 
-  // Dropdown states & refs
+  // Dropdown states & container refs
   const [isInvoiceDropdownOpen, setIsInvoiceDropdownOpen] = useState(false);
   const [isMethodDropdownOpen, setIsMethodDropdownOpen] = useState(false);
-  const invoiceTriggerRef = useRef<HTMLButtonElement>(null);
-  const invoicePopoverRef = useRef<HTMLDivElement>(null);
-  const methodTriggerRef = useRef<HTMLButtonElement>(null);
-  const methodPopoverRef = useRef<HTMLDivElement>(null);
-
-  const [invoiceCoords, setInvoiceCoords] = useState<{ top: number; bottom: number; left: number; width: number; openUpward: boolean } | null>(null);
-  const [methodCoords, setMethodCoords] = useState<{ top: number; bottom: number; left: number; width: number; openUpward: boolean } | null>(null);
+  const invoiceContainerRef = useRef<HTMLDivElement>(null);
+  const methodContainerRef = useRef<HTMLDivElement>(null);
 
   // Client invoices (when opened without specific invoiceId)
   const { data: clientInvoices, isLoading: isInvoicesLoading } = useInvoicesForClient(clientId);
@@ -124,129 +127,76 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
     setIsMounted(true);
   }, []);
 
-  // Filter invoices to active ones (non-draft, non-void)
+  // Filter invoices to only active (sent, unpaid / partially paid)
   const activeInvoices = useMemo(() => {
+    if (invoiceId && singleInvoice) {
+      return singleInvoice.status === 'sent' ? [singleInvoice] : [];
+    }
     if (!clientInvoices) return [];
-    return clientInvoices.filter(
-      (inv) => inv.displayStatus !== 'draft' && inv.displayStatus !== 'void'
-    );
-  }, [clientInvoices]);
+    return clientInvoices.filter((inv) => inv.status === 'sent' && inv.balanceDueMinor > 0);
+  }, [invoiceId, singleInvoice, clientInvoices]);
 
-  // Synchronously derive effective target invoice ID
-  const effectiveInvoiceId = useMemo(() => {
-    return deriveEffectiveInvoiceId({ invoiceId, selectedInvoiceId, activeInvoices });
-  }, [invoiceId, selectedInvoiceId, activeInvoices]);
+  // Synchronously derived active invoice ID to eliminate empty-select flashing
+  const effectiveInvoiceId = deriveEffectiveInvoiceId({
+    invoiceId,
+    selectedInvoiceId,
+    activeInvoices
+  });
 
-  // Resolve currently active target invoice (from hook or dropdown)
   const activeInvoice = useMemo(() => {
-    if (invoiceId) {
-      return singleInvoice || null;
-    }
-    return activeInvoices.find((inv) => inv.id === effectiveInvoiceId) || null;
-  }, [invoiceId, singleInvoice, activeInvoices, effectiveInvoiceId]);
+    return activeInvoices.find((inv) => inv.id === effectiveInvoiceId) || (activeInvoices.length > 0 ? activeInvoices[0] : null);
+  }, [activeInvoices, effectiveInvoiceId]);
 
-  const currency = useMemo(() => {
-    return activeInvoice?.currency?.toUpperCase() || 'USD';
-  }, [activeInvoice]);
-
-  // Update invoice dropdown position
-  const updateInvoiceCoords = useCallback(() => {
-    if (!invoiceTriggerRef.current) return;
-    const rect = invoiceTriggerRef.current.getBoundingClientRect();
-    const estHeight = 200;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    const openUpward = spaceBelow < estHeight && spaceAbove > spaceBelow;
-    setInvoiceCoords({
-      top: rect.top,
-      bottom: rect.bottom,
-      left: rect.left,
-      width: rect.width,
-      openUpward,
-    });
-  }, []);
-
-  // Update method dropdown position
-  const updateMethodCoords = useCallback(() => {
-    if (!methodTriggerRef.current) return;
-    const rect = methodTriggerRef.current.getBoundingClientRect();
-    const estHeight = 220;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    const openUpward = spaceBelow < estHeight && spaceAbove > spaceBelow;
-    setMethodCoords({
-      top: rect.top,
-      bottom: rect.bottom,
-      left: rect.left,
-      width: rect.width,
-      openUpward,
-    });
-  }, []);
-
-  useEffect(() => {
-    if (isInvoiceDropdownOpen) {
-      updateInvoiceCoords();
-      const handleReposition = () => updateInvoiceCoords();
-      window.addEventListener('resize', handleReposition);
-      window.addEventListener('scroll', handleReposition, true);
-      return () => {
-        window.removeEventListener('resize', handleReposition);
-        window.removeEventListener('scroll', handleReposition, true);
-      };
-    }
-  }, [isInvoiceDropdownOpen, updateInvoiceCoords]);
-
-  useEffect(() => {
-    if (isMethodDropdownOpen) {
-      updateMethodCoords();
-      const handleReposition = () => updateMethodCoords();
-      window.addEventListener('resize', handleReposition);
-      window.addEventListener('scroll', handleReposition, true);
-      return () => {
-        window.removeEventListener('resize', handleReposition);
-        window.removeEventListener('scroll', handleReposition, true);
-      };
-    }
-  }, [isMethodDropdownOpen, updateMethodCoords]);
-
-  // Click outside listener for portaled dropdowns
+  // Outside click & focus handling for invoice & method dropdowns
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
-      if (
-        isInvoiceDropdownOpen &&
-        invoiceTriggerRef.current &&
-        !invoiceTriggerRef.current.contains(target) &&
-        invoicePopoverRef.current &&
-        !invoicePopoverRef.current.contains(target)
-      ) {
+      if (invoiceContainerRef.current && !invoiceContainerRef.current.contains(target)) {
         setIsInvoiceDropdownOpen(false);
       }
-      if (
-        isMethodDropdownOpen &&
-        methodTriggerRef.current &&
-        !methodTriggerRef.current.contains(target) &&
-        methodPopoverRef.current &&
-        !methodPopoverRef.current.contains(target)
-      ) {
+      if (methodContainerRef.current && !methodContainerRef.current.contains(target)) {
         setIsMethodDropdownOpen(false);
       }
     }
+
+    function handleFocusIn(event: FocusEvent) {
+      const target = event.target as Node;
+      if (invoiceContainerRef.current && !invoiceContainerRef.current.contains(target)) {
+        setIsInvoiceDropdownOpen(false);
+      }
+      if (methodContainerRef.current && !methodContainerRef.current.contains(target)) {
+        setIsMethodDropdownOpen(false);
+      }
+    }
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isInvoiceDropdownOpen, isMethodDropdownOpen]);
+    document.addEventListener('focusin', handleFocusIn);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('focusin', handleFocusIn);
+    };
+  }, []);
+
+  // Sync default amount when activeInvoice resolves
+  useEffect(() => {
+    if (activeInvoice && !amount) {
+      setAmount(formatFullBalance(activeInvoice.balanceDueMinor, activeInvoice.currency));
+    }
+  }, [activeInvoice, amount]);
+
+  const currency = activeInvoice?.currency || 'USD';
 
   const handlePayFullBalance = () => {
-    if (!activeInvoice) return;
-    const balanceDue = activeInvoice.balanceDueMinor;
-    setAmount(formatFullBalance(balanceDue, currency));
+    if (activeInvoice) {
+      setAmount(formatFullBalance(activeInvoice.balanceDueMinor, currency));
+    }
   };
 
   const executeRecordPayment = async (amountMinor: number) => {
     if (!activeInvoice) return;
     await PaymentRepo.record({
+      client_id: activeInvoice.client_id || clientId,
       invoice_id: activeInvoice.id,
-      client_id: activeInvoice.client_id,
       amount_minor: amountMinor,
       currency,
       method: method || 'cash',
@@ -317,17 +267,21 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
     activeInvoicesCount: activeInvoices.length
   });
 
+  const subtitle = activeInvoice
+    ? `For ${activeInvoice.invoice_number} • ${clientName}`
+    : 'Select an invoice to continue';
+
   if (!isMounted) return null;
 
   return createPortal(
     <div
       onClick={onClose}
-      className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+      className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none"
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={dragOffsetY > 0 ? { transform: `translateY(${dragOffsetY}px)`, transition: 'none' } : undefined}
-        className="w-full sm:max-w-[480px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
+        className="w-full sm:max-w-[460px] h-[85dvh] sm:h-auto sm:max-h-[90dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden touch-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
       >
         {/* Mobile Drag Handle */}
         <div
@@ -352,7 +306,7 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
           <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto" />
         </div>
 
-        {/* Clean Modal Header (No Leading Icon + Soft Boxed Close Button) */}
+        {/* Pinned Contextual Header */}
         <div
           onTouchStart={(e) => {
             dragStartY.current = e.touches[0].clientY;
@@ -378,16 +332,16 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
                 Record Manual Payment
               </h3>
               <p className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">
-                Record a payment against this invoice.
+                {subtitle}
               </p>
             </div>
             <button
               type="button"
               onClick={onClose}
               aria-label="Close modal"
-              className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+              className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-[#222226] text-gray-800 dark:text-zinc-200 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
             >
-              <X className="h-4 w-4" strokeWidth={2} />
+              <X className="h-4 w-4 text-gray-800 dark:text-zinc-200" strokeWidth={2.25} />
             </button>
           </div>
         </div>
@@ -461,16 +415,15 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
         ) : activeInvoice ? (
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 font-sans text-left">
             {/* Scrollable Form Body - Strictly Single-Column Stack (space-y-4) */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-4 sm:px-6 sm:py-5 space-y-4">
+            <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 sm:py-5 space-y-4">
               {/* 1. Invoice Selector (if client-triggered, not locked) */}
               {!invoiceId && (
-                <div className="space-y-1.5">
+                <div className="space-y-1.5" ref={invoiceContainerRef}>
                   <label htmlFor="invoiceSelect" className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
                     Select Invoice *
                   </label>
                   <div className="relative">
                     <button
-                      ref={invoiceTriggerRef}
                       id="invoiceSelect"
                       type="button"
                       onClick={() => setIsInvoiceDropdownOpen((prev) => !prev)}
@@ -490,22 +443,11 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
                       <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
                     </button>
 
-                    {/* Portaled Invoice Dropdown */}
-                    {isInvoiceDropdownOpen && invoiceCoords && typeof document !== 'undefined' && createPortal(
+                    {/* Inline on Mobile (< sm:), Absolute Dropdown on Desktop (sm:) */}
+                    {isInvoiceDropdownOpen && (
                       <div
-                        ref={invoicePopoverRef}
                         data-popover="true"
-                        style={{
-                          position: 'fixed',
-                          zIndex: 160,
-                          width: `${invoiceCoords.width}px`,
-                          minWidth: '250px',
-                          left: `${Math.max(8, Math.min(invoiceCoords.left, window.innerWidth - invoiceCoords.width - 8))}px`,
-                          ...(invoiceCoords.openUpward
-                            ? { bottom: `${window.innerHeight - invoiceCoords.top + 6}px` }
-                            : { top: `${invoiceCoords.bottom + 6}px` }),
-                        }}
-                        className="rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-2xl max-h-[220px] overflow-y-auto space-y-0.5 animate-in fade-in duration-100"
+                        className="mt-1.5 sm:absolute sm:top-full sm:left-0 sm:mt-1.5 sm:w-full sm:z-50 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-xl max-h-[220px] overflow-y-auto space-y-0.5 animate-in fade-in duration-100"
                       >
                         {activeInvoices.map((inv) => {
                           const isSelected = inv.id === effectiveInvoiceId;
@@ -533,8 +475,7 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
                             </button>
                           );
                         })}
-                      </div>,
-                      document.body
+                      </div>
                     )}
                   </div>
                 </div>
@@ -547,24 +488,36 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
                   <div className="text-[11px] font-medium uppercase tracking-wider text-gray-500 dark:text-zinc-400">
                     Invoice Total
                   </div>
-                  <div className="mt-1 text-[15px] font-semibold text-gray-900 dark:text-white tabular-nums">
-                    <Money amountMinor={activeInvoice.total_minor} currency={currency} />
+                  <div className="mt-1">
+                    <Money
+                      amountMinor={activeInvoice.total_minor}
+                      currency={currency}
+                      className="text-[15px] font-semibold text-gray-900 dark:text-white tabular-nums"
+                    />
                   </div>
                 </div>
                 <div>
                   <div className="text-[11px] font-medium uppercase tracking-wider text-gray-500 dark:text-zinc-400">
                     Paid to Date
                   </div>
-                  <div className="mt-1 text-[15px] font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                    <Money amountMinor={activeInvoice.amountPaidMinor} currency={currency} />
+                  <div className="mt-1">
+                    <Money
+                      amountMinor={activeInvoice.amountPaidMinor}
+                      currency={currency}
+                      className="text-[15px] font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums"
+                    />
                   </div>
                 </div>
                 <div>
                   <div className="text-[11px] font-medium uppercase tracking-wider text-gray-500 dark:text-zinc-400">
                     Balance Due
                   </div>
-                  <div className="mt-1 text-[15px] font-bold text-gray-900 dark:text-white tabular-nums">
-                    <Money amountMinor={activeInvoice.balanceDueMinor} currency={currency} />
+                  <div className="mt-1">
+                    <Money
+                      amountMinor={activeInvoice.balanceDueMinor}
+                      currency={currency}
+                      className="text-[15px] font-bold text-gray-900 dark:text-white tabular-nums"
+                    />
                   </div>
                 </div>
               </div>
@@ -615,7 +568,7 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
                 </div>
               </div>
 
-              {/* 4. Payment Date Field (100% full width with DatePickerPopover) */}
+              {/* 4. Payment Date Field (100% full width, Inline Accordion Approach A in Modal) */}
               <div className="space-y-1.5">
                 <label htmlFor="pmtDate" className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
                   Payment Date
@@ -624,18 +577,17 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
                   id="pmtDate"
                   value={occurredAt}
                   onChange={(d) => setOccurredAt(d)}
-                  placement="auto"
+                  inModal={true}
                 />
               </div>
 
-              {/* 5. Payment Method Field (100% full width, Portaled, Zero Scrollbar on 5 methods) */}
-              <div className="space-y-1.5">
+              {/* 5. Payment Method Field (Inline on Mobile pushing Note down, Absolute on Desktop, Zero Scrollbar) */}
+              <div className="space-y-1.5" ref={methodContainerRef}>
                 <label htmlFor="pmtMethod" className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
                   Payment Method *
                 </label>
                 <div className="relative">
                   <button
-                    ref={methodTriggerRef}
                     id="pmtMethod"
                     type="button"
                     onClick={() => setIsMethodDropdownOpen((prev) => !prev)}
@@ -653,22 +605,11 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
                     <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
                   </button>
 
-                  {/* Portaled Method Dropdown (Zero internal scrollbar for 5 items) */}
-                  {isMethodDropdownOpen && methodCoords && typeof document !== 'undefined' && createPortal(
+                  {/* Inline on Mobile (< sm:), Absolute Dropdown on Desktop (sm:), Zero Scrollbar */}
+                  {isMethodDropdownOpen && (
                     <div
-                      ref={methodPopoverRef}
                       data-popover="true"
-                      style={{
-                        position: 'fixed',
-                        zIndex: 160,
-                        width: `${methodCoords.width}px`,
-                        minWidth: '250px',
-                        left: `${Math.max(8, Math.min(methodCoords.left, window.innerWidth - methodCoords.width - 8))}px`,
-                        ...(methodCoords.openUpward
-                          ? { bottom: `${window.innerHeight - methodCoords.top + 6}px` }
-                          : { top: `${methodCoords.bottom + 6}px` }),
-                      }}
-                      className="rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-2xl space-y-0.5 animate-in fade-in duration-100"
+                      className="mt-1.5 sm:absolute sm:top-full sm:left-0 sm:mt-1.5 sm:w-full sm:z-50 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-xl space-y-0.5 animate-in fade-in duration-100"
                     >
                       {PAYMENT_METHODS.map((m) => {
                         const isSelected = m.value === method;
@@ -694,8 +635,7 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
                           </button>
                         );
                       })}
-                    </div>,
-                    document.body
+                    </div>
                   )}
                 </div>
               </div>
@@ -717,7 +657,7 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
             </div>
 
             {/* Pinned Safe-Area Footer (Equal 50/50 on mobile, h-11 sm:h-10) */}
-            <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
+            <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.5rem+env(safe-area-inset-bottom,12px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
               <button
                 type="button"
                 onClick={onClose}
@@ -737,46 +677,54 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
         ) : null}
       </div>
 
-      {/* Overpayment Warning Dialog Modal */}
-      {overpaymentWarning && createPortal(
+      {/* Overpayment Warning Dialog */}
+      {overpaymentWarning && (
         <div
           onClick={() => setOverpaymentWarning(null)}
-          className="fixed -inset-y-12 inset-x-0 z-[110] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+          className="fixed inset-0 z-[110] w-screen h-dvh bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full sm:max-w-md max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
+            className="w-full sm:max-w-[420px] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-left font-sans"
           >
-            <div className="px-5 pt-4 pb-3 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] flex items-start justify-between gap-3 shrink-0">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
-                <h4 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
-                  Overpayment Detected
-                </h4>
+            <div className="px-5 pt-4 pb-3 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="text-[15px] font-semibold text-gray-900 dark:text-white">
+                    Confirm Overpayment
+                  </h4>
+                  <p className="text-[12px] text-gray-500 dark:text-zinc-400">
+                    Payment exceeds remaining balance
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setOverpaymentWarning(null)}
-                className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
                 aria-label="Close"
+                className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-[#222226] text-gray-800 dark:text-zinc-200 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
               >
-                <X className="h-4 w-4" strokeWidth={2} />
+                <X className="h-4 w-4 text-gray-800 dark:text-zinc-200" strokeWidth={2.25} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-3 font-sans text-left">
+            <div className="p-5 sm:p-6 space-y-3">
               <p className="text-[13px] text-gray-600 dark:text-zinc-300 leading-relaxed">
-                The entered amount exceeds the current outstanding balance on this invoice by{' '}
+                The entered amount exceeds the outstanding balance by{' '}
                 <strong className="text-gray-900 dark:text-white font-semibold">
                   {overpaymentWarning.formattedDiff}
-                </strong>.
+                </strong>
+                . Recording this payment will result in a negative balance for this invoice.
               </p>
-              <div className="rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 p-3 text-[12px] text-amber-800 dark:text-amber-300">
-                Are you sure you want to record this overpayment?
-              </div>
+              <p className="text-[12px] text-gray-500 dark:text-zinc-400">
+                Are you sure you want to proceed with recording this full amount?
+              </p>
             </div>
 
-            <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
+            <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.5rem+env(safe-area-inset-bottom,12px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setOverpaymentWarning(null)}
@@ -788,16 +736,17 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
                 type="button"
                 onClick={handleConfirmOverpayment}
                 disabled={isSubmitting}
-                className="h-11 sm:h-10 w-full sm:w-auto px-5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center justify-center"
+                className="h-11 sm:h-10 w-full sm:w-auto px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center justify-center"
               >
-                {isSubmitting ? 'Recording...' : 'Confirm Overpayment'}
+                {isSubmitting ? 'Recording...' : 'Proceed Anyway'}
               </button>
             </div>
           </div>
-        </div>,
-        document.body
+        </div>
       )}
     </div>,
     document.body
   );
 }
+
+export default RecordPaymentModal;

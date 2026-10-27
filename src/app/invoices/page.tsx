@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useMemo, useState, useEffect } from 'react';
+import React, { Suspense, useMemo, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '../../components/ProtectedRoute';
@@ -13,6 +13,8 @@ import { useDataReady } from '../../lib/data/readiness';
 import { Money } from '../../components/ui/money';
 import { RecordPaymentModal } from '../../components/RecordPaymentModal';
 import { useToast } from '../../components/Toast';
+import { useModalScrollLock } from '../../lib/modal-lock';
+import { DatePickerPopover } from '../../components/ui/DatePickerPopover';
 import { resolveInvoicesListNavigation } from '../../lib/navigation';
 import { cn } from '../../lib/utils';
 import { LiveQuery, InvoiceSummary } from '../../lib/data/types';
@@ -274,6 +276,9 @@ function InvoicesListContent() {
   const [markSentDueDate, setMarkSentDueDate] = useState('');
   const [isMarkingSent, setIsMarkingSent] = useState(false);
   const [generatingPdfInvoiceId, setGeneratingPdfInvoiceId] = useState<string | null>(null);
+  useModalScrollLock(Boolean(markSentTarget));
+  const markSentDragStartY = useRef<number | null>(null);
+  const [markSentDragOffsetY, setMarkSentDragOffsetY] = useState(0);
 
   // Distinct currencies list
   const distinctCurrencies = useMemo(() => {
@@ -1319,60 +1324,115 @@ function InvoicesListContent() {
 
       {/* Mark as Sent Modal */}
       {markSentTarget && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-6 max-w-md w-full space-y-4 text-left">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Mark Invoice {markSentTarget.invoice_number} as Sent
-              </h3>
-              <button
-                type="button"
-                onClick={() => setMarkSentTarget(null)}
-                className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors"
-              >
-                <X className="h-5 w-5" strokeWidth={2} />
-              </button>
+        <div
+          onClick={() => setMarkSentTarget(null)}
+          className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={markSentDragOffsetY > 0 ? { transform: `translateY(${markSentDragOffsetY}px)`, transition: 'none' } : undefined}
+            className="w-full sm:max-w-[460px] h-[85dvh] sm:h-auto sm:max-h-[90dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden touch-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
+          >
+            {/* Mobile Drag Handle */}
+            <div
+              onTouchStart={(e) => {
+                markSentDragStartY.current = e.touches[0].clientY;
+              }}
+              onTouchMove={(e) => {
+                if (markSentDragStartY.current !== null) {
+                  const delta = Math.max(0, e.touches[0].clientY - markSentDragStartY.current);
+                  setMarkSentDragOffsetY(delta);
+                }
+              }}
+              onTouchEnd={() => {
+                if (markSentDragOffsetY > 70) {
+                  setMarkSentTarget(null);
+                }
+                setMarkSentDragOffsetY(0);
+                markSentDragStartY.current = null;
+              }}
+              className="sm:hidden pt-2.5 pb-1 cursor-grab active:cursor-grabbing shrink-0"
+            >
+              <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto" />
             </div>
 
-            <form onSubmit={handleMarkSentSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-700 dark:text-zinc-300">
-                  Issue Date
-                </label>
-                <input
-                  type="date"
-                  value={markSentIssueDate}
-                  onChange={(e) => setMarkSentIssueDate(e.target.value)}
-                  className="w-full bg-white dark:bg-[#121215] border border-gray-200 dark:border-[#27272a] text-gray-900 dark:text-white rounded-xl h-10 px-3 text-sm focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-700 dark:text-zinc-300">
-                  Due Date
-                </label>
-                <input
-                  type="date"
-                  value={markSentDueDate}
-                  onChange={(e) => setMarkSentDueDate(e.target.value)}
-                  className="w-full bg-white dark:bg-[#121215] border border-gray-200 dark:border-[#27272a] text-gray-900 dark:text-white rounded-xl h-10 px-3 text-sm focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2.5">
+            {/* Pinned Header */}
+            <div
+              onTouchStart={(e) => {
+                markSentDragStartY.current = e.touches[0].clientY;
+              }}
+              onTouchMove={(e) => {
+                if (markSentDragStartY.current !== null) {
+                  const delta = Math.max(0, e.touches[0].clientY - markSentDragStartY.current);
+                  setMarkSentDragOffsetY(delta);
+                }
+              }}
+              onTouchEnd={() => {
+                if (markSentDragOffsetY > 70) {
+                  setMarkSentTarget(null);
+                }
+                setMarkSentDragOffsetY(0);
+                markSentDragStartY.current = null;
+              }}
+              className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] shrink-0"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+                    Mark Invoice {markSentTarget.invoice_number} as Sent
+                  </h3>
+                  <p className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">
+                    Transition invoice out of draft status.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setMarkSentTarget(null)}
-                  className="border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#121215] text-gray-700 dark:text-zinc-300 rounded-xl h-10 px-4 text-xs font-medium hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+                  aria-label="Close modal"
+                  className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-[#222226] text-gray-800 dark:text-zinc-200 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                >
+                  <X className="h-4 w-4 text-gray-800 dark:text-zinc-200" strokeWidth={2.25} />
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleMarkSentSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 sm:py-5 space-y-4">
+                <div className="space-y-1.5">
+                  <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
+                    Issue Date
+                  </label>
+                  <DatePickerPopover
+                    value={markSentIssueDate}
+                    onChange={setMarkSentIssueDate}
+                    inModal={true}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
+                    Due Date
+                  </label>
+                  <DatePickerPopover
+                    value={markSentDueDate}
+                    onChange={setMarkSentDueDate}
+                    inModal={true}
+                  />
+                </div>
+              </div>
+
+              <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.5rem+env(safe-area-inset-bottom,12px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMarkSentTarget(null)}
+                  className="h-11 sm:h-10 w-full sm:w-auto px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer inline-flex items-center justify-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isMarkingSent}
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-10 px-4 text-xs font-medium transition-colors disabled:opacity-50"
+                  className="h-11 sm:h-10 w-full sm:w-auto px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center justify-center"
                 >
                   {isMarkingSent ? 'Updating...' : 'Confirm & Send'}
                 </button>

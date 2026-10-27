@@ -65,8 +65,9 @@
   }
   html,
   body {
-    overflow-x: hidden;
-    overscroll-behavior-y: none;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
     background-color: #ffffff;
   }
   html.dark,

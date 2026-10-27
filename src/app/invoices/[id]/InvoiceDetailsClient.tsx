@@ -14,6 +14,7 @@ import { RecordPaymentModal } from '../../../components/RecordPaymentModal';
 import { formatMoney, parseMoneyInput, multiplyMinor } from '../../../lib/money';
 import { Money } from '../../../components/ui/money';
 import { useToast } from '../../../components/Toast';
+import { useModalScrollLock } from '../../../lib/modal-lock';
 import { 
   ChevronLeft, Pencil, Download, X, AlertTriangle, 
   Trash2, Send, Ban, Calendar, ChevronRight, Check, MoreHorizontal
@@ -215,6 +216,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [reversalTargetEvent, setReversalTargetEvent] = useState<PaymentEventRow | null>(null);
+  useModalScrollLock(Boolean(showMarkSent || showVoidModal || showDeleteModal || reversalTargetEvent || showRecordPayment));
   const [reversalNote, setReversalNote] = useState('');
   const [isReversing, setIsReversing] = useState(false);
   const detailModalDragStartY = useRef<number | null>(null);
@@ -986,18 +988,16 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
       </div>
 
       {/* Portal Action Modals */}
-      {isMounted && (
-        <>
           {/* Mark as Sent Modal */}
           {showMarkSent && createPortal(
             <div
               onClick={() => setShowMarkSent(false)}
-              className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+              className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none"
             >
               <div
                 onClick={(e) => e.stopPropagation()}
                 style={detailModalDragOffsetY > 0 ? { transform: `translateY(${detailModalDragOffsetY}px)`, transition: 'none' } : undefined}
-                className="w-full sm:max-w-[480px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
+                className="w-full sm:max-w-[460px] h-[85dvh] sm:h-auto sm:max-h-[90dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden touch-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
               >
                 {/* Mobile Drag Handle */}
                 <div
@@ -1044,7 +1044,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
-                        Mark as Sent
+                        Mark Invoice as Sent
                       </h3>
                       <p className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">
                         Confirm the issue date and due date below.
@@ -1053,21 +1053,21 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                     <button
                       type="button"
                       onClick={() => setShowMarkSent(false)}
-                      className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                      className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-[#222226] text-gray-800 dark:text-zinc-200 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
                       aria-label="Close"
                     >
-                      <X className="h-4 w-4" strokeWidth={2} />
+                      <X className="h-4 w-4 text-gray-800 dark:text-zinc-200" strokeWidth={2.25} />
                     </button>
                   </div>
                 </div>
 
                 <form onSubmit={handleMarkSent} className="flex flex-col flex-1 min-h-0 font-sans text-left">
-                  <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-4">
+                  <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 sm:py-5 space-y-4">
                     <p className="text-[13px] text-gray-500 dark:text-zinc-400">
                       Marking this invoice as sent confirms it has been delivered to your client. Confirm the issue date and due date below:
                     </p>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="space-y-3.5">
                       <div className="space-y-1.5">
                         <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
                           Issue Date
@@ -1075,7 +1075,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                         <DatePickerPopover
                           value={sentIssueDate}
                           onChange={handleSentIssueDateChange}
-                          placement="top"
+                          inModal={true}
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -1085,13 +1085,13 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                         <DatePickerPopover
                           value={sentDueDate}
                           onChange={(d) => setSentDueDate(d)}
-                          placement="top"
+                          inModal={true}
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
+                  <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.5rem+env(safe-area-inset-bottom,12px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
                     <button
                       type="button"
                       onClick={() => setShowMarkSent(false)}
@@ -1117,12 +1117,12 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
           {showVoidModal && createPortal(
             <div
               onClick={() => setShowVoidModal(false)}
-              className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+              className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none"
             >
               <div
                 onClick={(e) => e.stopPropagation()}
                 style={detailModalDragOffsetY > 0 ? { transform: `translateY(${detailModalDragOffsetY}px)`, transition: 'none' } : undefined}
-                className="w-full sm:max-w-[440px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
+                className="w-full sm:max-w-[460px] h-[85dvh] sm:h-auto sm:max-h-[90dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden touch-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
               >
                 {/* Mobile Drag Handle */}
                 <div
@@ -1178,15 +1178,15 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                     <button
                       type="button"
                       onClick={() => setShowVoidModal(false)}
-                      className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                      className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-[#222226] text-gray-800 dark:text-zinc-200 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
                       aria-label="Close"
                     >
-                      <X className="h-4 w-4" strokeWidth={2} />
+                      <X className="h-4 w-4 text-gray-800 dark:text-zinc-200" strokeWidth={2.25} />
                     </button>
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-3">
+                <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 sm:py-5 space-y-3">
                   <div className="rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 p-3.5 text-[13px] text-gray-700 dark:text-zinc-300 space-y-1.5">
                     <p className="font-semibold text-gray-900 dark:text-white">Are you sure you want to void this invoice?</p>
                     <p className="text-[12px] text-gray-600 dark:text-zinc-400">
@@ -1195,7 +1195,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                   </div>
                 </div>
 
-                <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
+                <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.5rem+env(safe-area-inset-bottom,12px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
                   <button
                     type="button"
                     onClick={() => setShowVoidModal(false)}
@@ -1221,12 +1221,12 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
           {showDeleteModal && createPortal(
             <div
               onClick={() => setShowDeleteModal(false)}
-              className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+              className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none"
             >
               <div
                 onClick={(e) => e.stopPropagation()}
                 style={detailModalDragOffsetY > 0 ? { transform: `translateY(${detailModalDragOffsetY}px)`, transition: 'none' } : undefined}
-                className="w-full sm:max-w-[440px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
+                className="w-full sm:max-w-[460px] h-[85dvh] sm:h-auto sm:max-h-[90dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden touch-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
               >
                 {/* Mobile Drag Handle */}
                 <div
@@ -1282,21 +1282,21 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                     <button
                       type="button"
                       onClick={() => setShowDeleteModal(false)}
-                      className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                      className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-[#222226] text-gray-800 dark:text-zinc-200 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
                       aria-label="Close"
                     >
-                      <X className="h-4 w-4" strokeWidth={2} />
+                      <X className="h-4 w-4 text-gray-800 dark:text-zinc-200" strokeWidth={2.25} />
                     </button>
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-3">
+                <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 sm:py-5 space-y-3">
                   <p className="text-[13px] text-gray-600 dark:text-zinc-300 leading-relaxed">
                     Are you sure you want to delete this draft invoice? This action is soft and preserves historical data.
                   </p>
                 </div>
 
-                <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
+                <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.5rem+env(safe-area-inset-bottom,12px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
                   <button
                     type="button"
                     onClick={() => setShowDeleteModal(false)}
@@ -1322,12 +1322,12 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
           {reversalTargetEvent && createPortal(
             <div
               onClick={() => setReversalTargetEvent(null)}
-              className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+              className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none"
             >
               <div
                 onClick={(e) => e.stopPropagation()}
                 style={detailModalDragOffsetY > 0 ? { transform: `translateY(${detailModalDragOffsetY}px)`, transition: 'none' } : undefined}
-                className="w-full sm:max-w-[440px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
+                className="w-full sm:max-w-[460px] h-[85dvh] sm:h-auto sm:max-h-[90dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden touch-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
               >
                 {/* Mobile Drag Handle */}
                 <div
@@ -1383,16 +1383,16 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                     <button
                       type="button"
                       onClick={() => setReversalTargetEvent(null)}
-                      className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                      className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-[#222226] text-gray-800 dark:text-zinc-200 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
                       aria-label="Close"
                     >
-                      <X className="h-4 w-4" strokeWidth={2} />
+                      <X className="h-4 w-4 text-gray-800 dark:text-zinc-200" strokeWidth={2.25} />
                     </button>
                   </div>
                 </div>
 
                 <form onSubmit={handleReversePayment} className="flex flex-col flex-1 min-h-0 font-sans text-left">
-                  <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-4">
+                  <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 sm:py-5 space-y-4">
                     <p className="text-[13px] text-gray-600 dark:text-zinc-300">
                       You are reversing payment of{' '}
                       <span className="font-semibold text-gray-900 dark:text-white">
@@ -1415,7 +1415,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                     </div>
                   </div>
 
-                  <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
+                  <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.5rem+env(safe-area-inset-bottom,12px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
                     <button
                       type="button"
                       onClick={() => setReversalTargetEvent(null)}
@@ -1445,8 +1445,6 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
               onClose={() => setShowRecordPayment(false)}
             />
           )}
-        </>
-      )}
     </div>
   );
 }

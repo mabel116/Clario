@@ -25,6 +25,7 @@ import { InvoiceRepo } from '../../../lib/data/invoice';
 import { parseMoneyInput, multiplyMinor } from '../../../lib/money';
 import { Money } from '../../../components/ui/money';
 import { useToast } from '../../../components/Toast';
+import { useModalScrollLock } from '../../../lib/modal-lock';
 import { ClientDetail, InvoiceDetail } from '../../../lib/data/types';
 import { ProfileRow } from '../../../lib/sync/schema';
 import { cn } from '../../../lib/utils';
@@ -216,6 +217,7 @@ export function CreateInvoiceClient() {
   // Views & Modals
   const [viewMode, setViewMode] = useState<ViewMode>('form');
   const [isAddClientOpen, setIsAddClientOpen] = useState(false);
+  useModalScrollLock(isAddClientOpen);
   const [isMounted, setIsMounted] = useState(false);
   const clientDragStartY = useRef<number | null>(null);
   const [clientDragOffsetY, setClientDragOffsetY] = useState(0);
@@ -1739,13 +1741,13 @@ export function CreateInvoiceClient() {
       {isAddClientOpen && isMounted && createPortal(
         <div
           onClick={() => setIsAddClientOpen(false)}
-          className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+          className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none"
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={clientDragOffsetY > 0 ? { transform: `translateY(${clientDragOffsetY}px)`, transition: 'none' } : undefined}
             data-popover="true"
-            className="w-full sm:max-w-[480px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
+            className="w-full sm:max-w-[460px] h-[85dvh] sm:h-auto sm:max-h-[90dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden touch-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
           >
             {/* Mobile Drag Handle */}
             <div
@@ -1799,15 +1801,15 @@ export function CreateInvoiceClient() {
               <button
                 type="button"
                 onClick={() => setIsAddClientOpen(false)}
-                className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-[#222226] text-gray-800 dark:text-zinc-200 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
                 aria-label="Close"
               >
-                <X className="h-4 w-4" strokeWidth={2} />
+                <X className="h-4 w-4 text-gray-800 dark:text-zinc-200" strokeWidth={2.25} />
               </button>
             </div>
 
             <form onSubmit={handleModalSaveClient} className="flex flex-col flex-1 min-h-0 font-sans text-left">
-              <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-4">
+              <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 sm:py-5 space-y-4">
               {/* Client Type Radio Toggle */}
               <div className="space-y-1">
                 <div className="flex items-center gap-6 pt-1">
@@ -1993,7 +1995,7 @@ export function CreateInvoiceClient() {
 
               </div>
               {/* Pinned Safe-Area Footer */}
-              <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
+              <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.5rem+env(safe-area-inset-bottom,12px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsAddClientOpen(false)}

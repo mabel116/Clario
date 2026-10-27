@@ -480,7 +480,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [mobileMenuOpen]);
 
   return (
-    <div className="h-dvh overflow-hidden flex flex-col md:flex-row bg-white dark:bg-[#09090b] text-gray-900 dark:text-white">
+    <div className="fixed inset-0 w-screen h-dvh overflow-hidden flex flex-col md:flex-row bg-white dark:bg-[#09090b] text-gray-900 dark:text-white">
       {/* Desktop Sidebar */}
       <aside className="w-64 border-r border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#121215] flex flex-col justify-between hidden md:flex shrink-0 sticky top-0 h-dvh overflow-hidden p-4 select-none">
         {/* Top Section */}
@@ -553,7 +553,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main Content Column with Top Global Header */}
       <div className="flex-1 flex flex-col min-w-0 h-dvh overflow-hidden">
         {/* Top Global Header */}
-        <header className="h-16 border-b border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#09090b] px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 transition-colors">
+        <header className="h-16 shrink-0 border-b border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#09090b] px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 transition-colors touch-none select-none">
           {/* Left: Hamburger Menu (Mobile) & Breadcrumb Context */}
           <div className="flex items-center gap-3">
             <Button
@@ -614,8 +614,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Main Content Area */}
         <main
+          id="clario-main-scroll"
           className={cn(
-            'flex-1 overflow-y-auto overflow-x-hidden bg-white dark:bg-[#09090b] text-gray-900 dark:text-white transition-colors',
+            'flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain bg-white dark:bg-[#09090b] text-gray-900 dark:text-white transition-colors',
             isFlushInvoiceRoute ? 'p-0' : 'p-4 sm:p-6 lg:p-8'
           )}
         >
