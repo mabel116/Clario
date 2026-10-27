@@ -217,6 +217,8 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
   const [reversalTargetEvent, setReversalTargetEvent] = useState<PaymentEventRow | null>(null);
   const [reversalNote, setReversalNote] = useState('');
   const [isReversing, setIsReversing] = useState(false);
+  const detailModalDragStartY = useRef<number | null>(null);
+  const [detailModalDragOffsetY, setDetailModalDragOffsetY] = useState(0);
   const [isMarkingSent, setIsMarkingSent] = useState(false);
   const [isVoiding, setIsVoiding] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -540,7 +542,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                   <button
                     type="button"
                     onClick={() => setShowRecordPayment(true)}
-                    className="flex-1 h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    className="flex-1 basis-0 h-10 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer"
                   >
                     Record Payment
                   </button>
@@ -548,10 +550,10 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                     type="button"
                     onClick={handleDownloadPDF}
                     disabled={isGeneratingPDF}
-                    className="h-10 px-3.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 transition-colors cursor-pointer"
+                    className="flex-1 basis-0 h-10 px-3 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 whitespace-nowrap disabled:opacity-50 transition-colors cursor-pointer"
                   >
                     <Download className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
-                    <span>PDF</span>
+                    <span>Download PDF</span>
                   </button>
                   <div className="relative" ref={mobileMoreRef}>
                     <button
@@ -571,9 +573,9 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                           href={editHref}
                           prefetch={false}
                           onClick={() => setMobileMoreOpen(false)}
-                          className="flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors no-underline"
+                          className="flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium leading-none text-gray-800 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors no-underline"
                         >
-                          <Pencil className="h-4 w-4 text-gray-400" />
+                          <Pencil className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
                           <span>Edit Invoice</span>
                         </Link>
                         <button
@@ -582,9 +584,9 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                             setMobileMoreOpen(false);
                             setShowVoidModal(true);
                           }}
-                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors text-left cursor-pointer"
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium leading-none text-gray-800 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors text-left cursor-pointer"
                         >
-                          <Ban className="h-4 w-4 text-gray-400" />
+                          <Ban className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
                           <span>Void Invoice</span>
                         </button>
                       </div>
@@ -597,7 +599,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                     type="button"
                     onClick={handleDownloadPDF}
                     disabled={isGeneratingPDF}
-                    className="flex-1 h-10 px-3.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 disabled:opacity-50 transition-colors cursor-pointer"
+                    className="flex-1 basis-0 h-10 px-3 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 whitespace-nowrap disabled:opacity-50 transition-colors cursor-pointer"
                   >
                     <Download className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
                     <span>Download PDF</span>
@@ -605,7 +607,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                   <Link
                     href={editHref}
                     prefetch={false}
-                    className="flex-1 h-10 px-3.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 no-underline transition-colors cursor-pointer"
+                    className="flex-1 basis-0 h-10 px-3 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 whitespace-nowrap no-underline transition-colors cursor-pointer"
                   >
                     <Pencil className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
                     <span>Edit Invoice</span>
@@ -630,9 +632,9 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                             setMobileMoreOpen(false);
                             setShowVoidModal(true);
                           }}
-                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors text-left cursor-pointer"
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium leading-none text-gray-800 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors text-left cursor-pointer"
                         >
-                          <Ban className="h-4 w-4 text-gray-400" />
+                          <Ban className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
                           <span>Void Invoice</span>
                         </button>
                       </div>
@@ -644,7 +646,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                   <button
                     type="button"
                     onClick={handleOpenMarkSent}
-                    className="flex-1 h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    className="flex-1 basis-0 h-10 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer"
                   >
                     <Send className="h-4 w-4" strokeWidth={2} />
                     <span>Mark as Sent</span>
@@ -652,10 +654,10 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                   <Link
                     href={editHref}
                     prefetch={false}
-                    className="h-10 px-3.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 no-underline transition-colors cursor-pointer"
+                    className="flex-1 basis-0 h-10 px-3 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 whitespace-nowrap no-underline transition-colors cursor-pointer"
                   >
                     <Pencil className="h-4 w-4 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
-                    <span>Edit</span>
+                    <span>Edit Invoice</span>
                   </Link>
                   <div className="relative" ref={mobileMoreRef}>
                     <button
@@ -678,9 +680,9 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                             handleDownloadPDF();
                           }}
                           disabled={isGeneratingPDF}
-                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors text-left cursor-pointer disabled:opacity-50"
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium leading-none text-gray-800 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors text-left cursor-pointer disabled:opacity-50"
                         >
-                          <Download className="h-4 w-4 text-gray-400" />
+                          <Download className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
                           <span>Download PDF</span>
                         </button>
                         <button
@@ -689,9 +691,9 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                             setMobileMoreOpen(false);
                             setShowDeleteModal(true);
                           }}
-                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors text-left cursor-pointer"
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] font-medium leading-none text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors text-left cursor-pointer"
                         >
-                          <Trash2 className="h-4 w-4 text-rose-500" />
+                          <Trash2 className="h-[15px] w-[15px] text-rose-500 shrink-0" strokeWidth={2} />
                           <span>Delete Draft</span>
                         </button>
                       </div>
@@ -988,69 +990,119 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
         <>
           {/* Mark as Sent Modal */}
           {showMarkSent && createPortal(
-            <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-              <div className="w-full sm:max-w-[480px] max-h-[88dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+            <div
+              onClick={() => setShowMarkSent(false)}
+              className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={detailModalDragOffsetY > 0 ? { transform: `translateY(${detailModalDragOffsetY}px)`, transition: 'none' } : undefined}
+                className="w-full sm:max-w-[480px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
+              >
                 {/* Mobile Drag Handle */}
-                <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto mt-2.5 mb-1 shrink-0" />
-                <div className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] flex items-center justify-between gap-3 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <Send className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400" />
-                    <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
-                      Mark as Sent
-                    </h3>
+                <div
+                  onTouchStart={(e) => {
+                    detailModalDragStartY.current = e.touches[0].clientY;
+                  }}
+                  onTouchMove={(e) => {
+                    if (detailModalDragStartY.current !== null) {
+                      const delta = Math.max(0, e.touches[0].clientY - detailModalDragStartY.current);
+                      setDetailModalDragOffsetY(delta);
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    if (detailModalDragOffsetY > 70) {
+                      setShowMarkSent(false);
+                    }
+                    setDetailModalDragOffsetY(0);
+                    detailModalDragStartY.current = null;
+                  }}
+                  className="sm:hidden pt-2.5 pb-1 cursor-grab active:cursor-grabbing shrink-0"
+                >
+                  <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto" />
+                </div>
+
+                <div
+                  onTouchStart={(e) => {
+                    detailModalDragStartY.current = e.touches[0].clientY;
+                  }}
+                  onTouchMove={(e) => {
+                    if (detailModalDragStartY.current !== null) {
+                      const delta = Math.max(0, e.touches[0].clientY - detailModalDragStartY.current);
+                      setDetailModalDragOffsetY(delta);
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    if (detailModalDragOffsetY > 70) {
+                      setShowMarkSent(false);
+                    }
+                    setDetailModalDragOffsetY(0);
+                    detailModalDragStartY.current = null;
+                  }}
+                  className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] shrink-0"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+                        Mark as Sent
+                      </h3>
+                      <p className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">
+                        Confirm the issue date and due date below.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowMarkSent(false)}
+                      className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                      aria-label="Close"
+                    >
+                      <X className="h-4 w-4" strokeWidth={2} />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowMarkSent(false)}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg transition-colors cursor-pointer"
-                    aria-label="Close"
-                  >
-                    <X className="h-5 w-5" strokeWidth={2} />
-                  </button>
                 </div>
 
                 <form onSubmit={handleMarkSent} className="flex flex-col flex-1 min-h-0 font-sans text-left">
                   <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-4">
-                  <p className="text-[13px] text-gray-500 dark:text-zinc-400">
-                    Marking this invoice as sent confirms it has been delivered to your client. Confirm the issue date and due date below:
-                  </p>
+                    <p className="text-[13px] text-gray-500 dark:text-zinc-400">
+                      Marking this invoice as sent confirms it has been delivered to your client. Confirm the issue date and due date below:
+                    </p>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div className="space-y-1.5">
-                      <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
-                        Issue Date
-                      </label>
-                      <DatePickerPopover
-                        value={sentIssueDate}
-                        onChange={handleSentIssueDateChange}
-                        placement="top"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
-                        Due Date
-                      </label>
-                      <DatePickerPopover
-                        value={sentDueDate}
-                        onChange={(d) => setSentDueDate(d)}
-                        placement="top"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div className="space-y-1.5">
+                        <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
+                          Issue Date
+                        </label>
+                        <DatePickerPopover
+                          value={sentIssueDate}
+                          onChange={handleSentIssueDateChange}
+                          placement="top"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
+                          Due Date
+                        </label>
+                        <DatePickerPopover
+                          value={sentDueDate}
+                          onChange={(d) => setSentDueDate(d)}
+                          placement="top"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  </div>
-                  <div className="shrink-0 px-5 py-3.5 sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center justify-end gap-2.5">
+                  <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
                     <button
                       type="button"
                       onClick={() => setShowMarkSent(false)}
-                      className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer"
+                      className="h-11 sm:h-10 w-full sm:w-auto px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer inline-flex items-center justify-center"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isMarkingSent}
-                      className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer"
+                      className="h-11 sm:h-10 w-full sm:w-auto px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center justify-center"
                     >
                       {isMarkingSent ? 'Marking...' : 'Mark as Sent'}
                     </button>
@@ -1063,27 +1115,78 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
 
           {/* Void Invoice Confirmation Modal */}
           {showVoidModal && createPortal(
-            <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-              <div className="w-full sm:max-w-[440px] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 space-y-4 my-auto overflow-hidden text-left shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
-                <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto -mt-1 mb-1 shrink-0" />
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Ban className="h-4.5 w-4.5 text-gray-500" />
-                    <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
-                      Void Invoice
-                    </h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowVoidModal(false)}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg transition-colors"
-                    aria-label="Close"
-                  >
-                    <X className="h-5 w-5" strokeWidth={2} />
-                  </button>
+            <div
+              onClick={() => setShowVoidModal(false)}
+              className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={detailModalDragOffsetY > 0 ? { transform: `translateY(${detailModalDragOffsetY}px)`, transition: 'none' } : undefined}
+                className="w-full sm:max-w-[440px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
+              >
+                {/* Mobile Drag Handle */}
+                <div
+                  onTouchStart={(e) => {
+                    detailModalDragStartY.current = e.touches[0].clientY;
+                  }}
+                  onTouchMove={(e) => {
+                    if (detailModalDragStartY.current !== null) {
+                      const delta = Math.max(0, e.touches[0].clientY - detailModalDragStartY.current);
+                      setDetailModalDragOffsetY(delta);
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    if (detailModalDragOffsetY > 70) {
+                      setShowVoidModal(false);
+                    }
+                    setDetailModalDragOffsetY(0);
+                    detailModalDragStartY.current = null;
+                  }}
+                  className="sm:hidden pt-2.5 pb-1 cursor-grab active:cursor-grabbing shrink-0"
+                >
+                  <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto" />
                 </div>
 
-                <div className="space-y-3">
+                <div
+                  onTouchStart={(e) => {
+                    detailModalDragStartY.current = e.touches[0].clientY;
+                  }}
+                  onTouchMove={(e) => {
+                    if (detailModalDragStartY.current !== null) {
+                      const delta = Math.max(0, e.touches[0].clientY - detailModalDragStartY.current);
+                      setDetailModalDragOffsetY(delta);
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    if (detailModalDragOffsetY > 70) {
+                      setShowVoidModal(false);
+                    }
+                    setDetailModalDragOffsetY(0);
+                    detailModalDragStartY.current = null;
+                  }}
+                  className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] shrink-0"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+                        Void Invoice
+                      </h3>
+                      <p className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">
+                        This action removes it from outstanding balances.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowVoidModal(false)}
+                      className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                      aria-label="Close"
+                    >
+                      <X className="h-4 w-4" strokeWidth={2} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-3">
                   <div className="rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 p-3.5 text-[13px] text-gray-700 dark:text-zinc-300 space-y-1.5">
                     <p className="font-semibold text-gray-900 dark:text-white">Are you sure you want to void this invoice?</p>
                     <p className="text-[12px] text-gray-600 dark:text-zinc-400">
@@ -1092,11 +1195,11 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                   </div>
                 </div>
 
-                <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-gray-100 dark:border-[#27272a]">
+                <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
                   <button
                     type="button"
                     onClick={() => setShowVoidModal(false)}
-                    className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+                    className="h-11 sm:h-10 w-full sm:w-auto px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer inline-flex items-center justify-center"
                   >
                     Cancel
                   </button>
@@ -1104,7 +1207,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                     type="button"
                     onClick={handleVoid}
                     disabled={isVoiding}
-                    className="h-10 px-5 rounded-xl border border-rose-200 dark:border-rose-500/20 bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-[13px] font-medium text-rose-700 dark:text-rose-400 transition-colors disabled:opacity-50"
+                    className="h-11 sm:h-10 w-full sm:w-auto px-5 rounded-xl border border-rose-200 dark:border-rose-500/20 bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-[13px] font-medium text-rose-700 dark:text-rose-400 transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center justify-center"
                   >
                     {isVoiding ? 'Voiding...' : 'Void Invoice'}
                   </button>
@@ -1116,35 +1219,88 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
 
           {/* Delete Draft Modal */}
           {showDeleteModal && createPortal(
-            <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-              <div className="w-full sm:max-w-[440px] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 space-y-4 my-auto overflow-hidden text-left shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
-                <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto -mt-1 mb-1 shrink-0" />
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Trash2 className="h-4.5 w-4.5 text-rose-600 dark:text-rose-400" />
-                    <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
-                      Delete Draft Invoice
-                    </h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowDeleteModal(false)}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg transition-colors"
-                    aria-label="Close"
-                  >
-                    <X className="h-5 w-5" strokeWidth={2} />
-                  </button>
+            <div
+              onClick={() => setShowDeleteModal(false)}
+              className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={detailModalDragOffsetY > 0 ? { transform: `translateY(${detailModalDragOffsetY}px)`, transition: 'none' } : undefined}
+                className="w-full sm:max-w-[440px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
+              >
+                {/* Mobile Drag Handle */}
+                <div
+                  onTouchStart={(e) => {
+                    detailModalDragStartY.current = e.touches[0].clientY;
+                  }}
+                  onTouchMove={(e) => {
+                    if (detailModalDragStartY.current !== null) {
+                      const delta = Math.max(0, e.touches[0].clientY - detailModalDragStartY.current);
+                      setDetailModalDragOffsetY(delta);
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    if (detailModalDragOffsetY > 70) {
+                      setShowDeleteModal(false);
+                    }
+                    setDetailModalDragOffsetY(0);
+                    detailModalDragStartY.current = null;
+                  }}
+                  className="sm:hidden pt-2.5 pb-1 cursor-grab active:cursor-grabbing shrink-0"
+                >
+                  <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto" />
                 </div>
 
-                <p className="text-[13px] text-gray-500 dark:text-zinc-400">
-                  Are you sure you want to delete this draft invoice? This action is soft and preserves historical data.
-                </p>
+                <div
+                  onTouchStart={(e) => {
+                    detailModalDragStartY.current = e.touches[0].clientY;
+                  }}
+                  onTouchMove={(e) => {
+                    if (detailModalDragStartY.current !== null) {
+                      const delta = Math.max(0, e.touches[0].clientY - detailModalDragStartY.current);
+                      setDetailModalDragOffsetY(delta);
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    if (detailModalDragOffsetY > 70) {
+                      setShowDeleteModal(false);
+                    }
+                    setDetailModalDragOffsetY(0);
+                    detailModalDragStartY.current = null;
+                  }}
+                  className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] shrink-0"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+                        Delete Draft Invoice
+                      </h3>
+                      <p className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">
+                        This action preserves historical data.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteModal(false)}
+                      className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                      aria-label="Close"
+                    >
+                      <X className="h-4 w-4" strokeWidth={2} />
+                    </button>
+                  </div>
+                </div>
 
-                <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-gray-100 dark:border-[#27272a]">
+                <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-3">
+                  <p className="text-[13px] text-gray-600 dark:text-zinc-300 leading-relaxed">
+                    Are you sure you want to delete this draft invoice? This action is soft and preserves historical data.
+                  </p>
+                </div>
+
+                <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
                   <button
                     type="button"
                     onClick={() => setShowDeleteModal(false)}
-                    className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+                    className="h-11 sm:h-10 w-full sm:w-auto px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer inline-flex items-center justify-center"
                   >
                     Cancel
                   </button>
@@ -1152,7 +1308,7 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                     type="button"
                     onClick={handleDelete}
                     disabled={isDeleting}
-                    className="h-10 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50"
+                    className="h-11 sm:h-10 w-full sm:w-auto px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center justify-center"
                   >
                     {isDeleting ? 'Deleting...' : 'Delete Draft'}
                   </button>
@@ -1164,60 +1320,113 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
 
           {/* Reverse Payment Modal */}
           {reversalTargetEvent && createPortal(
-            <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-              <div className="w-full sm:max-w-[440px] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-5 sm:p-6 space-y-4 my-auto overflow-hidden text-left shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
-                <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto -mt-1 mb-1 shrink-0" />
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4.5 w-4.5 text-amber-500" />
-                    <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
-                      Reverse Payment
-                    </h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setReversalTargetEvent(null)}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg transition-colors"
-                    aria-label="Close"
-                  >
-                    <X className="h-5 w-5" strokeWidth={2} />
-                  </button>
+            <div
+              onClick={() => setReversalTargetEvent(null)}
+              className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={detailModalDragOffsetY > 0 ? { transform: `translateY(${detailModalDragOffsetY}px)`, transition: 'none' } : undefined}
+                className="w-full sm:max-w-[440px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
+              >
+                {/* Mobile Drag Handle */}
+                <div
+                  onTouchStart={(e) => {
+                    detailModalDragStartY.current = e.touches[0].clientY;
+                  }}
+                  onTouchMove={(e) => {
+                    if (detailModalDragStartY.current !== null) {
+                      const delta = Math.max(0, e.touches[0].clientY - detailModalDragStartY.current);
+                      setDetailModalDragOffsetY(delta);
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    if (detailModalDragOffsetY > 70) {
+                      setReversalTargetEvent(null);
+                    }
+                    setDetailModalDragOffsetY(0);
+                    detailModalDragStartY.current = null;
+                  }}
+                  className="sm:hidden pt-2.5 pb-1 cursor-grab active:cursor-grabbing shrink-0"
+                >
+                  <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto" />
                 </div>
 
-                <form onSubmit={handleReversePayment} className="space-y-4">
-                  <p className="text-[13px] text-gray-600 dark:text-zinc-300">
-                    You are reversing payment of{' '}
-                    <span className="font-semibold text-gray-900 dark:text-white">
-                      <Money amountMinor={reversalTargetEvent.amount_minor} currency={reversalTargetEvent.currency || invoice.currency} />
-                    </span>{' '}
-                    recorded on {formatDateDisplay(reversalTargetEvent.occurred_at || reversalTargetEvent.created_at)}. This will create an offsetting reversal entry in the ledger.
-                  </p>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
-                      Reversal Reason (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Bounced check, Client request..."
-                      value={reversalNote}
-                      onChange={(e) => setReversalNote(e.target.value)}
-                      className="w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-900 dark:text-white placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20 transition-colors"
-                    />
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-gray-100 dark:border-[#27272a]">
+                <div
+                  onTouchStart={(e) => {
+                    detailModalDragStartY.current = e.touches[0].clientY;
+                  }}
+                  onTouchMove={(e) => {
+                    if (detailModalDragStartY.current !== null) {
+                      const delta = Math.max(0, e.touches[0].clientY - detailModalDragStartY.current);
+                      setDetailModalDragOffsetY(delta);
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    if (detailModalDragOffsetY > 70) {
+                      setReversalTargetEvent(null);
+                    }
+                    setDetailModalDragOffsetY(0);
+                    detailModalDragStartY.current = null;
+                  }}
+                  className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] shrink-0"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+                        Reverse Payment
+                      </h3>
+                      <p className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">
+                        Creates an offsetting ledger reversal entry.
+                      </p>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setReversalTargetEvent(null)}
-                      className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+                      className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                      aria-label="Close"
+                    >
+                      <X className="h-4 w-4" strokeWidth={2} />
+                    </button>
+                  </div>
+                </div>
+
+                <form onSubmit={handleReversePayment} className="flex flex-col flex-1 min-h-0 font-sans text-left">
+                  <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-4">
+                    <p className="text-[13px] text-gray-600 dark:text-zinc-300">
+                      You are reversing payment of{' '}
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        <Money amountMinor={reversalTargetEvent.amount_minor} currency={reversalTargetEvent.currency || invoice.currency} />
+                      </span>{' '}
+                      recorded on {formatDateDisplay(reversalTargetEvent.occurred_at || reversalTargetEvent.created_at)}. This will create an offsetting reversal entry in the ledger.
+                    </p>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300">
+                        Reversal Reason (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Bounced check, Client request..."
+                        value={reversalNote}
+                        onChange={(e) => setReversalNote(e.target.value)}
+                        className="w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-900 dark:text-white placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 dark:focus:ring-blue-500/20 transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setReversalTargetEvent(null)}
+                      className="h-11 sm:h-10 w-full sm:w-auto px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer inline-flex items-center justify-center"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isReversing}
-                      className="h-10 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50"
+                      className="h-11 sm:h-10 w-full sm:w-auto px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center justify-center"
                     >
                       {isReversing ? 'Reversing...' : 'Reverse Payment'}
                     </button>

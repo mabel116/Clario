@@ -217,6 +217,8 @@ export function CreateInvoiceClient() {
   const [viewMode, setViewMode] = useState<ViewMode>('form');
   const [isAddClientOpen, setIsAddClientOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const clientDragStartY = useRef<number | null>(null);
+  const [clientDragOffsetY, setClientDragOffsetY] = useState(0);
 
   useEffect(() => {
     setIsMounted(true);
@@ -1735,26 +1737,72 @@ export function CreateInvoiceClient() {
 
       {/* Portal Add New Client Modal (Matching Add Clients_2.jpg 1:1, strictly max-w-[480px]) */}
       {isAddClientOpen && isMounted && createPortal(
-        <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div data-popover="true" className="w-full sm:max-w-[480px] max-h-[88dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+        <div
+          onClick={() => setIsAddClientOpen(false)}
+          className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={clientDragOffsetY > 0 ? { transform: `translateY(${clientDragOffsetY}px)`, transition: 'none' } : undefined}
+            data-popover="true"
+            className="w-full sm:max-w-[480px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
+          >
             {/* Mobile Drag Handle */}
-            <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto mt-2.5 mb-1 shrink-0" />
-            <div className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] flex items-start justify-between gap-3 shrink-0">
+            <div
+              onTouchStart={(e) => {
+                clientDragStartY.current = e.touches[0].clientY;
+              }}
+              onTouchMove={(e) => {
+                if (clientDragStartY.current !== null) {
+                  const delta = Math.max(0, e.touches[0].clientY - clientDragStartY.current);
+                  setClientDragOffsetY(delta);
+                }
+              }}
+              onTouchEnd={() => {
+                if (clientDragOffsetY > 70) {
+                  setIsAddClientOpen(false);
+                }
+                setClientDragOffsetY(0);
+                clientDragStartY.current = null;
+              }}
+              className="sm:hidden pt-2.5 pb-1 cursor-grab active:cursor-grabbing shrink-0"
+            >
+              <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto" />
+            </div>
+            <div
+              onTouchStart={(e) => {
+                clientDragStartY.current = e.touches[0].clientY;
+              }}
+              onTouchMove={(e) => {
+                if (clientDragStartY.current !== null) {
+                  const delta = Math.max(0, e.touches[0].clientY - clientDragStartY.current);
+                  setClientDragOffsetY(delta);
+                }
+              }}
+              onTouchEnd={() => {
+                if (clientDragOffsetY > 70) {
+                  setIsAddClientOpen(false);
+                }
+                setClientDragOffsetY(0);
+                clientDragStartY.current = null;
+              }}
+              className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] flex items-start justify-between gap-3 shrink-0"
+            >
               <div>
-                <h3 className="text-[18px] leading-[24px] font-semibold text-gray-900 dark:text-white">
+                <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
                   Add New Client
                 </h3>
-                <p className="text-[12px] text-gray-500 dark:text-zinc-400 mt-0.5">
+                <p className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">
                   Enter client contact and currency details.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAddClientOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg transition-colors"
+                className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
                 aria-label="Close"
               >
-                <X className="h-5 w-5" strokeWidth={2} />
+                <X className="h-4 w-4" strokeWidth={2} />
               </button>
             </div>
 
@@ -1944,19 +1992,19 @@ export function CreateInvoiceClient() {
               </div>
 
               </div>
-              {/* Pinned Footer Actions */}
-              <div className="shrink-0 px-5 py-3.5 sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center justify-end gap-2.5">
+              {/* Pinned Safe-Area Footer */}
+              <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsAddClientOpen(false)}
-                  className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer"
+                  className="h-11 sm:h-10 w-full sm:w-auto px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer inline-flex items-center justify-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSavingClient}
-                  className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer"
+                  className="h-11 sm:h-10 w-full sm:w-auto px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center justify-center"
                 >
                   {isSavingClient ? 'Adding...' : 'Add New Client'}
                 </button>

@@ -960,28 +960,28 @@ function InvoicesListContent() {
                                 align="end"
                                 className="min-w-[185px] rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-none z-30"
                               >
-                                <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                   <Link
                                     href={`/invoices/${inv.id}?from=${encodeURIComponent(currentPathWithQuery)}`}
                                     prefetch={false}
                                     className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                   >
-                                    <Eye className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
-                                    <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                    <Eye className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
+                                    <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                       View invoice
                                     </span>
                                   </Link>
                                 </DropdownMenuItem>
 
                                 {inv.status !== 'void' && (
-                                  <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                  <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                     <Link
                                       href={`/invoices/${inv.id}/edit?from=${encodeURIComponent(currentPathWithQuery)}`}
                                       prefetch={false}
                                       className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                     >
-                                      <Pencil className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
-                                      <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                      <Pencil className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
+                                      <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                         Edit invoice
                                       </span>
                                     </Link>
@@ -989,14 +989,14 @@ function InvoicesListContent() {
                                 )}
 
                                 {inv.status === 'draft' && (
-                                  <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                  <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                     <button
                                       type="button"
                                       onClick={() => handleOpenMarkSent(inv)}
                                       className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                     >
-                                      <Send className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
-                                      <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                      <Send className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
+                                      <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                         Mark as sent
                                       </span>
                                     </button>
@@ -1004,21 +1004,21 @@ function InvoicesListContent() {
                                 )}
 
                                 {inv.status === 'sent' && inv.balanceDueMinor > 0 && (
-                                  <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                  <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                     <button
                                       type="button"
                                       onClick={() => setRecordPaymentTarget({ clientId: inv.client_id, invoiceId: inv.id })}
                                       className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                     >
-                                      <CreditCard className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
-                                      <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                      <CreditCard className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
+                                      <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                         Record payment
                                       </span>
                                     </button>
                                   </DropdownMenuItem>
                                 )}
 
-                                <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                   <button
                                     type="button"
                                     onClick={() => handleDownloadPDF(inv)}
@@ -1026,11 +1026,11 @@ function InvoicesListContent() {
                                     className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226] disabled:opacity-50"
                                   >
                                     {generatingPdfInvoiceId === inv.id ? (
-                                      <Loader2 className="h-[15px] w-[15px] animate-spin text-gray-800 dark:text-zinc-100 shrink-0" />
+                                      <Loader2 className="h-[15px] w-[15px] animate-spin text-gray-800 dark:text-zinc-200 shrink-0" />
                                     ) : (
-                                      <Download className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
+                                      <Download className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
                                     )}
-                                    <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                    <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                       Download PDF
                                     </span>
                                   </button>
@@ -1084,28 +1084,28 @@ function InvoicesListContent() {
                               align="end"
                               className="min-w-[185px] rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-none z-30"
                             >
-                              <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                              <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                 <Link
                                   href={`/invoices/${inv.id}?from=${encodeURIComponent(currentPathWithQuery)}`}
                                   prefetch={false}
                                   className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                 >
-                                  <Eye className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
-                                  <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                  <Eye className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
+                                  <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                     View invoice
                                   </span>
                                 </Link>
                               </DropdownMenuItem>
 
                               {inv.status !== 'void' && (
-                                <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                   <Link
                                     href={`/invoices/${inv.id}/edit?from=${encodeURIComponent(currentPathWithQuery)}`}
                                     prefetch={false}
                                     className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                   >
-                                    <Pencil className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
-                                    <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                    <Pencil className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
+                                    <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                       Edit invoice
                                     </span>
                                   </Link>
@@ -1113,14 +1113,14 @@ function InvoicesListContent() {
                               )}
 
                               {inv.status === 'draft' && (
-                                <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                   <button
                                     type="button"
                                     onClick={() => handleOpenMarkSent(inv)}
                                     className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                   >
-                                    <Send className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
-                                    <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                    <Send className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
+                                    <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                       Mark as sent
                                     </span>
                                   </button>
@@ -1128,21 +1128,21 @@ function InvoicesListContent() {
                               )}
 
                               {inv.status === 'sent' && inv.balanceDueMinor > 0 && (
-                                <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                   <button
                                     type="button"
                                     onClick={() => setRecordPaymentTarget({ clientId: inv.client_id, invoiceId: inv.id })}
                                     className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226]"
                                   >
-                                    <CreditCard className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
-                                    <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                    <CreditCard className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
+                                    <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                       Record payment
                                     </span>
                                   </button>
                                 </DropdownMenuItem>
                               )}
 
-                              <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                              <DropdownMenuItem asChild className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                 <button
                                   type="button"
                                   onClick={() => handleDownloadPDF(inv)}
@@ -1150,11 +1150,11 @@ function InvoicesListContent() {
                                   className="flex items-center gap-2.5 whitespace-nowrap py-2.5 sm:py-2 px-3.5 sm:px-3 rounded-lg w-full text-left no-underline cursor-pointer hover:bg-gray-100 dark:hover:bg-[#222226] disabled:opacity-50"
                                 >
                                   {generatingPdfInvoiceId === inv.id ? (
-                                    <Loader2 className="h-[15px] w-[15px] animate-spin text-gray-800 dark:text-zinc-100 shrink-0" />
+                                    <Loader2 className="h-[15px] w-[15px] animate-spin text-gray-800 dark:text-zinc-200 shrink-0" />
                                   ) : (
-                                    <Download className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-100 shrink-0" strokeWidth={2} />
+                                    <Download className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
                                   )}
-                                  <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-100">
+                                  <span className="text-[13px] leading-none font-medium text-gray-800 dark:text-zinc-200">
                                     Download PDF
                                   </span>
                                 </button>

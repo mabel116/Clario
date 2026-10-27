@@ -1398,9 +1398,9 @@ function MoreActionsDropdown({
               setIsOpen(false);
               onView();
             }}
-            className="w-full px-3 py-1.5 text-left text-[12px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] rounded-lg transition-colors flex items-center gap-2"
+            className="w-full px-3 py-1.5 text-left text-[13px] font-medium leading-none text-gray-800 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] rounded-lg transition-colors flex items-center gap-2.5 cursor-pointer"
           >
-            <Users className="h-3.5 w-3.5 text-gray-400" />
+            <Users className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
             <span>View Client</span>
           </button>
 
@@ -1408,9 +1408,9 @@ function MoreActionsDropdown({
             href={createInvoiceHref}
             prefetch={false}
             onClick={() => setIsOpen(false)}
-            className="w-full px-3 py-1.5 text-left text-[12px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] rounded-lg transition-colors flex items-center gap-2 no-underline"
+            className="w-full px-3 py-1.5 text-left text-[13px] font-medium leading-none text-gray-800 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] rounded-lg transition-colors flex items-center gap-2.5 no-underline cursor-pointer"
           >
-            <FileText className="h-3.5 w-3.5 text-gray-400" />
+            <FileText className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
             <span>Create Invoice</span>
           </Link>
 
@@ -1420,9 +1420,9 @@ function MoreActionsDropdown({
               setIsOpen(false);
               onEdit();
             }}
-            className="w-full px-3 py-1.5 text-left text-[12px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] rounded-lg transition-colors flex items-center gap-2"
+            className="w-full px-3 py-1.5 text-left text-[13px] font-medium leading-none text-gray-800 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-[#222226] rounded-lg transition-colors flex items-center gap-2.5 cursor-pointer"
           >
-            <Edit2 className="h-3.5 w-3.5 text-gray-400" />
+            <Edit2 className="h-[15px] w-[15px] text-gray-800 dark:text-zinc-200 shrink-0" strokeWidth={2} />
             <span>Edit Client</span>
           </button>
 
@@ -1434,9 +1434,9 @@ function MoreActionsDropdown({
               setIsOpen(false);
               onDelete();
             }}
-            className="w-full px-3 py-1.5 text-left text-[12px] font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors flex items-center gap-2"
+            className="w-full px-3 py-1.5 text-left text-[13px] font-medium leading-none text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors flex items-center gap-2.5 cursor-pointer"
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="h-[15px] w-[15px] text-rose-500 shrink-0" strokeWidth={2} />
             <span>Delete Client</span>
           </button>
         </div>
@@ -1458,7 +1458,8 @@ function AddClientModal({
   onCreated: (id: string) => void;
 }) {
   const { showToast } = useToast();
-  const touchStartY = useRef(0);
+  const dragStartY = useRef<number | null>(null);
+  const [dragOffsetY, setDragOffsetY] = useState(0);
   const [name, setName] = useState('');
   const [company, setCompany] = useState('');
   const [email, setEmail] = useState('');
@@ -1501,33 +1502,76 @@ function AddClientModal({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="w-full sm:max-w-[480px] max-h-[88dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans">
+    <div
+      onClick={onClose}
+      className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={dragOffsetY > 0 ? { transform: `translateY(${dragOffsetY}px)`, transition: 'none' } : undefined}
+        className="w-full sm:max-w-[480px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
+      >
         {/* Mobile Drag Handle */}
-        <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto mt-2.5 mb-1 shrink-0" />
+        <div
+          onTouchStart={(e) => {
+            dragStartY.current = e.touches[0].clientY;
+          }}
+          onTouchMove={(e) => {
+            if (dragStartY.current !== null) {
+              const delta = Math.max(0, e.touches[0].clientY - dragStartY.current);
+              setDragOffsetY(delta);
+            }
+          }}
+          onTouchEnd={() => {
+            if (dragOffsetY > 70) {
+              onClose();
+            }
+            setDragOffsetY(0);
+            dragStartY.current = null;
+          }}
+          className="sm:hidden pt-2.5 pb-1 cursor-grab active:cursor-grabbing shrink-0"
+        >
+          <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto" />
+        </div>
 
         {/* Pinned Header */}
         <div
           onTouchStart={(e) => {
-            touchStartY.current = e.touches[0].clientY;
+            dragStartY.current = e.touches[0].clientY;
           }}
-          onTouchEnd={(e) => {
-            if (e.changedTouches[0].clientY - touchStartY.current > 60) {
-              onClose();
+          onTouchMove={(e) => {
+            if (dragStartY.current !== null) {
+              const delta = Math.max(0, e.touches[0].clientY - dragStartY.current);
+              setDragOffsetY(delta);
             }
           }}
-          className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] flex items-center justify-between gap-3 shrink-0"
+          onTouchEnd={() => {
+            if (dragOffsetY > 70) {
+              onClose();
+            }
+            setDragOffsetY(0);
+            dragStartY.current = null;
+          }}
+          className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] shrink-0"
         >
-          <h3 className="text-[16px] font-semibold text-gray-900 dark:text-white">
-            Add New Client
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+                Add New Client
+              </h3>
+              <p className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">
+                Create a new client profile.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close modal"
+              className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0"
+            >
+              <X className="h-4 w-4" strokeWidth={2} />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
@@ -1552,7 +1596,7 @@ function AddClientModal({
               </label>
               <input
                 type="text"
-                placeholder="e.g. Acme Technologies Inc."
+                placeholder="e.g. Acme Industries Ltd"
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
                 className="w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-900 dark:text-white placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
@@ -1562,11 +1606,11 @@ function AddClientModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300 mb-1">
-                  Email Address
+                  Email
                 </label>
                 <input
                   type="email"
-                  placeholder="name@company.com"
+                  placeholder="billing@acme.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-900 dark:text-white placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
@@ -1575,11 +1619,11 @@ function AddClientModal({
 
               <div>
                 <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300 mb-1">
-                  Phone Number
+                  Phone
                 </label>
                 <input
                   type="tel"
-                  placeholder="+1 (555) 000-0000"
+                  placeholder="+1 (555) 012-3456"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-900 dark:text-white placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
@@ -1589,24 +1633,47 @@ function AddClientModal({
 
             <div>
               <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300 mb-1">
-                Billing Address
+                Default Currency
               </label>
-              <input
-                type="text"
-                placeholder="Street, City, State, ZIP"
+              <div className="grid grid-cols-4 gap-2">
+                {['USD', 'EUR', 'GBP', 'CAD'].map((curr) => (
+                  <button
+                    key={curr}
+                    type="button"
+                    onClick={() => setCurrency(curr)}
+                    className={cn(
+                      'h-9 rounded-xl text-[12px] font-semibold border transition-all cursor-pointer',
+                      currency === curr
+                        ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/20'
+                        : 'border-gray-200/80 dark:border-[#27272a] text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-[#222226]'
+                    )}
+                  >
+                    {curr}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300 mb-1">
+                Physical / Billing Address
+              </label>
+              <textarea
+                rows={2}
+                placeholder="123 Business Way, Suite 400..."
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-900 dark:text-white placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-900 dark:text-white placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 resize-none"
               />
             </div>
 
             <div>
               <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300 mb-1">
-                Note (Optional)
+                Internal Notes
               </label>
               <textarea
                 rows={2}
-                placeholder="Internal client notes..."
+                placeholder="Private client context, billing instructions, or preferred payment methods..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-900 dark:text-white placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 resize-none"
@@ -1615,18 +1682,18 @@ function AddClientModal({
           </div>
 
           {/* Pinned Footer */}
-          <div className="shrink-0 px-5 py-3.5 sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center justify-end gap-2.5">
+          <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer"
+              className="h-11 sm:h-10 w-full sm:w-auto px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer inline-flex items-center justify-center"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer"
+              className="h-11 sm:h-10 w-full sm:w-auto px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center justify-center"
             >
               {isSubmitting ? 'Creating...' : 'Create Client'}
             </button>
@@ -1648,7 +1715,8 @@ function EditClientModal({
   onUpdated: () => void;
 }) {
   const { showToast } = useToast();
-  const touchStartY = useRef(0);
+  const dragStartY = useRef<number | null>(null);
+  const [dragOffsetY, setDragOffsetY] = useState(0);
   const [name, setName] = useState(client.name);
   const [company, setCompany] = useState(client.company || '');
   const [email, setEmail] = useState(client.email || '');
@@ -1701,33 +1769,76 @@ function EditClientModal({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="w-full sm:max-w-[480px] max-h-[88dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans">
+    <div
+      onClick={onClose}
+      className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={dragOffsetY > 0 ? { transform: `translateY(${dragOffsetY}px)`, transition: 'none' } : undefined}
+        className="w-full sm:max-w-[480px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
+      >
         {/* Mobile Drag Handle */}
-        <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto mt-2.5 mb-1 shrink-0" />
+        <div
+          onTouchStart={(e) => {
+            dragStartY.current = e.touches[0].clientY;
+          }}
+          onTouchMove={(e) => {
+            if (dragStartY.current !== null) {
+              const delta = Math.max(0, e.touches[0].clientY - dragStartY.current);
+              setDragOffsetY(delta);
+            }
+          }}
+          onTouchEnd={() => {
+            if (dragOffsetY > 70) {
+              onClose();
+            }
+            setDragOffsetY(0);
+            dragStartY.current = null;
+          }}
+          className="sm:hidden pt-2.5 pb-1 cursor-grab active:cursor-grabbing shrink-0"
+        >
+          <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto" />
+        </div>
 
         {/* Pinned Header */}
         <div
           onTouchStart={(e) => {
-            touchStartY.current = e.touches[0].clientY;
+            dragStartY.current = e.touches[0].clientY;
           }}
-          onTouchEnd={(e) => {
-            if (e.changedTouches[0].clientY - touchStartY.current > 60) {
-              onClose();
+          onTouchMove={(e) => {
+            if (dragStartY.current !== null) {
+              const delta = Math.max(0, e.touches[0].clientY - dragStartY.current);
+              setDragOffsetY(delta);
             }
           }}
-          className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] flex items-center justify-between gap-3 shrink-0"
+          onTouchEnd={() => {
+            if (dragOffsetY > 70) {
+              onClose();
+            }
+            setDragOffsetY(0);
+            dragStartY.current = null;
+          }}
+          className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] shrink-0"
         >
-          <h3 className="text-[16px] font-semibold text-gray-900 dark:text-white">
-            Edit Client
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+                Edit Client
+              </h3>
+              <p className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">
+                Update client profile information.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close modal"
+              className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0"
+            >
+              <X className="h-4 w-4" strokeWidth={2} />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
@@ -1760,7 +1871,7 @@ function EditClientModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300 mb-1">
-                  Email Address
+                  Email
                 </label>
                 <input
                   type="email"
@@ -1772,7 +1883,7 @@ function EditClientModal({
 
               <div>
                 <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300 mb-1">
-                  Phone Number
+                  Phone
                 </label>
                 <input
                   type="tel"
@@ -1785,23 +1896,22 @@ function EditClientModal({
 
             <div>
               <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300 mb-1">
-                Billing Address
+                Physical / Billing Address
               </label>
-              <input
-                type="text"
+              <textarea
+                rows={2}
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full h-10 px-3.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-900 dark:text-white placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-900 dark:text-white placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 resize-none"
               />
             </div>
 
             <div>
               <label className="block text-[12px] font-medium text-gray-700 dark:text-zinc-300 mb-1">
-                Note (Optional)
+                Internal Notes
               </label>
               <textarea
                 rows={2}
-                placeholder="Internal client notes..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[#F9FAFB] dark:bg-[#121215] border border-gray-200/80 dark:border-[#27272a] text-[13px] font-medium text-gray-900 dark:text-white placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 resize-none"
@@ -1809,19 +1919,18 @@ function EditClientModal({
             </div>
           </div>
 
-          {/* Pinned Footer */}
-          <div className="shrink-0 px-5 py-3.5 sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center justify-end gap-2.5">
+          <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer"
+              className="h-11 sm:h-10 w-full sm:w-auto px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer inline-flex items-center justify-center"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer"
+              className="h-11 sm:h-10 w-full sm:w-auto px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center justify-center"
             >
               {isSubmitting ? 'Saving...' : 'Save Changes'}
             </button>
@@ -1843,7 +1952,8 @@ function DeleteClientModal({
   onDeleted: () => void;
 }) {
   const { showToast } = useToast();
-  const touchStartY = useRef(0);
+  const dragStartY = useRef<number | null>(null);
+  const [dragOffsetY, setDragOffsetY] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
@@ -1860,39 +1970,76 @@ function DeleteClientModal({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="w-full sm:max-w-[420px] max-h-[88dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans">
+    <div
+      onClick={onClose}
+      className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={dragOffsetY > 0 ? { transform: `translateY(${dragOffsetY}px)`, transition: 'none' } : undefined}
+        className="w-full sm:max-w-[440px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
+      >
         {/* Mobile Drag Handle */}
-        <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto mt-2.5 mb-1 shrink-0" />
+        <div
+          onTouchStart={(e) => {
+            dragStartY.current = e.touches[0].clientY;
+          }}
+          onTouchMove={(e) => {
+            if (dragStartY.current !== null) {
+              const delta = Math.max(0, e.touches[0].clientY - dragStartY.current);
+              setDragOffsetY(delta);
+            }
+          }}
+          onTouchEnd={() => {
+            if (dragOffsetY > 70) {
+              onClose();
+            }
+            setDragOffsetY(0);
+            dragStartY.current = null;
+          }}
+          className="sm:hidden pt-2.5 pb-1 cursor-grab active:cursor-grabbing shrink-0"
+        >
+          <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto" />
+        </div>
 
         {/* Pinned Header */}
         <div
           onTouchStart={(e) => {
-            touchStartY.current = e.touches[0].clientY;
+            dragStartY.current = e.touches[0].clientY;
           }}
-          onTouchEnd={(e) => {
-            if (e.changedTouches[0].clientY - touchStartY.current > 60) {
-              onClose();
+          onTouchMove={(e) => {
+            if (dragStartY.current !== null) {
+              const delta = Math.max(0, e.touches[0].clientY - dragStartY.current);
+              setDragOffsetY(delta);
             }
           }}
-          className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] flex items-center justify-between gap-3 shrink-0"
+          onTouchEnd={() => {
+            if (dragOffsetY > 70) {
+              onClose();
+            }
+            setDragOffsetY(0);
+            dragStartY.current = null;
+          }}
+          className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] shrink-0"
         >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-9 w-9 rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
-              <Trash2 className="h-4 w-4" />
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+                Delete Client
+              </h3>
+              <p className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">
+                Soft-delete this profile.
+              </p>
             </div>
-            <div className="min-w-0">
-              <h3 className="text-[16px] font-semibold text-gray-900 dark:text-white truncate">Delete Client</h3>
-              <p className="text-[12px] text-gray-500 dark:text-zinc-400 truncate mt-0.5">Soft-delete this profile</p>
-            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close modal"
+              className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0"
+            >
+              <X className="h-4 w-4" strokeWidth={2} />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors shrink-0"
-          >
-            <X className="h-4 w-4" />
-          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-3">
@@ -1902,11 +2049,11 @@ function DeleteClientModal({
           </p>
         </div>
 
-        <div className="shrink-0 px-5 py-3.5 sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center justify-end gap-2.5">
+        <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer"
+            className="h-11 sm:h-10 w-full sm:w-auto px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer inline-flex items-center justify-center"
           >
             Cancel
           </button>
@@ -1914,7 +2061,7 @@ function DeleteClientModal({
             type="button"
             onClick={handleDelete}
             disabled={isDeleting}
-            className="h-10 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer"
+            className="h-11 sm:h-10 w-full sm:w-auto px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center justify-center"
           >
             {isDeleting ? 'Deleting...' : 'Delete Client'}
           </button>
@@ -1935,7 +2082,8 @@ function AddLinkModal({
   onAdded: () => void;
 }) {
   const { showToast } = useToast();
-  const touchStartY = useRef(0);
+  const dragStartY = useRef<number | null>(null);
+  const [dragOffsetY, setDragOffsetY] = useState(0);
   const [label, setLabel] = useState('');
   const [url, setUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1960,27 +2108,76 @@ function AddLinkModal({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="w-full sm:max-w-[420px] max-h-[88dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans">
+    <div
+      onClick={onClose}
+      className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={dragOffsetY > 0 ? { transform: `translateY(${dragOffsetY}px)`, transition: 'none' } : undefined}
+        className="w-full sm:max-w-[440px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
+      >
         {/* Mobile Drag Handle */}
-        <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto mt-2.5 mb-1 shrink-0" />
+        <div
+          onTouchStart={(e) => {
+            dragStartY.current = e.touches[0].clientY;
+          }}
+          onTouchMove={(e) => {
+            if (dragStartY.current !== null) {
+              const delta = Math.max(0, e.touches[0].clientY - dragStartY.current);
+              setDragOffsetY(delta);
+            }
+          }}
+          onTouchEnd={() => {
+            if (dragOffsetY > 70) {
+              onClose();
+            }
+            setDragOffsetY(0);
+            dragStartY.current = null;
+          }}
+          className="sm:hidden pt-2.5 pb-1 cursor-grab active:cursor-grabbing shrink-0"
+        >
+          <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto" />
+        </div>
 
         {/* Pinned Header */}
         <div
           onTouchStart={(e) => {
-            touchStartY.current = e.touches[0].clientY;
+            dragStartY.current = e.touches[0].clientY;
           }}
-          onTouchEnd={(e) => {
-            if (e.changedTouches[0].clientY - touchStartY.current > 60) {
-              onClose();
+          onTouchMove={(e) => {
+            if (dragStartY.current !== null) {
+              const delta = Math.max(0, e.touches[0].clientY - dragStartY.current);
+              setDragOffsetY(delta);
             }
           }}
-          className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] flex items-center justify-between gap-3 shrink-0"
+          onTouchEnd={() => {
+            if (dragOffsetY > 70) {
+              onClose();
+            }
+            setDragOffsetY(0);
+            dragStartY.current = null;
+          }}
+          className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] shrink-0"
         >
-          <h3 className="text-[16px] font-semibold text-gray-900 dark:text-white">Add Document Link</h3>
-          <button type="button" onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-white">
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+                Add Document Link
+              </h3>
+              <p className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">
+                Attach a link or asset URL to this client.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close modal"
+              className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0"
+            >
+              <X className="h-4 w-4" strokeWidth={2} />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
@@ -2014,18 +2211,18 @@ function AddLinkModal({
             </div>
           </div>
 
-          <div className="shrink-0 px-5 py-3.5 sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center justify-end gap-2.5">
+          <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+              className="h-11 sm:h-10 w-full sm:w-auto px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer inline-flex items-center justify-center"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50"
+              className="h-11 sm:h-10 w-full sm:w-auto px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center justify-center"
             >
               {isSubmitting ? 'Adding...' : 'Add Link'}
             </button>
@@ -2047,7 +2244,8 @@ function EditLinkModal({
   onUpdated: () => void;
 }) {
   const { showToast } = useToast();
-  const touchStartY = useRef(0);
+  const dragStartY = useRef<number | null>(null);
+  const [dragOffsetY, setDragOffsetY] = useState(0);
   const [label, setLabel] = useState(link.label);
   const [url, setUrl] = useState(link.url);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -2072,27 +2270,76 @@ function EditLinkModal({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="w-full sm:max-w-[420px] max-h-[88dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans">
+    <div
+      onClick={onClose}
+      className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={dragOffsetY > 0 ? { transform: `translateY(${dragOffsetY}px)`, transition: 'none' } : undefined}
+        className="w-full sm:max-w-[440px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
+      >
         {/* Mobile Drag Handle */}
-        <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto mt-2.5 mb-1 shrink-0" />
+        <div
+          onTouchStart={(e) => {
+            dragStartY.current = e.touches[0].clientY;
+          }}
+          onTouchMove={(e) => {
+            if (dragStartY.current !== null) {
+              const delta = Math.max(0, e.touches[0].clientY - dragStartY.current);
+              setDragOffsetY(delta);
+            }
+          }}
+          onTouchEnd={() => {
+            if (dragOffsetY > 70) {
+              onClose();
+            }
+            setDragOffsetY(0);
+            dragStartY.current = null;
+          }}
+          className="sm:hidden pt-2.5 pb-1 cursor-grab active:cursor-grabbing shrink-0"
+        >
+          <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto" />
+        </div>
 
         {/* Pinned Header */}
         <div
           onTouchStart={(e) => {
-            touchStartY.current = e.touches[0].clientY;
+            dragStartY.current = e.touches[0].clientY;
           }}
-          onTouchEnd={(e) => {
-            if (e.changedTouches[0].clientY - touchStartY.current > 60) {
-              onClose();
+          onTouchMove={(e) => {
+            if (dragStartY.current !== null) {
+              const delta = Math.max(0, e.touches[0].clientY - dragStartY.current);
+              setDragOffsetY(delta);
             }
           }}
-          className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] flex items-center justify-between gap-3 shrink-0"
+          onTouchEnd={() => {
+            if (dragOffsetY > 70) {
+              onClose();
+            }
+            setDragOffsetY(0);
+            dragStartY.current = null;
+          }}
+          className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] shrink-0"
         >
-          <h3 className="text-[16px] font-semibold text-gray-900 dark:text-white">Edit Document Link</h3>
-          <button type="button" onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-white">
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+                Edit Document Link
+              </h3>
+              <p className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">
+                Update document link details.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close modal"
+              className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0"
+            >
+              <X className="h-4 w-4" strokeWidth={2} />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
@@ -2124,18 +2371,18 @@ function EditLinkModal({
             </div>
           </div>
 
-          <div className="shrink-0 px-5 py-3.5 sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center justify-end gap-2.5">
+          <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+              className="h-11 sm:h-10 w-full sm:w-auto px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer inline-flex items-center justify-center"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50"
+              className="h-11 sm:h-10 w-full sm:w-auto px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center justify-center"
             >
               {isSubmitting ? 'Saving...' : 'Save Changes'}
             </button>
@@ -2157,7 +2404,8 @@ function DeleteLinkModal({
   onDeleted: () => void;
 }) {
   const { showToast } = useToast();
-  const touchStartY = useRef(0);
+  const dragStartY = useRef<number | null>(null);
+  const [dragOffsetY, setDragOffsetY] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
@@ -2174,27 +2422,76 @@ function DeleteLinkModal({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="w-full sm:max-w-[420px] max-h-[88dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans">
+    <div
+      onClick={onClose}
+      className="fixed -inset-y-12 inset-x-0 z-[100] w-screen min-h-[100dvh] pt-12 pb-0 sm:py-12 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center px-0 sm:px-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={dragOffsetY > 0 ? { transform: `translateY(${dragOffsetY}px)`, transition: 'none' } : undefined}
+        className="w-full sm:max-w-[440px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 text-left font-sans"
+      >
         {/* Mobile Drag Handle */}
-        <div className="sm:hidden w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto mt-2.5 mb-1 shrink-0" />
+        <div
+          onTouchStart={(e) => {
+            dragStartY.current = e.touches[0].clientY;
+          }}
+          onTouchMove={(e) => {
+            if (dragStartY.current !== null) {
+              const delta = Math.max(0, e.touches[0].clientY - dragStartY.current);
+              setDragOffsetY(delta);
+            }
+          }}
+          onTouchEnd={() => {
+            if (dragOffsetY > 70) {
+              onClose();
+            }
+            setDragOffsetY(0);
+            dragStartY.current = null;
+          }}
+          className="sm:hidden pt-2.5 pb-1 cursor-grab active:cursor-grabbing shrink-0"
+        >
+          <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto" />
+        </div>
 
         {/* Pinned Header */}
         <div
           onTouchStart={(e) => {
-            touchStartY.current = e.touches[0].clientY;
+            dragStartY.current = e.touches[0].clientY;
           }}
-          onTouchEnd={(e) => {
-            if (e.changedTouches[0].clientY - touchStartY.current > 60) {
-              onClose();
+          onTouchMove={(e) => {
+            if (dragStartY.current !== null) {
+              const delta = Math.max(0, e.touches[0].clientY - dragStartY.current);
+              setDragOffsetY(delta);
             }
           }}
-          className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] flex items-center justify-between gap-3 shrink-0"
+          onTouchEnd={() => {
+            if (dragOffsetY > 70) {
+              onClose();
+            }
+            setDragOffsetY(0);
+            dragStartY.current = null;
+          }}
+          className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] shrink-0"
         >
-          <h3 className="text-[16px] font-semibold text-gray-900 dark:text-white">Remove Document Link</h3>
-          <button type="button" onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-white">
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-[17px] leading-[22px] font-semibold text-gray-900 dark:text-white">
+                Remove Document Link
+              </h3>
+              <p className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">
+                Remove this link from client profile.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close modal"
+              className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200/80 dark:bg-[#222226] dark:hover:bg-[#2e2e34] text-gray-500 dark:text-zinc-400 flex items-center justify-center transition-colors shrink-0"
+            >
+              <X className="h-4 w-4" strokeWidth={2} />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-3">
@@ -2203,11 +2500,11 @@ function DeleteLinkModal({
           </p>
         </div>
 
-        <div className="shrink-0 px-5 py-3.5 sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex items-center justify-end gap-2.5">
+        <div className="shrink-0 px-5 pt-3.5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-4 border-t border-gray-100 dark:border-[#27272a] bg-white dark:bg-[#18181b] grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="h-10 px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors"
+            className="h-11 sm:h-10 w-full sm:w-auto px-4 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-[#222226] transition-colors cursor-pointer inline-flex items-center justify-center"
           >
             Cancel
           </button>
@@ -2215,7 +2512,7 @@ function DeleteLinkModal({
             type="button"
             onClick={handleDelete}
             disabled={isDeleting}
-            className="h-10 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50"
+            className="h-11 sm:h-10 w-full sm:w-auto px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-medium transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center justify-center"
           >
             {isDeleting ? 'Removing...' : 'Remove Link'}
           </button>
