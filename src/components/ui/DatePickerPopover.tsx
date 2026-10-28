@@ -227,30 +227,16 @@ export function DatePickerPopover({
     }
   };
 
-  const handleSelectToday = () => {
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    onChange(todayStr);
-    setViewYear(now.getFullYear());
-    setViewMonth(now.getMonth());
-    if (!inModal) {
-      setIsOpen(false);
-    }
-  };
-
   const calendarBody = (
     <>
-      {/* Top Header Row with Today in Header */}
+      {/* Top Header Row */}
       <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-gray-100 dark:border-[#27272a]">
         {/* Left: Month and Year Quick Selectors */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={() => setPickerView(pickerView === 'months' ? 'calendar' : 'months')}
-            className={cn(
-              'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#222226] text-[13px] font-semibold text-gray-900 dark:text-white transition-colors cursor-pointer',
-              pickerView === 'months' && 'bg-gray-100 dark:bg-[#222226]'
-            )}
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#222226] text-[13px] font-semibold text-gray-900 dark:text-white transition-colors cursor-pointer"
           >
             <span>{MONTH_NAMES[viewMonth]}</span>
             <ChevronDown className="h-3.5 w-3.5 text-gray-500 shrink-0" />
@@ -258,25 +244,15 @@ export function DatePickerPopover({
           <button
             type="button"
             onClick={() => setPickerView(pickerView === 'years' ? 'calendar' : 'years')}
-            className={cn(
-              'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#222226] text-[13px] font-semibold text-gray-900 dark:text-white transition-colors cursor-pointer',
-              pickerView === 'years' && 'bg-gray-100 dark:bg-[#222226]'
-            )}
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#222226] text-[13px] font-semibold text-gray-900 dark:text-white transition-colors cursor-pointer"
           >
             <span>{viewYear}</span>
             <ChevronDown className="h-3.5 w-3.5 text-gray-500 shrink-0" />
           </button>
         </div>
 
-        {/* Right: Today + Previous / Next Month Arrows */}
+        {/* Right: Previous / Next Month Arrows */}
         <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            onClick={handleSelectToday}
-            className="text-[12px] font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
-          >
-            Today
-          </button>
           <button
             type="button"
             onClick={handlePrevMonth}
@@ -434,7 +410,7 @@ export function DatePickerPopover({
           <div
             ref={popoverRef}
             data-popover="true"
-            className="absolute top-full left-0 mt-1.5 z-50 w-[280px] rounded-2xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-3 shadow-2xl animate-in fade-in duration-150 select-none"
+            className="absolute top-full left-0 mt-1.5 z-20 w-[280px] sm:w-[300px] rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] shadow-none p-3 select-none"
           >
             {calendarBody}
           </div>

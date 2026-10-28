@@ -10,6 +10,11 @@ export const metadata: Metadata = {
   title: "Clario — Offline-First Freelance Workspace",
   description: "Instant financial clarity and client management for solo creative freelancers.",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Clario',
+  },
 };
 
 export const viewport: Viewport = {
