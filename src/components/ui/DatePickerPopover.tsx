@@ -100,14 +100,20 @@ export function DatePickerPopover({
 
   const [viewYear, setViewYear] = useState(parsed.year);
   const [viewMonth, setViewMonth] = useState(parsed.month);
+  const [yearBlockStart, setYearBlockStart] = useState(() => Math.floor(parsed.year / 16) * 16);
 
   useEffect(() => {
     if (!isOpen) {
       setViewYear(parsed.year);
       setViewMonth(parsed.month);
+      setYearBlockStart(Math.floor(parsed.year / 16) * 16);
       setPickerView('calendar');
     }
   }, [isOpen, parsed]);
+
+  useEffect(() => {
+    setYearBlockStart(Math.floor(viewYear / 16) * 16);
+  }, [viewYear]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -142,29 +148,33 @@ export function DatePickerPopover({
     };
   }, [isOpen]);
 
-  const handlePrevMonth = () => {
-    if (pickerView === 'years') {
-      setViewYear((y) => Math.max(2020, y - 1));
-      return;
-    }
-    if (viewMonth === 0) {
-      setViewMonth(11);
+  const handlePrev = () => {
+    if (pickerView === 'calendar') {
+      if (viewMonth === 0) {
+        setViewMonth(11);
+        setViewYear((y) => y - 1);
+      } else {
+        setViewMonth((m) => m - 1);
+      }
+    } else if (pickerView === 'months') {
       setViewYear((y) => y - 1);
-    } else {
-      setViewMonth((m) => m - 1);
+    } else if (pickerView === 'years') {
+      setYearBlockStart((s) => s - 16);
     }
   };
 
-  const handleNextMonth = () => {
-    if (pickerView === 'years') {
-      setViewYear((y) => Math.min(2035, y + 1));
-      return;
-    }
-    if (viewMonth === 11) {
-      setViewMonth(0);
+  const handleNext = () => {
+    if (pickerView === 'calendar') {
+      if (viewMonth === 11) {
+        setViewMonth(0);
+        setViewYear((y) => y + 1);
+      } else {
+        setViewMonth((m) => m + 1);
+      }
+    } else if (pickerView === 'months') {
       setViewYear((y) => y + 1);
-    } else {
-      setViewMonth((m) => m + 1);
+    } else if (pickerView === 'years') {
+      setYearBlockStart((s) => s + 16);
     }
   };
 
@@ -231,40 +241,68 @@ export function DatePickerPopover({
     <>
       {/* Top Header Row */}
       <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-gray-100 dark:border-[#27272a]">
-        {/* Left: Month and Year Quick Selectors */}
+        {/* Left: View selector or year range label */}
         <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            onClick={() => setPickerView(pickerView === 'months' ? 'calendar' : 'months')}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#222226] text-[13px] font-semibold text-gray-900 dark:text-white transition-colors cursor-pointer"
-          >
-            <span>{MONTH_NAMES[viewMonth]}</span>
-            <ChevronDown className="h-3.5 w-3.5 text-gray-500 shrink-0" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setPickerView(pickerView === 'years' ? 'calendar' : 'years')}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#222226] text-[13px] font-semibold text-gray-900 dark:text-white transition-colors cursor-pointer"
-          >
-            <span>{viewYear}</span>
-            <ChevronDown className="h-3.5 w-3.5 text-gray-500 shrink-0" />
-          </button>
+          {pickerView === 'calendar' && (
+            <button
+              type="button"
+              onClick={() => setPickerView('months')}
+              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#222226] text-[13px] font-semibold text-gray-900 dark:text-white transition-colors cursor-pointer"
+            >
+              <span>{MONTH_NAMES[viewMonth]} {viewYear}</span>
+              <ChevronDown className="h-3.5 w-3.5 text-gray-500 shrink-0" />
+            </button>
+          )}
+          {pickerView === 'months' && (
+            <button
+              type="button"
+              onClick={() => {
+                setYearBlockStart(Math.floor(viewYear / 16) * 16);
+                setPickerView('years');
+              }}
+              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#222226] text-[13px] font-semibold text-gray-900 dark:text-white transition-colors cursor-pointer"
+            >
+              <span>{viewYear}</span>
+              <ChevronDown className="h-3.5 w-3.5 text-gray-500 shrink-0" />
+            </button>
+          )}
+          {pickerView === 'years' && (
+            <span className="px-2 py-1 text-[13px] font-semibold text-gray-900 dark:text-white">
+              {yearBlockStart} – {yearBlockStart + 15}
+            </span>
+          )}
         </div>
 
-        {/* Right: Previous / Next Month Arrows */}
+        {/* Right: Today + Previous / Next Month Arrows */}
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
-            onClick={handlePrevMonth}
-            aria-label="Previous month"
+            onClick={() => {
+              const now = new Date();
+              setViewMonth(now.getMonth());
+              setViewYear(now.getFullYear());
+              setYearBlockStart(Math.floor(now.getFullYear() / 16) * 16);
+              setPickerView('calendar');
+              const isoToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+              onChange(isoToday);
+              setIsOpen(false);
+            }}
+            className="text-[12px] font-medium text-gray-600 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#222226] transition-colors cursor-pointer"
+          >
+            Today
+          </button>
+          <button
+            type="button"
+            onClick={handlePrev}
+            aria-label="Previous"
             className="w-7 h-7 rounded-lg hover:bg-gray-100 dark:hover:bg-[#222226] flex items-center justify-center text-gray-600 dark:text-zinc-400 transition-colors cursor-pointer"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             type="button"
-            onClick={handleNextMonth}
-            aria-label="Next month"
+            onClick={handleNext}
+            aria-label="Next"
             className="w-7 h-7 rounded-lg hover:bg-gray-100 dark:hover:bg-[#222226] flex items-center justify-center text-gray-600 dark:text-zinc-400 transition-colors cursor-pointer"
           >
             <ChevronRight className="h-4 w-4" />
@@ -296,23 +334,23 @@ export function DatePickerPopover({
       )}
 
       {pickerView === 'years' && (
-        <div className="grid grid-cols-4 gap-1.5 pt-2 max-h-48 overflow-y-auto animate-in fade-in duration-100">
-          {YEARS.map((yr) => (
+        <div className="grid grid-cols-4 gap-1.5 pt-2 animate-in fade-in duration-100">
+          {Array.from({ length: 16 }, (_, i) => yearBlockStart + i).map((year) => (
             <button
-              key={yr}
+              key={year}
               type="button"
               onClick={() => {
-                setViewYear(yr);
+                setViewYear(year);
                 setPickerView('calendar');
               }}
               className={cn(
                 'h-9 rounded-lg text-[12px] font-medium transition-colors cursor-pointer',
-                yr === viewYear
+                year === viewYear
                   ? 'bg-blue-600 text-white font-semibold'
                   : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-[#222226]'
               )}
             >
-              {yr}
+              {year}
             </button>
           ))}
         </div>
@@ -402,7 +440,7 @@ export function DatePickerPopover({
           <div
             ref={popoverRef}
             data-popover="true"
-            className="max-sm:static max-sm:w-full max-sm:mt-2 sm:absolute sm:top-full sm:left-0 sm:mt-1.5 sm:w-[280px] sm:z-50 sm:shadow-xl rounded-2xl border border-gray-200 dark:border-[#27272a] bg-[#F9FAFB] dark:bg-[#121215] sm:bg-white sm:dark:bg-[#18181b] p-3 select-none transition-all duration-200"
+            className="max-sm:static max-sm:w-full max-sm:mt-2 sm:absolute sm:top-full sm:left-0 sm:mt-1.5 sm:w-[300px] sm:z-20 rounded-xl border border-gray-200 dark:border-[#27272a] bg-[#F9FAFB] dark:bg-[#121215] sm:bg-white sm:dark:bg-[#18181b] shadow-none p-3 select-none transition-all duration-200"
           >
             {calendarBody}
           </div>

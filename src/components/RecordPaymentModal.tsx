@@ -449,11 +449,10 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
                       <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
                     </button>
 
-                    {/* Inline on Mobile (< sm:), Absolute Dropdown on Desktop (sm:) */}
                     {isInvoiceDropdownOpen && (
                       <div
                         data-popover="true"
-                        className="mt-1.5 sm:absolute sm:top-full sm:left-0 sm:mt-1.5 sm:w-full sm:z-50 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-xl max-h-[220px] overflow-y-auto space-y-0.5 animate-in fade-in duration-100"
+                        className="absolute top-full left-0 right-0 mt-1.5 z-20 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-none select-none max-h-[220px] overflow-y-auto space-y-0.5 animate-in fade-in duration-100"
                       >
                         {activeInvoices.map((inv) => {
                           const isSelected = inv.id === effectiveInvoiceId;
@@ -611,11 +610,10 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
                     <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
                   </button>
 
-                  {/* Inline on Mobile (< sm:), Absolute Dropdown on Desktop (sm:), Zero Scrollbar */}
                   {isMethodDropdownOpen && (
                     <div
                       data-popover="true"
-                      className="mt-1.5 sm:absolute sm:top-full sm:left-0 sm:mt-1.5 sm:w-full sm:z-50 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-xl space-y-0.5 animate-in fade-in duration-100"
+                      className="absolute top-full left-0 right-0 mt-1.5 z-20 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] p-1.5 shadow-none select-none space-y-0.5 animate-in fade-in duration-100"
                     >
                       {PAYMENT_METHODS.map((m) => {
                         const isSelected = m.value === method;
