@@ -992,7 +992,13 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
           {showMarkSent && createPortal(
             <div
               onClick={() => setShowMarkSent(false)}
-              className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none"
+              onTouchMove={(e) => {
+                // Prevent touch-scrolling the page behind the backdrop
+                if (e.target === e.currentTarget) {
+                  e.preventDefault();
+                }
+              }}
+              className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none overscroll-none"
             >
               <div
                 onClick={(e) => e.stopPropagation()}
@@ -1117,7 +1123,13 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
           {showVoidModal && createPortal(
             <div
               onClick={() => setShowVoidModal(false)}
-              className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none"
+              onTouchMove={(e) => {
+                // Prevent touch-scrolling the page behind the backdrop
+                if (e.target === e.currentTarget) {
+                  e.preventDefault();
+                }
+              }}
+              className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none overscroll-none"
             >
               <div
                 onClick={(e) => e.stopPropagation()}
@@ -1221,7 +1233,13 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
           {showDeleteModal && createPortal(
             <div
               onClick={() => setShowDeleteModal(false)}
-              className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none"
+              onTouchMove={(e) => {
+                // Prevent touch-scrolling the page behind the backdrop
+                if (e.target === e.currentTarget) {
+                  e.preventDefault();
+                }
+              }}
+              className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none overscroll-none"
             >
               <div
                 onClick={(e) => e.stopPropagation()}
@@ -1322,7 +1340,13 @@ function InvoiceDetails({ invoiceId: propInvoiceId }: { invoiceId: string }) {
           {reversalTargetEvent && createPortal(
             <div
               onClick={() => setReversalTargetEvent(null)}
-              className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none"
+              onTouchMove={(e) => {
+                // Prevent touch-scrolling the page behind the backdrop
+                if (e.target === e.currentTarget) {
+                  e.preventDefault();
+                }
+              }}
+              className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none overscroll-none"
             >
               <div
                 onClick={(e) => e.stopPropagation()}

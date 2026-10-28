@@ -1326,7 +1326,13 @@ function InvoicesListContent() {
       {markSentTarget && (
         <div
           onClick={() => setMarkSentTarget(null)}
-          className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none"
+          onTouchMove={(e) => {
+            // Prevent touch-scrolling the page behind the backdrop
+            if (e.target === e.currentTarget) {
+              e.preventDefault();
+            }
+          }}
+          className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none overscroll-none"
         >
           <div
             onClick={(e) => e.stopPropagation()}

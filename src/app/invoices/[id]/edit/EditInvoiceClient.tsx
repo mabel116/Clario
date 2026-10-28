@@ -714,34 +714,27 @@ function EditInvoiceForm({ invoiceId: propInvoiceId }: { invoiceId: string }) {
                   Preview how this invoice appears before saving changes.
                 </p>
               </div>
-              <div className="w-full space-y-2 mt-3">
-                <div className="grid grid-cols-2 gap-2.5">
+              {/* Row 3: Action Buttons (Option B: 1 Row, 2 Buttons) */}
+              <div className="w-full mt-3">
+                <div className="flex items-center gap-2.5 w-full">
                   <button
                     type="button"
-                    onClick={() => setViewMode('form')}
-                    className="h-10 w-full rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5"
+                    onClick={handleSave}
+                    disabled={isSubmitting}
+                    className="flex-[1.3] h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center gap-1.5 shadow-sm transition-colors whitespace-nowrap disabled:opacity-50 cursor-pointer"
                   >
-                    <Pencil className="h-4 w-4 shrink-0 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
-                    <span>Edit</span>
+                    {isSubmitting ? 'Saving...' : 'Save Changes'}
                   </button>
                   <button
                     type="button"
                     onClick={handleDownloadPDF}
                     disabled={isDownloadingPdf}
-                    className="h-10 w-full rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-[13px] font-medium text-gray-700 dark:text-zinc-300 inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    className="flex-1 h-10 px-3.5 rounded-xl border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] text-gray-700 dark:text-zinc-300 text-[13px] font-medium inline-flex items-center justify-center gap-1.5 shadow-xs transition-colors whitespace-nowrap disabled:opacity-50 cursor-pointer"
                   >
-                    <Download className="h-4 w-4 shrink-0 text-gray-500 dark:text-zinc-400" strokeWidth={2} />
-                    <span>PDF</span>
+                    <Download className="h-4 w-4 shrink-0 text-gray-800 dark:text-zinc-200" strokeWidth={2} />
+                    <span>{isDownloadingPdf ? 'Downloading...' : 'Download PDF'}</span>
                   </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={isSubmitting}
-                  className="h-10 w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-medium inline-flex items-center justify-center disabled:opacity-50"
-                >
-                  <span>{isSubmitting ? 'Saving...' : 'Save Changes'}</span>
-                </button>
               </div>
             </div>
           </div>

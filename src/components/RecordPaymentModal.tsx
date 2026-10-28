@@ -276,12 +276,18 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
   return createPortal(
     <div
       onClick={onClose}
-      className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none"
+      onTouchMove={(e) => {
+        // Prevent touch-scrolling the page behind the backdrop
+        if (e.target === e.currentTarget) {
+          e.preventDefault();
+        }
+      }}
+      className="fixed inset-0 z-[100] w-screen h-dvh bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 touch-none overscroll-none"
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={dragOffsetY > 0 ? { transform: `translateY(${dragOffsetY}px)`, transition: 'none' } : undefined}
-        className="w-full sm:max-w-[460px] h-[85dvh] sm:h-auto sm:max-h-[90dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden touch-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
+        className="w-full sm:max-w-[460px] h-[85dvh] sm:h-auto sm:max-h-[85dvh] rounded-t-2xl sm:rounded-2xl border-t sm:border border-gray-200 dark:border-[#27272a] bg-white dark:bg-[#18181b] flex flex-col shadow-2xl overflow-hidden touch-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200"
       >
         {/* Mobile Drag Handle */}
         <div
@@ -324,7 +330,7 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
             setDragOffsetY(0);
             dragStartY.current = null;
           }}
-          className="px-5 pt-2 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a] shrink-0"
+          className="shrink-0 px-5 pt-4 pb-3 sm:px-6 sm:pt-5 sm:pb-4 border-b border-gray-100 dark:border-[#27272a]"
         >
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -415,7 +421,7 @@ export function RecordPaymentModal({ clientId, invoiceId, onClose, onSuccess }: 
         ) : activeInvoice ? (
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 font-sans text-left">
             {/* Scrollable Form Body - Strictly Single-Column Stack (space-y-4) */}
-            <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 sm:py-5 space-y-4">
+            <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5 space-y-4">
               {/* 1. Invoice Selector (if client-triggered, not locked) */}
               {!invoiceId && (
                 <div className="space-y-1.5" ref={invoiceContainerRef}>

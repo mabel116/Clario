@@ -1,18 +1,33 @@
 import { useEffect } from 'react';
 
 /**
- * Custom hook to lock background scrolling when a modal or sheet is open.
- * Targets #clario-main-scroll if available, falling back to document.body.
+ * Background scroll lock & iOS PWA status bar dimming hook.
+ * Note: Dynamic manipulation of element.style.overflow on #clario-main-scroll is omitted
+ * to prevent the iOS WebKit compositor paint detachment / scroll freeze bug.
+ * Background scroll prevention is handled via backdrop touch isolation on modal backdrops.
+ * Dynamically updates <meta name="theme-color"> so iOS dims the top status bar to match modal overlay.
  */
 export function useModalScrollLock(isLocked: boolean = true) {
   useEffect(() => {
-    if (!isLocked || typeof document === 'undefined') return;
-    const scrollEl = document.getElementById('clario-main-scroll') || document.body;
-    const originalOverflow = scrollEl.style.overflow;
-    scrollEl.style.overflow = 'hidden';
+    if (!isLocked) return;
+
+    let meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
+    const originalColor = meta ? meta.getAttribute('content') : '#ffffff';
+
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      document.head.appendChild(meta);
+    }
+
+    // Dim the iOS PWA status bar to match the dark modal overlay
+    meta.setAttribute('content', '#18181b');
 
     return () => {
-      scrollEl.style.overflow = originalOverflow;
+      if (meta) {
+        meta.setAttribute('content', originalColor || '#ffffff');
+      }
     };
   }, [isLocked]);
 }
+
